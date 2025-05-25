@@ -1,8 +1,10 @@
 
+import { useState } from 'react';
 import ModernDashboard from '@/components/ModernDashboard';
 import EnhancedChatInterface from '@/components/EnhancedChatInterface';
 import PropertySwiping from '@/components/PropertySwiping';
 import ProfilePage from '@/components/ProfilePage';
+import PropertyDetailPage from '@/components/PropertyDetailPage';
 
 interface UserData {
   id: number;
@@ -23,8 +25,8 @@ interface MainAppContentProps {
 }
 
 const MainAppContent = ({ activeTab, userData }: MainAppContentProps) => {
-  // In the main app context, we don't need the back functionality
-  // since we have bottom navigation
+  const [selectedPropertyId, setSelectedPropertyId] = useState<number | null>(null);
+
   const handleChatBack = () => {
     // Could potentially navigate to dashboard or do nothing
     // since we have bottom navigation
@@ -56,9 +58,32 @@ const MainAppContent = ({ activeTab, userData }: MainAppContentProps) => {
     console.log('Open chat from property swiping');
   };
 
+  const handlePropertyClick = (propertyId: number) => {
+    setSelectedPropertyId(propertyId);
+  };
+
+  const handleBackToDashboard = () => {
+    setSelectedPropertyId(null);
+  };
+
+  // Show property detail page if a property is selected
+  if (selectedPropertyId) {
+    return (
+      <PropertyDetailPage 
+        propertyId={selectedPropertyId}
+        onBack={handleBackToDashboard}
+      />
+    );
+  }
+
   return (
     <div className="pb-20">
-      {activeTab === 'dashboard' && <ModernDashboard userData={userData} />}
+      {activeTab === 'dashboard' && (
+        <ModernDashboard 
+          userData={userData} 
+          onPropertyClick={handlePropertyClick}
+        />
+      )}
       {activeTab === 'chat' && <EnhancedChatInterface onBack={handleChatBack} />}
       {activeTab === 'search' && (
         <PropertySwiping 

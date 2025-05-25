@@ -1,22 +1,23 @@
 
 import { useState } from 'react';
-import { Plus, Heart, Calendar, TrendingUp, Filter, MapPin } from 'lucide-react';
+import { Plus, Heart, Calendar, TrendingUp, Filter, MapPin, ChevronDown, Search } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import PropertyDetailModal from '@/components/PropertyDetailModal';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface ModernDashboardProps {
   userData: any;
+  onPropertyClick: (propertyId: number) => void;
 }
 
-const ModernDashboard = ({ userData }: ModernDashboardProps) => {
-  const [selectedProperty, setSelectedProperty] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [stageFilter, setStageFilter] = useState('all');
-  const [actionFilter, setActionFilter] = useState('all');
-  const [activityFilter, setActivityFilter] = useState('all');
+const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) => {
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedStages, setSelectedStages] = useState(['tour_scheduled', 'disclosure_review']);
+  const [selectedActions, setSelectedActions] = useState(['tour_scheduled']);
+  const [selectedActivities, setSelectedActivities] = useState(['recently_updated']);
 
   const mockStats = {
     savedHomes: 12,
@@ -69,6 +70,33 @@ const ModernDashboard = ({ userData }: ModernDashboardProps) => {
     }
   ];
 
+  const stages = [
+    { id: 'tour_scheduled', label: 'Tour' },
+    { id: 'disclosure_review', label: 'Disclosure Review' },
+    { id: 'offer_submitted', label: 'Offer Submitted' },
+    { id: 'negotiating', label: 'Negotiation' },
+    { id: 'escrow', label: 'Escrow' },
+    { id: 'inspection', label: 'Inspection' },
+    { id: 'appraisal', label: 'Appraisal' },
+    { id: 'contingencies', label: 'Contingencies Removed' },
+    { id: 'walkthrough', label: 'Walkthrough' },
+    { id: 'closing', label: 'Closing' }
+  ];
+
+  const actions = [
+    { id: 'tour_scheduled', label: 'Needs Tour Scheduled' },
+    { id: 'disclosure_review', label: 'Awaiting Disclosure Review' },
+    { id: 'offer_deadline', label: 'Offer Deadline Approaching' },
+    { id: 'inspection_needed', label: 'Inspection Needed' },
+    { id: 'appraisal_pending', label: 'Appraisal Pending' }
+  ];
+
+  const activities = [
+    { id: 'recently_updated', label: 'Recently Updated' },
+    { id: 'last_contacted', label: 'Last Contacted' },
+    { id: 'needs_follow_up', label: 'Needs Follow Up' }
+  ];
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'tour_scheduled':
@@ -95,17 +123,14 @@ const ModernDashboard = ({ userData }: ModernDashboardProps) => {
     }
   };
 
-  const handlePropertyClick = (property) => {
-    setSelectedProperty(property);
-    setIsModalOpen(true);
-  };
-
   const filteredProperties = mockProperties.filter(property => {
-    if (stageFilter !== 'all' && property.currentStage !== stageFilter) return false;
-    if (actionFilter !== 'all' && property.actionNeeded !== actionFilter) return false;
-    if (activityFilter !== 'all' && property.lastActivity !== activityFilter) return false;
+    if (selectedStages.length > 0 && !selectedStages.includes(property.currentStage)) return false;
+    if (selectedActions.length > 0 && !selectedActions.includes(property.actionNeeded)) return false;
+    if (selectedActivities.length > 0 && !selectedActivities.includes(property.lastActivity)) return false;
     return true;
   });
+
+  const activeFiltersCount = selectedStages.length + selectedActions.length + selectedActivities.length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30">
@@ -132,15 +157,17 @@ const ModernDashboard = ({ userData }: ModernDashboardProps) => {
       <div className="max-w-lg mx-auto px-6 py-6 space-y-6">
         {/* Continue Your Search - Smaller */}
         <Card className="border-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
-          <CardContent className="p-4">
-            <h3 className="text-base font-semibold mb-2">Continue Your Search</h3>
-            <p className="text-blue-100 mb-3 text-sm">
-              8 new matches found
-            </p>
-            <Button size="sm" className="bg-white text-blue-600 hover:bg-blue-50 font-medium">
-              <Plus size={14} className="mr-1" />
-              View Matches
-            </Button>
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold mb-1">Continue Your Search</h3>
+                <p className="text-blue-100 text-xs">8 new matches found</p>
+              </div>
+              <Button size="sm" className="bg-white text-blue-600 hover:bg-blue-50 font-medium text-xs px-3 py-1">
+                <Plus size={12} className="mr-1" />
+                View
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -170,75 +197,122 @@ const ModernDashboard = ({ userData }: ModernDashboardProps) => {
         </div>
 
         {/* Filters */}
-        <Card className="border-0 bg-white/80 backdrop-blur-sm shadow-sm">
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2 mb-4">
-              <Filter size={16} className="text-gray-600" />
-              <h3 className="font-semibold text-gray-900">Filters</h3>
-            </div>
-            <div className="grid grid-cols-1 gap-3">
-              <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">
-                  Stage in Buying Process
-                </label>
-                <Select value={stageFilter} onValueChange={setStageFilter}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="All stages" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Stages</SelectItem>
-                    <SelectItem value="tour_scheduled">Tour</SelectItem>
-                    <SelectItem value="disclosure_review">Disclosure Review</SelectItem>
-                    <SelectItem value="offer_submitted">Offer Submitted</SelectItem>
-                    <SelectItem value="negotiating">Negotiation</SelectItem>
-                    <SelectItem value="escrow">Escrow</SelectItem>
-                    <SelectItem value="inspection">Inspection</SelectItem>
-                    <SelectItem value="appraisal">Appraisal</SelectItem>
-                    <SelectItem value="contingencies">Contingencies Removed</SelectItem>
-                    <SelectItem value="walkthrough">Walkthrough</SelectItem>
-                    <SelectItem value="closing">Closing</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">
-                  Upcoming Action Required
-                </label>
-                <Select value={actionFilter} onValueChange={setActionFilter}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="All actions" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Actions</SelectItem>
-                    <SelectItem value="tour_scheduled">Needs Tour Scheduled</SelectItem>
-                    <SelectItem value="disclosure_review">Awaiting Disclosure Review</SelectItem>
-                    <SelectItem value="offer_deadline">Offer Deadline Approaching</SelectItem>
-                    <SelectItem value="inspection_needed">Inspection Needed</SelectItem>
-                    <SelectItem value="appraisal_pending">Appraisal Pending</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">
-                  Last Activity Date
-                </label>
-                <Select value={activityFilter} onValueChange={setActivityFilter}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="All activity" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Activity</SelectItem>
-                    <SelectItem value="recently_updated">Recently Updated</SelectItem>
-                    <SelectItem value="last_contacted">Last Contacted</SelectItem>
-                    <SelectItem value="needs_follow_up">Needs Follow Up</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="space-y-3">
+          <div className="flex items-center space-x-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center space-x-2 ${activeFiltersCount > 0 ? 'bg-blue-50 border-blue-200' : ''}`}
+            >
+              <Filter size={16} />
+              <span>Filters</span>
+              {activeFiltersCount > 0 && (
+                <Badge className="bg-blue-500 text-white text-xs px-1.5 py-0.5 min-w-[20px] h-5">
+                  {activeFiltersCount}
+                </Badge>
+              )}
+            </Button>
+            <Input 
+              placeholder="Search in properties" 
+              className="flex-1"
+              icon={<Search size={16} />}
+            />
+          </div>
+
+          {showFilters && (
+            <Card className="border-0 bg-white/80 backdrop-blur-sm shadow-sm">
+              <CardContent className="p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-900">Filters</h3>
+                  <Button variant="ghost" size="sm" className="text-blue-600">
+                    Save view
+                  </Button>
+                </div>
+
+                <Collapsible defaultOpen>
+                  <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-gray-50 rounded">
+                    <span className="font-medium">Stage in Buying Process</span>
+                    <ChevronDown size={16} />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-2 mt-2">
+                    {stages.map((stage) => (
+                      <div key={stage.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={stage.id}
+                          checked={selectedStages.includes(stage.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedStages([...selectedStages, stage.id]);
+                            } else {
+                              setSelectedStages(selectedStages.filter(s => s !== stage.id));
+                            }
+                          }}
+                        />
+                        <label htmlFor={stage.id} className="text-sm cursor-pointer">
+                          {stage.label}
+                        </label>
+                      </div>
+                    ))}
+                  </CollapsibleContent>
+                </Collapsible>
+
+                <Collapsible>
+                  <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-gray-50 rounded">
+                    <span className="font-medium">Upcoming Action Required</span>
+                    <ChevronDown size={16} />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-2 mt-2">
+                    {actions.map((action) => (
+                      <div key={action.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={action.id}
+                          checked={selectedActions.includes(action.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedActions([...selectedActions, action.id]);
+                            } else {
+                              setSelectedActions(selectedActions.filter(a => a !== action.id));
+                            }
+                          }}
+                        />
+                        <label htmlFor={action.id} className="text-sm cursor-pointer">
+                          {action.label}
+                        </label>
+                      </div>
+                    ))}
+                  </CollapsibleContent>
+                </Collapsible>
+
+                <Collapsible>
+                  <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-gray-50 rounded">
+                    <span className="font-medium">Last Activity Date</span>
+                    <ChevronDown size={16} />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-2 mt-2">
+                    {activities.map((activity) => (
+                      <div key={activity.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={activity.id}
+                          checked={selectedActivities.includes(activity.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedActivities([...selectedActivities, activity.id]);
+                            } else {
+                              setSelectedActivities(selectedActivities.filter(a => a !== activity.id));
+                            }
+                          }}
+                        />
+                        <label htmlFor={activity.id} className="text-sm cursor-pointer">
+                          {activity.label}
+                        </label>
+                      </div>
+                    ))}
+                  </CollapsibleContent>
+                </Collapsible>
+              </CardContent>
+            </Card>
+          )}
+        </div>
 
         {/* Properties */}
         <div>
@@ -248,7 +322,7 @@ const ModernDashboard = ({ userData }: ModernDashboardProps) => {
               <Card 
                 key={property.id} 
                 className="border-0 bg-white/80 backdrop-blur-sm shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => handlePropertyClick(property)}
+                onClick={() => onPropertyClick(property.id)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-center space-x-4">
@@ -294,12 +368,6 @@ const ModernDashboard = ({ userData }: ModernDashboardProps) => {
           </div>
         </div>
       </div>
-
-      <PropertyDetailModal 
-        property={selectedProperty}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-      />
     </div>
   );
 };
