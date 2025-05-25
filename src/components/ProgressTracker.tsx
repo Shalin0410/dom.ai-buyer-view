@@ -46,25 +46,37 @@ const ProgressTracker = ({ showDetailed = false }) => {
   const currentStep = steps.findIndex(step => step.status === 'in_progress') + 1;
   const progressPercentage = ((currentStep - 1) / (steps.length - 1)) * 100;
 
-  const getStepIcon = (status) => {
+  const getStepIcon = (status, index) => {
     switch (status) {
       case 'completed':
-        return <CheckCircle className="text-green-600" size={20} />;
+        return (
+          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white">
+            <CheckCircle size={20} />
+          </div>
+        );
       case 'in_progress':
-        return <Clock className="text-blue-600" size={20} />;
+        return (
+          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white">
+            <CheckCircle size={20} />
+          </div>
+        );
       default:
-        return <Circle className="text-gray-400" size={20} />;
+        return (
+          <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-gray-500">
+            <span className="text-sm font-medium">{index + 1}</span>
+          </div>
+        );
     }
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusText = (status) => {
     switch (status) {
       case 'completed':
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Completed</Badge>;
+        return 'Finished';
       case 'in_progress':
-        return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">In Progress</Badge>;
+        return 'In Progress';
       default:
-        return <Badge variant="secondary">Upcoming</Badge>;
+        return 'Waiting';
     }
   };
 
@@ -96,50 +108,66 @@ const ProgressTracker = ({ showDetailed = false }) => {
 
   return (
     <div className="space-y-6">
-      {/* Progress Overview */}
-      <Card className="bg-gradient-to-r from-blue-600 to-teal-600 text-white border-0">
-        <CardContent className="p-6">
-          <h2 className="text-xl font-semibold mb-2">Your Home Buying Journey</h2>
-          <div className="flex items-center space-x-4">
-            <div className="flex-1">
-              <Progress value={progressPercentage} className="bg-blue-400" />
+      {/* Progress Overview - Visual Design */}
+      <Card className="bg-gradient-to-br from-blue-50 to-purple-50 border-0">
+        <CardContent className="p-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">Steps Progress Indicator</h2>
+          
+          {/* Progress Line with Steps */}
+          <div className="relative">
+            {/* Background Line */}
+            <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-300"></div>
+            
+            {/* Progress Line */}
+            <div 
+              className="absolute top-4 left-4 h-0.5 bg-blue-500 transition-all duration-500"
+              style={{ width: `calc(${progressPercentage}% - 16px)` }}
+            ></div>
+            
+            {/* Steps */}
+            <div className="relative flex justify-between">
+              {steps.map((step, index) => (
+                <div key={step.id} className="flex flex-col items-center">
+                  {getStepIcon(step.status, index)}
+                  <div className="mt-4 text-center max-w-[120px]">
+                    <p className="text-sm font-medium text-gray-900 mb-1">
+                      {getStatusText(step.status)}
+                    </p>
+                    <p className="text-xs text-gray-600 leading-tight">
+                      {step.description}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
-            <span className="text-lg font-bold">{Math.round(progressPercentage)}%</span>
           </div>
-          <p className="text-blue-100 mt-2">
-            Step {currentStep} of {steps.length} • Keep up the great work!
-          </p>
+          
+          {/* Features */}
+          <div className="mt-12 grid grid-cols-3 gap-6 text-center">
+            <div>
+              <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-white mx-auto mb-2">
+                <span className="text-sm font-medium">1</span>
+              </div>
+              <p className="text-sm font-medium text-gray-900">Editable Titles</p>
+              <p className="text-xs text-gray-600">Description Text</p>
+            </div>
+            <div>
+              <div className="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center text-white mx-auto mb-2">
+                <CheckCircle size={16} />
+              </div>
+              <p className="text-sm font-medium text-gray-900">Swap Indicator colors</p>
+              <p className="text-xs text-gray-600">Select text or icon for indicator</p>
+            </div>
+            <div>
+              <div className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center text-gray-600 mx-auto mb-2">
+                <span className="text-sm font-medium">3</span>
+              </div>
+              <p className="text-sm font-medium text-gray-900">Change line color</p>
+              <p className="text-xs text-gray-600">Description</p>
+            </div>
+          </div>
         </CardContent>
       </Card>
-
-      {/* Detailed Steps */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900">Steps to Your New Home</h3>
-        {steps.map((step, index) => (
-          <Card key={step.id} className={`${
-            step.status === 'in_progress' ? 'border-blue-300 bg-blue-50' : ''
-          }`}>
-            <CardContent className="p-4">
-              <div className="flex items-start space-x-4">
-                <div className="mt-1">
-                  {getStepIcon(step.status)}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <h4 className="font-semibold text-gray-900">{step.title}</h4>
-                    {getStatusBadge(step.status)}
-                  </div>
-                  <p className="text-sm text-gray-600 mb-2">{step.description}</p>
-                  <p className="text-xs text-gray-500">{step.date}</p>
-                </div>
-                {index < steps.length - 1 && step.status === 'completed' && (
-                  <ArrowRight className="text-gray-400 mt-1" size={16} />
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
 
       {/* Next Steps */}
       <Card className="bg-orange-50 border-orange-200">

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Plus, Heart, Calendar, TrendingUp, Filter, MapPin, ChevronDown, Search } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -7,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import ProgressTracker from './ProgressTracker';
+import ActionItems from './ActionItems';
 
 interface ModernDashboardProps {
   userData: any;
@@ -157,14 +158,14 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
       <div className="max-w-lg mx-auto px-6 py-6 space-y-6">
         {/* Continue Your Search - Smaller */}
         <Card className="border-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
-          <CardContent className="p-3">
+          <CardContent className="p-2">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-semibold mb-1">Continue Your Search</h3>
+                <h3 className="text-xs font-semibold mb-0.5">Continue Your Search</h3>
                 <p className="text-blue-100 text-xs">8 new matches found</p>
               </div>
-              <Button size="sm" className="bg-white text-blue-600 hover:bg-blue-50 font-medium text-xs px-3 py-1">
-                <Plus size={12} className="mr-1" />
+              <Button size="sm" className="bg-white text-blue-600 hover:bg-blue-50 font-medium text-xs px-2 py-1">
+                <Plus size={10} className="mr-1" />
                 View
               </Button>
             </div>
@@ -195,6 +196,12 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
             </CardContent>
           </Card>
         </div>
+
+        {/* Progress Tracker */}
+        <ProgressTracker showDetailed={true} />
+
+        {/* Action Items */}
+        <ActionItems />
 
         {/* Filters */}
         <div className="space-y-3">
