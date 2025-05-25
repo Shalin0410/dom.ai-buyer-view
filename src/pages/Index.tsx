@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { MessageSquare, Home, Search, BarChart3, User, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -25,7 +26,7 @@ interface UserData {
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [appState, setAppState] = useState<AppState>('dashboard');
+  const [appState, setAppState] = useState<AppState>('auth');
   const [userData, setUserData] = useState<UserData | null>(null);
   const [userPreferences, setUserPreferences] = useState<string>('');
 
