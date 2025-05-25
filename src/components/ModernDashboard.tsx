@@ -199,6 +199,13 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
         {/* Filters */}
         <div className="space-y-3">
           <div className="flex items-center space-x-3">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <Input 
+                placeholder="Search in properties" 
+                className="pl-10"
+              />
+            </div>
             <Button
               variant="outline"
               onClick={() => setShowFilters(!showFilters)}
@@ -212,11 +219,6 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
                 </Badge>
               )}
             </Button>
-            <Input 
-              placeholder="Search in properties" 
-              className="flex-1"
-              icon={<Search size={16} />}
-            />
           </div>
 
           {showFilters && (
