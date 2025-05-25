@@ -23,10 +23,17 @@ interface MainAppContentProps {
 }
 
 const MainAppContent = ({ activeTab, userData }: MainAppContentProps) => {
+  // In the main app context, we don't need the back functionality
+  // since we have bottom navigation
+  const handleChatBack = () => {
+    // Could potentially navigate to dashboard or do nothing
+    // since we have bottom navigation
+  };
+
   return (
     <div className="pb-20">
       {activeTab === 'dashboard' && <ModernDashboard userData={userData} />}
-      {activeTab === 'chat' && <EnhancedChatInterface />}
+      {activeTab === 'chat' && <EnhancedChatInterface onBack={handleChatBack} />}
       {activeTab === 'search' && <PropertyMatch />}
       {activeTab === 'profile' && <ProfilePage userData={userData} />}
     </div>
