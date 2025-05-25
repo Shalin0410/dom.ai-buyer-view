@@ -1,11 +1,11 @@
-
 import { useState } from 'react';
 import AuthFlow from '@/components/AuthFlow';
 import PreferenceInput from '@/components/PreferenceInput';
 import PropertySwiping from '@/components/PropertySwiping';
 import EnhancedChatInterface from '@/components/EnhancedChatInterface';
+import PreferenceSuccess from '@/components/PreferenceSuccess';
 
-type AppState = 'auth' | 'preferences' | 'swiping' | 'chat';
+type AppState = 'auth' | 'preferences' | 'profile-notification' | 'swiping' | 'chat' | 'dashboard';
 
 interface UserData {
   id: number;
@@ -55,7 +55,11 @@ const AppStateManager = ({
         realtorInfo
       });
     }
-    // Skip profile notification and go straight to swiping
+    // Show success message before going to swiping
+    onStateChange('profile-notification');
+  };
+
+  const handleSuccessComplete = () => {
     onStateChange('swiping');
   };
 
@@ -94,6 +98,9 @@ const AppStateManager = ({
     
     case 'preferences':
       return <PreferenceInput onComplete={handlePreferencesComplete} />;
+    
+    case 'profile-notification':
+      return <PreferenceSuccess onComplete={handleSuccessComplete} />;
     
     case 'swiping':
       return (
