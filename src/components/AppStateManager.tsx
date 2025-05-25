@@ -2,11 +2,10 @@
 import { useState } from 'react';
 import AuthFlow from '@/components/AuthFlow';
 import PreferenceInput from '@/components/PreferenceInput';
-import ProfileNotification from '@/components/ProfileNotification';
 import PropertySwiping from '@/components/PropertySwiping';
 import EnhancedChatInterface from '@/components/EnhancedChatInterface';
 
-type AppState = 'auth' | 'preferences' | 'profile-notification' | 'swiping' | 'chat';
+type AppState = 'auth' | 'preferences' | 'swiping' | 'chat';
 
 interface UserData {
   id: number;
@@ -43,7 +42,7 @@ const AppStateManager = ({
     if (user.isFirstTime) {
       onStateChange('preferences');
     } else {
-      onStateChange('swiping'); // Changed from 'dashboard' to go to main app
+      onStateChange('swiping');
     }
   };
 
@@ -52,24 +51,12 @@ const AppStateManager = ({
     if (userData) {
       onUserDataUpdate({
         ...userData,
+        preferences,
         realtorInfo
       });
     }
-    onStateChange('profile-notification');
-  };
-
-  const handleProfileAccept = () => {
-    if (userData) {
-      onUserDataUpdate({
-        ...userData,
-        preferences: userPreferences
-      });
-    }
-    onStateChange('swiping'); // Changed from 'dashboard' to go to main app
-  };
-
-  const handleProfileEdit = () => {
-    onStateChange('preferences');
+    // Skip profile notification and go straight to swiping
+    onStateChange('swiping');
   };
 
   const handlePropertyAction = (propertyId: number, action: 'like' | 'dislike' | 'save') => {
@@ -107,15 +94,6 @@ const AppStateManager = ({
     
     case 'preferences':
       return <PreferenceInput onComplete={handlePreferencesComplete} />;
-    
-    case 'profile-notification':
-      return (
-        <ProfileNotification 
-          userInput={userPreferences}
-          onAccept={handleProfileAccept}
-          onEdit={handleProfileEdit}
-        />
-      );
     
     case 'swiping':
       return (

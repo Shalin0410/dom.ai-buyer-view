@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import PreferenceSuccess from '@/components/PreferenceSuccess';
 
 interface PreferenceInputProps {
   onComplete: (preferences: string, realtorInfo?: any) => void;
@@ -16,6 +17,7 @@ const PreferenceInput = ({ onComplete }: PreferenceInputProps) => {
   const [preferences, setPreferences] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [showRealtorForm, setShowRealtorForm] = useState(false);
   const [realtorInfo, setRealtorInfo] = useState({
     name: '',
@@ -38,10 +40,19 @@ const PreferenceInput = ({ onComplete }: PreferenceInputProps) => {
     if (preferences.trim()) {
       setIsProcessing(true);
       setTimeout(() => {
-        onComplete(preferences, showRealtorForm ? realtorInfo : undefined);
+        setIsProcessing(false);
+        setShowSuccess(true);
       }, 2000);
     }
   };
+
+  const handleSuccessComplete = () => {
+    onComplete(preferences, showRealtorForm ? realtorInfo : undefined);
+  };
+
+  if (showSuccess) {
+    return <PreferenceSuccess onComplete={handleSuccessComplete} />;
+  }
 
   const examplePreferences = [
     "First-time buyer, city living",
