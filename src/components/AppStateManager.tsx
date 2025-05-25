@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import AuthFlow from '@/components/AuthFlow';
 import PreferenceInput from '@/components/PreferenceInput';
@@ -42,7 +43,8 @@ const AppStateManager = ({
     if (user.isFirstTime) {
       onStateChange('preferences');
     } else {
-      onStateChange('swiping');
+      // Returning users go to dashboard
+      onStateChange('dashboard');
     }
   };
 
@@ -55,11 +57,12 @@ const AppStateManager = ({
         realtorInfo
       });
     }
-    // Show success message before going to swiping
+    // Show success message before going to search for first-time users
     onStateChange('profile-notification');
   };
 
   const handleSuccessComplete = () => {
+    // First-time users go to search page after onboarding
     onStateChange('swiping');
   };
 
