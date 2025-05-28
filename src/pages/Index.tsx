@@ -28,20 +28,22 @@ const Index = () => {
   // If user is not logged in, show the app state flow
   if (appState !== 'dashboard' && appState !== 'swiping') {
     return (
-      <AppStateManager
-        appState={appState}
-        userData={userData}
-        userPreferences={userPreferences}
-        onStateChange={setAppState}
-        onUserDataUpdate={setUserData}
-        onPreferencesUpdate={setUserPreferences}
-      />
+      <div className="min-h-screen bg-gradient-to-br from-brand-gray via-white to-brand-coral/20">
+        <AppStateManager
+          appState={appState}
+          userData={userData}
+          userPreferences={userPreferences}
+          onStateChange={setAppState}
+          onUserDataUpdate={setUserData}
+          onPreferencesUpdate={setUserPreferences}
+        />
+      </div>
     );
   }
 
   // Main app interface
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-brand-gray via-white to-brand-coral/20">
       <MainAppContent activeTab={activeTab} userData={userData} />
       <NavigationBar activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
