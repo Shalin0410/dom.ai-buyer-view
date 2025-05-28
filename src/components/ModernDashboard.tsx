@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import ProgressTracker from './ProgressTracker';
 import ActionItems from './ActionItems';
 
 interface ModernDashboardProps {
@@ -196,9 +195,6 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
             </CardContent>
           </Card>
         </div>
-
-        {/* Progress Tracker */}
-        <ProgressTracker showDetailed={true} />
 
         {/* Action Items */}
         <ActionItems />

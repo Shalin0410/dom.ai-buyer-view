@@ -141,31 +141,6 @@ const ProgressTracker = ({ showDetailed = false }) => {
               ))}
             </div>
           </div>
-          
-          {/* Features */}
-          <div className="mt-12 grid grid-cols-3 gap-6 text-center">
-            <div>
-              <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-white mx-auto mb-2">
-                <span className="text-sm font-medium">1</span>
-              </div>
-              <p className="text-sm font-medium text-gray-900">Editable Titles</p>
-              <p className="text-xs text-gray-600">Description Text</p>
-            </div>
-            <div>
-              <div className="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center text-white mx-auto mb-2">
-                <CheckCircle size={16} />
-              </div>
-              <p className="text-sm font-medium text-gray-900">Swap Indicator colors</p>
-              <p className="text-xs text-gray-600">Select text or icon for indicator</p>
-            </div>
-            <div>
-              <div className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center text-gray-600 mx-auto mb-2">
-                <span className="text-sm font-medium">3</span>
-              </div>
-              <p className="text-sm font-medium text-gray-900">Change line color</p>
-              <p className="text-xs text-gray-600">Description</p>
-            </div>
-          </div>
         </CardContent>
       </Card>
 
