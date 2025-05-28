@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import ProgressTracker from './ProgressTracker';
 
 interface PropertyDetailPageProps {
   propertyId: number;
@@ -27,28 +28,6 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
     sqft: 1850,
     image: "/placeholder.svg",
     currentStage: "tour_scheduled"
-  };
-
-  const processStages = [
-    'Tour', 'Review Disclosures', 'Write Offer', 'Negotiate Terms', 
-    'Offer Accepted', 'Home Inspection', 'Appraisal', 'Remove Contingencies', 
-    'Final Walkthrough', 'Closing'
-  ];
-
-  const getCurrentStageIndex = () => {
-    const stageMap = {
-      'tour_scheduled': 0,
-      'disclosure_review': 1,
-      'offer_written': 2,
-      'negotiating': 3,
-      'offer_accepted': 4,
-      'inspection': 5,
-      'appraisal': 6,
-      'contingencies': 7,
-      'walkthrough': 8,
-      'closing': 9
-    };
-    return stageMap[property?.currentStage] || 0;
   };
 
   const calculateMonthlyPayment = () => {
@@ -158,43 +137,7 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
         <section id="process" className="space-y-6">
           <h1 className="text-3xl font-bold text-gray-900">Buying Process</h1>
           
-          <Card>
-            <CardHeader>
-              <CardTitle>Progress Tracker</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {processStages.map((stage, index) => {
-                  const isCompleted = index < getCurrentStageIndex();
-                  const isCurrent = index === getCurrentStageIndex();
-                  
-                  return (
-                    <div key={stage} className={`flex items-center space-x-4 p-4 rounded-lg ${
-                      isCurrent ? 'bg-blue-50 border border-blue-200' : 
-                      isCompleted ? 'bg-green-50' : 'bg-gray-50'
-                    }`}>
-                      {isCompleted ? (
-                        <CheckCircle className="text-green-600" size={24} />
-                      ) : isCurrent ? (
-                        <Calendar className="text-blue-600" size={24} />
-                      ) : (
-                        <div className="w-6 h-6 border-2 border-gray-300 rounded-full" />
-                      )}
-                      <span className={`font-medium text-lg ${
-                        isCurrent ? 'text-blue-900' : 
-                        isCompleted ? 'text-green-900' : 'text-gray-600'
-                      }`}>
-                        {stage}
-                      </span>
-                      {isCurrent && (
-                        <Badge className="bg-blue-100 text-blue-800">Current</Badge>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+          <ProgressTracker showDetailed={true} />
         </section>
 
         {/* Financials Section */}

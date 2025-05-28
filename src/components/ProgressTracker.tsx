@@ -8,36 +8,71 @@ const ProgressTracker = ({ showDetailed = false }) => {
   const steps = [
     {
       id: 1,
-      title: "Pre-qualification",
-      description: "Get pre-approved for a mortgage",
+      title: "Tour",
+      description: "Schedule and complete property tour",
       status: "completed",
       date: "2024-01-15"
     },
     {
       id: 2,
-      title: "Define Preferences", 
-      description: "Set your must-haves and nice-to-haves",
+      title: "Review Disclosures", 
+      description: "Review property disclosures and reports",
       status: "completed",
       date: "2024-01-18"
     },
     {
       id: 3,
-      title: "Property Search",
-      description: "Find and view potential homes",
+      title: "Write Offer",
+      description: "Prepare and submit your offer",
       status: "in_progress",
       date: "In Progress"
     },
     {
       id: 4,
-      title: "Make Offer",
-      description: "Submit competitive offers", 
+      title: "Negotiate Terms",
+      description: "Negotiate price and contract terms", 
       status: "upcoming",
       date: "Upcoming"
     },
     {
       id: 5,
+      title: "Offer Accepted",
+      description: "Celebrate your accepted offer",
+      status: "upcoming", 
+      date: "Upcoming"
+    },
+    {
+      id: 6,
+      title: "Home Inspection",
+      description: "Professional property inspection",
+      status: "upcoming", 
+      date: "Upcoming"
+    },
+    {
+      id: 7,
+      title: "Appraisal",
+      description: "Lender orders property appraisal",
+      status: "upcoming", 
+      date: "Upcoming"
+    },
+    {
+      id: 8,
+      title: "Remove Contingencies",
+      description: "Remove inspection and appraisal contingencies",
+      status: "upcoming", 
+      date: "Upcoming"
+    },
+    {
+      id: 9,
+      title: "Final Walkthrough",
+      description: "Final property inspection before closing",
+      status: "upcoming", 
+      date: "Upcoming"
+    },
+    {
+      id: 10,
       title: "Closing",
-      description: "Finalize the purchase",
+      description: "Sign documents and get your keys!",
       status: "upcoming", 
       date: "Upcoming"
     }
@@ -50,26 +85,20 @@ const ProgressTracker = ({ showDetailed = false }) => {
     switch (status) {
       case 'completed':
         return (
-          <div className="relative">
-            <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center text-white shadow-sm border-4 border-white">
-              <CheckCircle size={20} />
-            </div>
+          <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center text-white shadow-lg border-4 border-white relative z-10">
+            <CheckCircle size={24} />
           </div>
         );
       case 'in_progress':
         return (
-          <div className="relative">
-            <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white shadow-sm border-4 border-white animate-pulse">
-              <div className="w-3 h-3 bg-white rounded-full"></div>
-            </div>
+          <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white shadow-lg border-4 border-white relative z-10">
+            <div className="w-4 h-4 bg-white rounded-full animate-pulse"></div>
           </div>
         );
       default:
         return (
-          <div className="relative">
-            <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 shadow-sm border-4 border-white">
-              <span className="text-sm font-semibold">{index + 1}</span>
-            </div>
+          <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 shadow-lg border-4 border-white relative z-10">
+            <span className="text-sm font-semibold">{index + 1}</span>
           </div>
         );
     }
@@ -102,40 +131,40 @@ const ProgressTracker = ({ showDetailed = false }) => {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Main Progress Timeline */}
-      <Card className="bg-white border border-gray-100 shadow-sm">
+      <Card className="bg-white shadow-sm">
         <CardContent className="p-8">
           <div className="text-center mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
               Home Buying Progress
             </h2>
-            <p className="text-gray-600">Track your journey to homeownership</p>
+            <p className="text-gray-600">Your journey to homeownership</p>
           </div>
           
-          {/* Progress Timeline */}
+          {/* Horizontal Timeline */}
           <div className="relative">
             {/* Background Line */}
-            <div className="absolute top-6 left-6 right-6 h-0.5 bg-gray-200"></div>
+            <div className="absolute top-6 left-6 right-6 h-1 bg-gray-200 rounded-full"></div>
             
             {/* Progress Line */}
             <div 
-              className="absolute top-6 left-6 h-0.5 bg-gradient-to-r from-green-500 to-blue-500 transition-all duration-1000 ease-out"
-              style={{ width: `calc(${progressPercentage}% * 0.8)` }}
+              className="absolute top-6 left-6 h-1 bg-gradient-to-r from-green-500 via-blue-500 to-blue-400 rounded-full transition-all duration-1000 ease-out"
+              style={{ width: `calc(${progressPercentage}% * 0.92)` }}
             ></div>
             
-            {/* Steps */}
-            <div className="relative flex justify-between items-start">
+            {/* Steps Grid */}
+            <div className="grid grid-cols-5 gap-4">
               {steps.map((step, index) => (
-                <div key={step.id} className="flex flex-col items-center flex-1">
+                <div key={step.id} className="flex flex-col items-center">
                   {/* Icon */}
                   <div className="mb-4">
                     {getStepIcon(step.status, index)}
                   </div>
                   
                   {/* Content */}
-                  <div className="text-center max-w-[120px]">
-                    <h4 className={`text-sm font-semibold mb-1 ${
+                  <div className="text-center">
+                    <h4 className={`text-xs font-semibold mb-1 ${
                       step.status === 'completed' ? 'text-green-700' :
                       step.status === 'in_progress' ? 'text-blue-700' : 
                       'text-gray-500'
@@ -146,8 +175,8 @@ const ProgressTracker = ({ showDetailed = false }) => {
                       {step.description}
                     </p>
                     {step.status === 'in_progress' && (
-                      <Badge className="mt-2 bg-blue-50 text-blue-700 text-xs">
-                        Current Step
+                      <Badge className="mt-2 bg-blue-50 text-blue-700 text-xs px-2 py-1">
+                        Current
                       </Badge>
                     )}
                   </div>
@@ -158,20 +187,20 @@ const ProgressTracker = ({ showDetailed = false }) => {
           
           {/* Progress Stats */}
           <div className="flex justify-center mt-8">
-            <div className="bg-gray-50 rounded-lg px-6 py-3">
-              <div className="flex items-center space-x-6 text-sm">
+            <div className="bg-gray-50 rounded-xl px-8 py-4">
+              <div className="flex items-center space-x-8 text-sm">
                 <div className="text-center">
-                  <div className="font-semibold text-gray-900">{currentStep}</div>
+                  <div className="text-2xl font-bold text-gray-900">{currentStep}</div>
                   <div className="text-gray-600">Current Step</div>
                 </div>
-                <div className="w-px h-8 bg-gray-300"></div>
+                <div className="w-px h-10 bg-gray-300"></div>
                 <div className="text-center">
-                  <div className="font-semibold text-gray-900">{Math.round(progressPercentage)}%</div>
+                  <div className="text-2xl font-bold text-blue-600">{Math.round(progressPercentage)}%</div>
                   <div className="text-gray-600">Complete</div>
                 </div>
-                <div className="w-px h-8 bg-gray-300"></div>
+                <div className="w-px h-10 bg-gray-300"></div>
                 <div className="text-center">
-                  <div className="font-semibold text-gray-900">{steps.length - currentStep}</div>
+                  <div className="text-2xl font-bold text-gray-900">{steps.length - currentStep}</div>
                   <div className="text-gray-600">Remaining</div>
                 </div>
               </div>
@@ -180,7 +209,7 @@ const ProgressTracker = ({ showDetailed = false }) => {
         </CardContent>
       </Card>
 
-      {/* Next Steps Card */}
+      {/* Up Next Card */}
       <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100">
         <CardContent className="p-6">
           <div className="flex items-start space-x-4">
@@ -188,9 +217,9 @@ const ProgressTracker = ({ showDetailed = false }) => {
               <Clock size={20} className="text-white" />
             </div>
             <div className="flex-1">
-              <h4 className="font-semibold text-blue-900 mb-2">What's Next?</h4>
+              <h4 className="font-semibold text-blue-900 mb-2">Up Next</h4>
               <p className="text-blue-800 mb-3">
-                You have 2 property viewings scheduled for this weekend. Make sure to prepare your questions and bring the necessary documents.
+                You're currently working on writing your offer. Make sure to review the property disclosures and prepare your financing documentation.
               </p>
               <div className="bg-blue-100 rounded-lg p-3 border border-blue-200">
                 <div className="flex items-start space-x-2">
@@ -198,7 +227,7 @@ const ProgressTracker = ({ showDetailed = false }) => {
                   <div>
                     <span className="font-medium text-blue-900 text-sm">Pro Tip: </span>
                     <span className="text-blue-800 text-sm">
-                      Take notes and photos during viewings to help you compare properties later.
+                      Consider including an escalation clause in your offer to stay competitive in this market.
                     </span>
                   </div>
                 </div>
