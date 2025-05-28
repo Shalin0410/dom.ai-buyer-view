@@ -50,20 +50,20 @@ const ProgressTracker = ({ showDetailed = false }) => {
     switch (status) {
       case 'completed':
         return (
-          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white">
+          <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white shadow-lg">
             <CheckCircle size={20} />
           </div>
         );
       case 'in_progress':
         return (
-          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white">
+          <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white shadow-lg">
             <CheckCircle size={20} />
           </div>
         );
       default:
         return (
-          <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-gray-500">
-            <span className="text-sm font-medium">{index + 1}</span>
+          <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-500 shadow-sm">
+            <span className="text-sm font-semibold">{index + 1}</span>
           </div>
         );
     }
@@ -77,6 +77,17 @@ const ProgressTracker = ({ showDetailed = false }) => {
         return 'In Progress';
       default:
         return 'Waiting';
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'completed':
+        return 'text-green-700';
+      case 'in_progress':
+        return 'text-blue-700';
+      default:
+        return 'text-gray-600';
     }
   };
 
@@ -108,32 +119,42 @@ const ProgressTracker = ({ showDetailed = false }) => {
 
   return (
     <div className="space-y-6">
-      {/* Progress Overview - Visual Design */}
-      <Card className="bg-gradient-to-br from-blue-50 to-purple-50 border-0">
-        <CardContent className="p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">Steps Progress Indicator</h2>
+      {/* Progress Overview - Enhanced Visual Design */}
+      <Card className="bg-gradient-to-br from-blue-50 via-white to-purple-50 border-0 shadow-xl">
+        <CardContent className="p-10">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
+              Steps Progress Indicator
+            </h2>
+            <p className="text-gray-600 text-lg">Track your home buying journey</p>
+          </div>
           
           {/* Progress Line with Steps */}
-          <div className="relative">
+          <div className="relative max-w-4xl mx-auto">
             {/* Background Line */}
-            <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-300"></div>
+            <div className="absolute top-5 left-5 right-5 h-1 bg-gradient-to-r from-gray-200 to-gray-300 rounded-full"></div>
             
             {/* Progress Line */}
             <div 
-              className="absolute top-4 left-4 h-0.5 bg-blue-500 transition-all duration-500"
-              style={{ width: `calc(${progressPercentage}% - 16px)` }}
+              className="absolute top-5 left-5 h-1 bg-gradient-to-r from-green-500 via-blue-500 to-purple-500 rounded-full transition-all duration-1000 ease-out"
+              style={{ width: `calc(${progressPercentage}% - 20px)` }}
             ></div>
             
             {/* Steps */}
             <div className="relative flex justify-between">
               {steps.map((step, index) => (
-                <div key={step.id} className="flex flex-col items-center">
-                  {getStepIcon(step.status, index)}
-                  <div className="mt-4 text-center max-w-[120px]">
-                    <p className="text-sm font-medium text-gray-900 mb-1">
+                <div key={step.id} className="flex flex-col items-center group">
+                  <div className="transition-transform duration-200 group-hover:scale-110">
+                    {getStepIcon(step.status, index)}
+                  </div>
+                  <div className="mt-6 text-center max-w-[140px]">
+                    <p className={`text-base font-bold mb-2 ${getStatusColor(step.status)}`}>
                       {getStatusText(step.status)}
                     </p>
-                    <p className="text-xs text-gray-600 leading-tight">
+                    <p className="text-sm font-medium text-gray-900 mb-1 leading-tight">
+                      {step.title}
+                    </p>
+                    <p className="text-xs text-gray-600 leading-relaxed">
                       {step.description}
                     </p>
                   </div>
@@ -145,14 +166,27 @@ const ProgressTracker = ({ showDetailed = false }) => {
       </Card>
 
       {/* Next Steps */}
-      <Card className="bg-orange-50 border-orange-200">
-        <CardContent className="p-4">
-          <h4 className="font-semibold text-orange-800 mb-2">Up Next</h4>
-          <p className="text-sm text-orange-700 mb-3">
-            You have 2 property viewings scheduled for this weekend. Make sure to prepare your questions!
-          </p>
-          <div className="text-xs text-orange-600">
-            💡 Tip: Bring a notebook and take photos to help remember each property
+      <Card className="bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200 shadow-md">
+        <CardContent className="p-6">
+          <div className="flex items-start space-x-4">
+            <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
+              <Clock size={20} className="text-white" />
+            </div>
+            <div className="flex-1">
+              <h4 className="font-bold text-orange-800 mb-2 text-lg">Up Next</h4>
+              <p className="text-orange-700 mb-4 leading-relaxed">
+                You have 2 property viewings scheduled for this weekend. Make sure to prepare your questions and bring the necessary documents!
+              </p>
+              <div className="bg-orange-100 rounded-lg p-4 border border-orange-200">
+                <div className="flex items-center space-x-2 text-orange-700">
+                  <span className="text-lg">💡</span>
+                  <span className="font-medium text-sm">Pro Tip:</span>
+                </div>
+                <p className="text-xs text-orange-600 mt-1 ml-6">
+                  Bring a notebook and take photos to help remember each property. Don't forget to check the neighborhood during different times of day!
+                </p>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
