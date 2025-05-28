@@ -34,7 +34,7 @@ const NavigationBar = ({ activeTab, onTabChange }: NavigationBarProps) => {
         )}
       </div>
       <span className={`text-xs mt-2 font-medium transition-all duration-300 ${
-        activeTab === tabKey ? 'text-brand-coral font-semibold' : 'text-brand-navy/60'
+        activeTab === tabKey ? 'text-[#2E2E2E] font-semibold' : 'text-[#2E2E2E]/60'
       }`}>
         {label}
       </span>

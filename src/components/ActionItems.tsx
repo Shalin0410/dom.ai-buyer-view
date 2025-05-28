@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Calendar, Clock, AlertTriangle, CheckCircle2, Circle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -80,7 +79,7 @@ const ActionItems = () => {
       case 'medium':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-gray-100 text-[#2E2E2E] border-gray-200';
     }
   };
 
@@ -116,11 +115,11 @@ const ActionItems = () => {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="glass-card shadow-modern">
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
+          <CardTitle className="flex items-center justify-between text-[#2E2E2E]">
             <span>Action Items</span>
-            <Badge variant="outline" className="text-sm">
+            <Badge variant="outline" className="text-sm border-brand-coral text-brand-coral">
               {pendingItems.length} pending
             </Badge>
           </CardTitle>
@@ -129,7 +128,7 @@ const ActionItems = () => {
           {/* Pending Items */}
           {pendingItems.length > 0 && (
             <div className="space-y-3">
-              <h4 className="font-medium text-gray-900">Pending Tasks</h4>
+              <h4 className="font-medium text-[#2E2E2E]">Pending Tasks</h4>
               {pendingItems
                 .sort((a, b) => {
                   const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
@@ -155,19 +154,19 @@ const ActionItems = () => {
                         <div className="flex items-start justify-between">
                           <div className="flex items-center space-x-2">
                             {getTypeIcon(item.type)}
-                            <h5 className="font-medium text-gray-900">{item.title}</h5>
+                            <h5 className="font-medium text-[#2E2E2E]">{item.title}</h5>
                           </div>
                           <div className="flex items-center space-x-2">
                             <Badge className={getPriorityColor(item.priority)} variant="outline">
                               {item.priority}
                             </Badge>
-                            <Badge variant="secondary" className="text-xs">
+                            <Badge variant="secondary" className="text-xs bg-brand-gray text-[#2E2E2E]">
                               {item.daysLeft} days left
                             </Badge>
                           </div>
                         </div>
-                        <p className="text-sm text-gray-600 mt-1">{item.description}</p>
-                        <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                        <p className="text-sm text-[#2E2E2E]/70 mt-1">{item.description}</p>
+                        <div className="flex items-center space-x-4 mt-2 text-xs text-[#2E2E2E]/60">
                           <div className="flex items-center space-x-1">
                             <Calendar size={12} />
                             <span>Due: {new Date(item.dueDate).toLocaleDateString()}</span>
@@ -185,7 +184,7 @@ const ActionItems = () => {
           {/* Completed Items */}
           {completedItems.length > 0 && (
             <div className="space-y-3 pt-4 border-t border-gray-200">
-              <h4 className="font-medium text-gray-900 flex items-center space-x-2">
+              <h4 className="font-medium text-[#2E2E2E] flex items-center space-x-2">
                 <CheckCircle2 size={16} className="text-green-600" />
                 <span>Completed ({completedItems.length})</span>
               </h4>
@@ -201,12 +200,12 @@ const ActionItems = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2">
                         {getTypeIcon(item.type)}
-                        <h5 className="font-medium text-gray-900 line-through">{item.title}</h5>
+                        <h5 className="font-medium text-[#2E2E2E] line-through">{item.title}</h5>
                         <Badge className="bg-green-100 text-green-800 border-green-200" variant="outline">
                           completed
                         </Badge>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1 line-through">{item.description}</p>
+                      <p className="text-sm text-[#2E2E2E]/70 mt-1 line-through">{item.description}</p>
                     </div>
                   </div>
                 </div>
@@ -215,9 +214,9 @@ const ActionItems = () => {
           )}
 
           {pendingItems.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-[#2E2E2E]/60">
               <CheckCircle2 size={48} className="mx-auto text-green-500 mb-4" />
-              <p className="text-lg font-medium">All caught up!</p>
+              <p className="text-lg font-medium text-[#2E2E2E]">All caught up!</p>
               <p className="text-sm">No pending action items at the moment.</p>
             </div>
           )}
