@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import NavigationBar from '@/components/NavigationBar';
+import Header from '@/components/Header';
 import AppStateManager from '@/components/AppStateManager';
 import MainAppContent from '@/components/MainAppContent';
 
@@ -28,7 +28,7 @@ const Index = () => {
   // If user is not logged in, show the app state flow
   if (appState !== 'dashboard' && appState !== 'swiping') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-brand-gray via-white to-brand-coral/20">
+      <div className="min-h-screen bg-gradient-to-br from-[#E8ECF2] via-white to-[#F47C6D]/10">
         <AppStateManager
           appState={appState}
           userData={userData}
@@ -41,11 +41,13 @@ const Index = () => {
     );
   }
 
-  // Main app interface
+  // Main website interface
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-gray via-white to-brand-coral/20">
-      <MainAppContent activeTab={activeTab} userData={userData} />
-      <NavigationBar activeTab={activeTab} onTabChange={setActiveTab} />
+    <div className="min-h-screen bg-gradient-to-br from-[#E8ECF2] via-white to-[#F47C6D]/10">
+      <Header activeTab={activeTab} onTabChange={setActiveTab} />
+      <main className="max-w-7xl mx-auto px-6 py-8">
+        <MainAppContent activeTab={activeTab} userData={userData} />
+      </main>
     </div>
   );
 };

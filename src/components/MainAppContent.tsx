@@ -28,8 +28,7 @@ const MainAppContent = ({ activeTab, userData }: MainAppContentProps) => {
   const [selectedPropertyId, setSelectedPropertyId] = useState<number | null>(null);
 
   const handleChatBack = () => {
-    // Could potentially navigate to dashboard or do nothing
-    // since we have bottom navigation
+    // Navigation handled by header now
   };
 
   const handlePropertyAction = (propertyId: number, action: 'like' | 'dislike' | 'save') => {
@@ -54,7 +53,6 @@ const MainAppContent = ({ activeTab, userData }: MainAppContentProps) => {
   };
 
   const handleOpenChat = () => {
-    // In main app, this could switch to chat tab
     console.log('Open chat from property swiping');
   };
 
@@ -69,15 +67,17 @@ const MainAppContent = ({ activeTab, userData }: MainAppContentProps) => {
   // Show property detail page if a property is selected
   if (selectedPropertyId) {
     return (
-      <PropertyDetailPage 
-        propertyId={selectedPropertyId}
-        onBack={handleBackToDashboard}
-      />
+      <div className="w-full">
+        <PropertyDetailPage 
+          propertyId={selectedPropertyId}
+          onBack={handleBackToDashboard}
+        />
+      </div>
     );
   }
 
   return (
-    <div className="pb-20">
+    <div className="w-full">
       {activeTab === 'dashboard' && (
         <ModernDashboard 
           userData={userData} 

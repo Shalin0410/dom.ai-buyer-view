@@ -56,30 +56,33 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#E8ECF2] via-white to-[#F47C6D]/10 flex">
-      {/* Left Navigation */}
-      <div className="w-64 glass-card shadow-modern border-r border-white/30 fixed h-full overflow-y-auto">
-        <div className="p-6">
-          <Button 
-            variant="ghost" 
-            onClick={onBack}
-            className="mb-6 p-0 h-auto font-normal text-[#2E2E2E] hover:text-[#2E2E2E]/80"
-          >
-            <ArrowLeft size={16} className="mr-2" />
-            Back to Dashboard
-          </Button>
-          
-          <div className="mb-6">
-            <h2 className="font-semibold text-[#2E2E2E] mb-2">{property.address}</h2>
-            <p className="text-sm text-[#2E2E2E]/70">{property.city}</p>
-          </div>
+    <div className="w-full max-w-7xl mx-auto">
+      {/* Header with back button */}
+      <div className="mb-8">
+        <Button 
+          variant="ghost" 
+          onClick={onBack}
+          className="mb-4 p-0 h-auto font-normal text-[#2E2E2E] hover:text-[#2E2E2E]/80"
+        >
+          <ArrowLeft size={16} className="mr-2" />
+          Back to Dashboard
+        </Button>
+        
+        <div className="glass-card shadow-modern p-6">
+          <h1 className="text-3xl font-bold text-[#2E2E2E] mb-2">{property.address}</h1>
+          <p className="text-lg text-[#2E2E2E]/70">{property.city}</p>
+        </div>
+      </div>
 
-          <nav className="space-y-2">
+      {/* Navigation tabs */}
+      <div className="glass-card shadow-modern mb-8">
+        <div className="p-6">
+          <nav className="flex space-x-4 overflow-x-auto">
             {navigationItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => scrollToSection(item.id)}
-                className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                className={`whitespace-nowrap px-6 py-3 rounded-xl transition-colors font-medium ${
                   activeSection === item.id 
                     ? 'bg-gradient-to-r from-[#3B4A6B] to-[#57C6A8] text-[#E8ECF2] shadow-lg' 
                     : 'hover:bg-white/50 text-[#2E2E2E]'
@@ -92,23 +95,23 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 ml-64 p-8 space-y-8">
+      {/* Content sections */}
+      <div className="space-y-8">
         {/* Overview Section */}
         <section id="overview" className="space-y-6">
-          <h1 className="text-3xl font-bold text-[#2E2E2E]">Property Overview</h1>
+          <h2 className="text-2xl font-bold text-[#2E2E2E]">Property Overview</h2>
           
-          <div className="grid grid-cols-2 gap-6">
-            <div className="aspect-video bg-gray-200 rounded-lg">
-              <img src={property.image} alt="Property" className="w-full h-full object-cover rounded-lg" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="aspect-video bg-gray-200 rounded-2xl overflow-hidden">
+              <img src={property.image} alt="Property" className="w-full h-full object-cover" />
             </div>
             <Card className="glass-card shadow-modern">
               <CardContent className="p-6 space-y-4">
                 <div>
-                  <h3 className="text-2xl font-bold text-[#2E2E2E]">${property.price.toLocaleString()}</h3>
+                  <h3 className="text-3xl font-bold text-[#2E2E2E]">${property.price.toLocaleString()}</h3>
                   <p className="text-[#2E2E2E]/70">{property.address}, {property.city}</p>
                 </div>
-                <div className="flex space-x-6">
+                <div className="flex flex-wrap gap-6">
                   <div className="flex items-center space-x-2 text-[#2E2E2E]">
                     <Bed size={20} />
                     <span>{property.beds} beds</span>
@@ -135,14 +138,13 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
 
         {/* Process Section */}
         <section id="process" className="space-y-6">
-          <h1 className="text-3xl font-bold text-[#2E2E2E]">Buying Process</h1>
-          
+          <h2 className="text-2xl font-bold text-[#2E2E2E]">Buying Process</h2>
           <ProgressTracker showDetailed={true} />
         </section>
 
         {/* Financials Section */}
         <section id="financials" className="space-y-6">
-          <h1 className="text-3xl font-bold text-[#2E2E2E]">Net Sheet</h1>
+          <h2 className="text-2xl font-bold text-[#2E2E2E]">Net Sheet</h2>
           
           <Card className="glass-card shadow-modern">
             <CardHeader>
@@ -152,7 +154,7 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <p className="text-sm text-[#2E2E2E]/70">Purchase Price</p>
                   <p className="text-2xl font-semibold text-[#2E2E2E]">${property.price.toLocaleString()}</p>
@@ -167,7 +169,7 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
                 </div>
                 <div>
                   <p className="text-sm text-[#2E2E2E]/70">Monthly Payment</p>
-                  <p className="text-3xl font-bold text-[#F47C6D]">${Math.round(calculateMonthlyPayment()).toLocaleString()}</p>
+                  <p className="text-3xl font-bold text-[#2E2E2E]">${Math.round(calculateMonthlyPayment()).toLocaleString()}</p>
                 </div>
               </div>
               <div className="border-t pt-6 space-y-3">
@@ -194,7 +196,7 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
 
         {/* AI Review Section */}
         <section id="ai-review" className="space-y-6">
-          <h1 className="text-3xl font-bold text-[#2E2E2E]">AI Review</h1>
+          <h2 className="text-2xl font-bold text-[#2E2E2E]">AI Review</h2>
           
           <Card className="glass-card shadow-modern">
             <CardHeader>
@@ -204,7 +206,7 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="bg-gradient-to-r from-[#57C6A8]/20 to-[#57C6A8]/10 border border-[#57C6A8]/30 rounded-lg p-6">
+              <div className="bg-gradient-to-r from-[#57C6A8]/20 to-[#57C6A8]/10 border border-[#57C6A8]/30 rounded-2xl p-6">
                 <h4 className="font-semibold text-[#2E2E2E] mb-3">Overall Assessment: Good</h4>
                 <p className="text-[#2E2E2E]/80">
                   This property shows well-maintained condition with standard disclosures. No major red flags identified.
@@ -236,9 +238,9 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
 
         {/* Communication Section */}
         <section id="communication" className="space-y-6">
-          <h1 className="text-3xl font-bold text-[#2E2E2E]">Communication</h1>
+          <h2 className="text-2xl font-bold text-[#2E2E2E]">Communication</h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card className="glass-card shadow-modern">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2 text-[#2E2E2E]">
@@ -258,7 +260,7 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
                   Send Message
                 </Button>
                 
-                <div className="bg-gradient-to-r from-[#E8ECF2]/60 to-white/60 backdrop-blur-sm rounded-lg p-4">
+                <div className="bg-gradient-to-r from-[#E8ECF2]/60 to-white/60 backdrop-blur-sm rounded-2xl p-4">
                   <p className="font-medium text-[#2E2E2E]">AI Assistant:</p>
                   <p className="mt-2 text-[#2E2E2E]/80">I'm here to help answer questions about this property's features, neighborhood, market data, and more!</p>
                 </div>
@@ -270,7 +272,7 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
                 <CardTitle className="text-[#2E2E2E]">Message Your Agent</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="bg-gradient-to-r from-[#3B4A6B]/10 to-[#57C6A8]/10 rounded-lg p-4">
+                <div className="bg-gradient-to-r from-[#3B4A6B]/10 to-[#57C6A8]/10 rounded-2xl p-4">
                   <p className="font-medium text-[#2E2E2E]">Sarah Chen (Agent):</p>
                   <p className="mt-2 text-[#2E2E2E]/80">Great choice! I've already reached out to the listing agent. When would you like to schedule a viewing?</p>
                   <p className="text-xs text-[#2E2E2E]/60 mt-3">2 hours ago</p>
