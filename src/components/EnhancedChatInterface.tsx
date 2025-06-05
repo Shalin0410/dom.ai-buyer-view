@@ -43,7 +43,7 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
     listing: {
       icon: Home,
       title: "Listing Questions",
-      color: "bg-blue-100 text-blue-800",
+      color: "bg-blue-50 text-blue-700 border-blue-200",
       questions: [
         "Show me listings in zipcode 94107",
         "Show me listings on the market for over 30 days",
@@ -54,7 +54,7 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
     process: {
       icon: HelpCircle,
       title: "Home Buying Process",
-      color: "bg-green-100 text-green-800",
+      color: "bg-green-50 text-green-700 border-green-200",
       questions: [
         "What is the home buying process?",
         "Who are the key stakeholders?",
@@ -65,7 +65,7 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
     market: {
       icon: TrendingUp,
       title: "Market Insights",
-      color: "bg-purple-100 text-purple-800",
+      color: "bg-purple-50 text-purple-700 border-purple-200",
       questions: [
         "Recent market trends in San Francisco",
         "What is the average interest rate?",
@@ -112,22 +112,22 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-teal-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-lg mx-auto px-4 py-4">
-          <div className="flex items-center space-x-3">
-            <Button onClick={onBack} variant="ghost" size="sm" className="p-2">
-              <ArrowLeft size={20} />
+      <div className="bg-white/80 backdrop-blur-sm shadow-lg border-b border-gray-200/50">
+        <div className="max-w-4xl mx-auto px-6 py-4">
+          <div className="flex items-center space-x-4">
+            <Button onClick={onBack} variant="ghost" size="sm" className="p-2 hover:bg-gray-100">
+              <ArrowLeft size={18} />
             </Button>
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-teal-600 rounded-full flex items-center justify-center">
-                <Bot className="text-white" size={20} />
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                <Bot className="text-white" size={18} />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">AI Assistant</h3>
+                <h3 className="text-lg font-semibold text-gray-900">AI Assistant</h3>
                 <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <div className="w-2 h-2 bg-green-500 rounded-full shadow-sm"></div>
                   <span className="text-sm text-gray-600">Online</span>
                 </div>
               </div>
@@ -136,28 +136,28 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 py-6 pb-24">
+      <div className="max-w-4xl mx-auto px-6 py-8 pb-32">
         {/* Question Categories */}
         {!selectedCategory && messages.length <= 1 && (
-          <div className="space-y-4 mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">What can I help you with?</h3>
-            <div className="grid gap-3">
+          <div className="space-y-6 mb-8">
+            <h3 className="text-xl font-semibold text-gray-900">What can I help you with?</h3>
+            <div className="grid gap-4 md:grid-cols-3">
               {Object.entries(questionCategories).map(([key, category]) => {
                 const IconComponent = category.icon;
                 return (
                   <Card 
                     key={key} 
-                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    className="cursor-pointer hover:shadow-lg transition-all duration-200 border border-gray-200 bg-white/80 backdrop-blur-sm hover:scale-105"
                     onClick={() => setSelectedCategory(key)}
                   >
-                    <CardContent className="p-4">
-                      <div className="flex items-center space-x-3">
-                        <div className={`p-2 rounded-lg ${category.color}`}>
-                          <IconComponent size={20} />
+                    <CardContent className="p-6">
+                      <div className="flex flex-col items-center text-center space-y-3">
+                        <div className={`p-3 rounded-xl border ${category.color} shadow-md`}>
+                          <IconComponent size={24} />
                         </div>
                         <div>
-                          <h4 className="font-medium text-gray-900">{category.title}</h4>
-                          <p className="text-sm text-gray-600">
+                          <h4 className="font-semibold text-gray-900 text-sm">{category.title}</h4>
+                          <p className="text-xs text-gray-600 mt-1">
                             {category.questions[0]}...
                           </p>
                         </div>
@@ -172,25 +172,26 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
 
         {/* Selected Category Questions */}
         {selectedCategory && messages.length <= 1 && (
-          <div className="space-y-4 mb-6">
+          <div className="space-y-6 mb-8">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-xl font-semibold text-gray-900">
                 {questionCategories[selectedCategory].title}
               </h3>
               <Button 
                 onClick={() => setSelectedCategory(null)} 
-                variant="ghost" 
+                variant="outline" 
                 size="sm"
+                className="shadow-sm"
               >
                 Back
               </Button>
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-3">
               {questionCategories[selectedCategory].questions.map((question, index) => (
                 <Button
                   key={index}
                   variant="outline"
-                  className="text-left justify-start h-auto py-3 px-4"
+                  className="text-left justify-start h-auto py-4 px-5 text-sm font-normal shadow-sm hover:shadow-md transition-all duration-200 bg-white/80 backdrop-blur-sm"
                   onClick={() => sendMessage(question)}
                 >
                   {question}
@@ -201,26 +202,26 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
         )}
 
         {/* Messages */}
-        <div className="space-y-4 mb-6">
+        <div className="space-y-6 mb-8">
           {messages.map((message) => (
             <div
               key={message.id}
               className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                className={`max-w-[75%] rounded-2xl px-5 py-4 shadow-lg ${
                   message.sender === 'user'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-900 shadow-sm border'
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
+                    : 'bg-white/90 backdrop-blur-sm text-gray-900 border border-gray-200'
                 }`}
               >
                 {message.category && (
-                  <Badge className={`mb-2 ${questionCategories[message.category].color}`}>
+                  <Badge className={`mb-3 text-xs px-2 py-1 shadow-sm ${questionCategories[message.category].color}`}>
                     {questionCategories[message.category].title}
                   </Badge>
                 )}
-                <p className="text-sm">{message.text}</p>
-                <p className={`text-xs mt-1 ${
+                <p className="text-sm leading-relaxed">{message.text}</p>
+                <p className={`text-xs mt-2 ${
                   message.sender === 'user' ? 'text-blue-100' : 'text-gray-500'
                 }`}>
                   {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -233,24 +234,24 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
       </div>
 
       {/* Input Area */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg">
-        <div className="max-w-lg mx-auto p-4">
-          <div className="flex items-center space-x-2">
+      <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-t border-gray-200/50 shadow-2xl">
+        <div className="max-w-4xl mx-auto p-6">
+          <div className="flex items-center space-x-3 bg-white rounded-2xl shadow-lg border border-gray-200 p-2">
             <Input
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               placeholder="Ask me anything about real estate..."
-              className="flex-1"
+              className="flex-1 border-0 bg-transparent text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
               onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
             />
-            <Button variant="ghost" size="sm" className="text-gray-500">
-              <Mic size={20} />
+            <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700 p-2">
+              <Mic size={18} />
             </Button>
             <Button 
               onClick={() => sendMessage()}
               disabled={!inputText.trim()}
               size="sm"
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-md px-4 py-2"
             >
               <Send size={16} />
             </Button>
