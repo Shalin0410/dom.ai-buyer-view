@@ -73,7 +73,7 @@ const AuthFlow = ({ onLogin }: AuthFlowProps) => {
                 className="input-modern"
               />
             </div>
-            <Button type="submit" className="w-full bg-gradient-to-r from-[#3B4A6B] to-[#57C6A8] text-[#E8ECF2] hover:opacity-90">
+            <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 rounded-xl font-medium shadow-lg">
               {isLogin ? 'Sign In' : 'Create Account'}
             </Button>
           </form>
