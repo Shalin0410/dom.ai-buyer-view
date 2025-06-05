@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import ActionItems from './ActionItems';
 import DashboardHeader from './DashboardHeader';
@@ -57,6 +56,20 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
       status: "offer_made",
       currentStage: "negotiating",
       actionNeeded: "offer_deadline",
+      lastActivity: "recently_updated"
+    },
+    {
+      id: 4,
+      address: "321 Cedar Lane",
+      city: "Austin, TX",
+      price: 395000,
+      beds: 2,
+      baths: 2,
+      sqft: 1650,
+      image: "/lovable-uploads/473b81b4-4a7f-4522-9fc2-56e9031541f0.png",
+      status: "interested",
+      currentStage: "tour_scheduled",
+      actionNeeded: "tour_scheduled",
       lastActivity: "recently_updated"
     }
   ];
