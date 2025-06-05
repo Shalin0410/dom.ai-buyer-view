@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { ArrowLeft, MapPin, Bed, Bath, Square, DollarSign, MessageCircle, Bot, CheckCircle, Calendar, TrendingUp, Star, Clock, Target } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -371,7 +370,7 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
                   <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                     <p className="font-medium text-gray-900 text-sm">Sarah Chen (Agent):</p>
                     <p className="mt-2 text-gray-700 text-xs">Great choice! I've already reached out to the listing agent. When would you like to schedule a viewing?</p>
-                    <p className="text-xs text-gray-500 mt-3">2 hours ago</p>
+                    <p className="text-xs text-gray-400 mt-3">2 hours ago</p>
                   </div>
                   
                   <Textarea 
