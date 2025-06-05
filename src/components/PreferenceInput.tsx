@@ -1,4 +1,3 @@
-
 import { useState, useRef } from 'react';
 import { Mic, MicOff, MessageSquare, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -88,7 +87,7 @@ const PreferenceInput = ({ onComplete }: PreferenceInputProps) => {
                 value={preferences}
                 onChange={(e) => setPreferences(e.target.value)}
                 placeholder="Example: My husband and I are buying a home for the first time. We prefer to live in the city, however we are family planning and anticipate kids to be at school going age in 5-7 years..."
-                className="min-h-[140px] pr-14 border-gray-200 focus:border-blue-400 focus:ring-blue-400 resize-none placeholder:text-[#E8ECF2]"
+                className="min-h-[140px] pr-14 border-gray-200 focus:border-blue-400 focus:ring-blue-400 resize-none placeholder:text-gray-400"
                 disabled={isRecording}
               />
               <Button
