@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Heart, X, Bookmark, Info, MapPin, Calendar, Star } from 'lucide-react';
+import { Heart, X, Bookmark, Info, MapPin, Calendar, Star, TrendingUp } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,7 @@ interface Property {
   insights: {
     whySuggested: string;
     profileDeviation?: string;
+    appreciation: string;
   };
   features: string[];
   neighborhood: string;
@@ -43,7 +44,8 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
       image: "/placeholder.svg",
       insights: {
         whySuggested: "In your price range, in the Mission (walkable neighborhood), and has the private backyard you need for your dog. You consistently liked homes with outdoor space.",
-        profileDeviation: undefined
+        profileDeviation: undefined,
+        appreciation: "This property is expected to appreciate 4-6% annually based on Mission District trends. The area's ongoing development and proximity to tech companies suggest strong long-term value growth."
       },
       features: ["Private Backyard", "Near CalTrain", "Pet-Friendly", "Great Restaurants Nearby"],
       neighborhood: "Mission District",
@@ -59,7 +61,8 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
       image: "/placeholder.svg",
       insights: {
         whySuggested: "We know you prefer the Mission, but have you considered Noe Valley? It's super walkable, family-friendly with great schools for your future plans, and still in the city - take a look!",
-        profileDeviation: "This is outside your preferred Mission neighborhood"
+        profileDeviation: "This is outside your preferred Mission neighborhood",
+        appreciation: "Noe Valley properties typically appreciate 5-7% annually. Family-friendly neighborhoods with top-rated schools tend to maintain strong property values and demand."
       },
       features: ["Great Schools", "Family-Friendly", "Near Transit", "Garden"],
       neighborhood: "Noe Valley",
@@ -119,7 +122,7 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
                   </Badge>
                 </div>
                 <div className="absolute top-6 right-6">
-                  <Badge variant="secondary" className="text-base px-4 py-2">
+                  <Badge className="bg-black text-white text-base px-4 py-2">
                     {currentProperty.daysOnMarket} days on market
                   </Badge>
                 </div>
@@ -137,7 +140,7 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
                     <h3 className="text-3xl font-bold text-gray-900">
                       ${(currentProperty.price / 1000000).toFixed(2)}M
                     </h3>
-                    <Badge variant="outline" className="text-lg px-4 py-2">{currentProperty.neighborhood}</Badge>
+                    <Badge className="bg-black text-white text-lg px-4 py-2">{currentProperty.neighborhood}</Badge>
                   </div>
                   <div className="flex items-start space-x-3 mb-6">
                     <MapPin size={20} className="text-gray-500 mt-1 flex-shrink-0" />
@@ -157,7 +160,7 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
                   <h4 className="text-xl font-semibold text-gray-900 mb-4">Key Features</h4>
                   <div className="flex flex-wrap gap-3">
                     {currentProperty.features.map((feature, index) => (
-                      <Badge key={index} variant="secondary" className="text-base px-4 py-2">
+                      <Badge key={index} className="bg-black text-white text-base px-4 py-2">
                         {feature}
                       </Badge>
                     ))}
@@ -166,23 +169,39 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
 
                 {/* Insights */}
                 {showInsights && (
-                  <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
-                    <div className="flex items-start space-x-3">
-                      <Info size={20} className="text-blue-600 mt-1 flex-shrink-0" />
-                      <div>
-                        <h4 className="text-lg font-semibold text-blue-900 mb-3">
-                          Why this is suggested for you
-                        </h4>
-                        <p className="text-base text-blue-800 leading-relaxed">
-                          {currentProperty.insights.whySuggested}
-                        </p>
-                        {currentProperty.insights.profileDeviation && (
-                          <div className="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                            <p className="text-sm text-yellow-800">
-                              <strong>Note:</strong> {currentProperty.insights.profileDeviation}
-                            </p>
-                          </div>
-                        )}
+                  <div className="space-y-4">
+                    <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
+                      <div className="flex items-start space-x-3">
+                        <Info size={20} className="text-blue-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <h4 className="text-lg font-semibold text-blue-900 mb-3">
+                            Why this is suggested for you
+                          </h4>
+                          <p className="text-base text-blue-800 leading-relaxed">
+                            {currentProperty.insights.whySuggested}
+                          </p>
+                          {currentProperty.insights.profileDeviation && (
+                            <div className="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                              <p className="text-sm text-yellow-800">
+                                <strong>Note:</strong> {currentProperty.insights.profileDeviation}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-green-50 rounded-xl p-6 border border-green-200">
+                      <div className="flex items-start space-x-3">
+                        <TrendingUp size={20} className="text-green-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <h4 className="text-lg font-semibold text-green-900 mb-3">
+                            Property Appreciation Outlook
+                          </h4>
+                          <p className="text-base text-green-800 leading-relaxed">
+                            {currentProperty.insights.appreciation}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
