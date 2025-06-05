@@ -13,7 +13,7 @@ const Header = ({ activeTab, onTabChange }: HeaderProps) => {
       onClick={() => onTabChange(tabKey)}
       className={`relative flex items-center space-x-2 px-6 py-3 rounded-xl transition-all duration-300 group ${
         activeTab === tabKey 
-          ? 'bg-gradient-to-r from-[#3B4A6B] to-[#57C6A8] text-[#E8ECF2] shadow-lg' 
+          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' 
           : 'text-[#2E2E2E] hover:bg-white/50 hover:shadow-md'
       }`}
     >
@@ -29,7 +29,7 @@ const Header = ({ activeTab, onTabChange }: HeaderProps) => {
         )}
       </div>
       <span className={`font-medium transition-all duration-300 ${
-        activeTab === tabKey ? 'text-[#E8ECF2]' : 'text-[#2E2E2E]'
+        activeTab === tabKey ? 'text-white' : 'text-[#2E2E2E]'
       }`}>
         {label}
       </span>
@@ -42,10 +42,10 @@ const Header = ({ activeTab, onTabChange }: HeaderProps) => {
         <div className="flex items-center justify-between">
           {/* Logo/Brand */}
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-[#3B4A6B] to-[#57C6A8] rounded-xl flex items-center justify-center shadow-lg">
-              <Home size={20} className="text-[#E8ECF2]" />
+            <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+              <Home size={20} className="text-white" />
             </div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-[#3B4A6B] to-[#57C6A8] bg-clip-text text-transparent">
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               Dom AI
             </h1>
           </div>

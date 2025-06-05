@@ -134,18 +134,18 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30">
-      {/* Header */}
+      {/* Header - Web optimized */}
       <div className="bg-white/80 backdrop-blur-lg border-b border-gray-100">
-        <div className="max-w-lg mx-auto px-6 py-6">
+        <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-3xl font-bold text-gray-900">
                 Good morning, {userData?.name || 'Sarah'}!
               </h1>
-              <p className="text-gray-600 mt-1">Ready to find your dream home?</p>
+              <p className="text-gray-600 mt-2 text-lg">Ready to find your dream home?</p>
             </div>
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
-              <span className="text-white font-semibold text-lg">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+              <span className="text-white font-semibold text-xl">
                 {userData?.name?.charAt(0) || 'S'}
               </span>
             </div>
@@ -153,223 +153,234 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="max-w-lg mx-auto px-6 py-6 space-y-6">
-        {/* Continue Your Search - Smaller */}
-        <Card className="border-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
-          <CardContent className="p-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xs font-semibold mb-0.5">Continue Your Search</h3>
-                <p className="text-blue-100 text-xs">8 new matches found</p>
-              </div>
-              <Button size="sm" className="bg-white text-blue-600 hover:bg-blue-50 font-medium text-xs px-2 py-1">
-                <Plus size={10} className="mr-1" />
-                View
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-3 gap-4">
-          <Card className="border-0 bg-white/80 backdrop-blur-sm shadow-sm">
-            <CardContent className="p-4 text-center">
-              <Heart size={20} className="mx-auto text-red-500 mb-2" />
-              <p className="text-2xl font-bold text-gray-900">{mockStats.savedHomes}</p>
-              <p className="text-xs text-gray-600">Saved</p>
-            </CardContent>
-          </Card>
-          <Card className="border-0 bg-white/80 backdrop-blur-sm shadow-sm">
-            <CardContent className="p-4 text-center">
-              <Calendar size={20} className="mx-auto text-blue-500 mb-2" />
-              <p className="text-2xl font-bold text-gray-900">{mockStats.scheduledTours}</p>
-              <p className="text-xs text-gray-600">Tours</p>
-            </CardContent>
-          </Card>
-          <Card className="border-0 bg-white/80 backdrop-blur-sm shadow-sm">
-            <CardContent className="p-4 text-center">
-              <TrendingUp size={20} className="mx-auto text-green-500 mb-2" />
-              <p className="text-2xl font-bold text-gray-900">{mockStats.marketAlerts}</p>
-              <p className="text-xs text-gray-600">Alerts</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Action Items */}
-        <ActionItems />
-
-        {/* Filters */}
-        <div className="space-y-3">
-          <div className="flex items-center space-x-3">
-            <div className="relative flex-1">
-              <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <Input 
-                placeholder="Search in properties" 
-                className="pl-10"
-              />
-            </div>
-            <Button
-              variant="outline"
-              onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center space-x-2 ${activeFiltersCount > 0 ? 'bg-blue-50 border-blue-200' : ''}`}
-            >
-              <Filter size={16} />
-              <span>Filters</span>
-              {activeFiltersCount > 0 && (
-                <Badge className="bg-blue-500 text-white text-xs px-1.5 py-0.5 min-w-[20px] h-5">
-                  {activeFiltersCount}
-                </Badge>
-              )}
-            </Button>
-          </div>
-
-          {showFilters && (
-            <Card className="border-0 bg-white/80 backdrop-blur-sm shadow-sm">
-              <CardContent className="p-4 space-y-4">
+      {/* Content - Web layout */}
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Continue Your Search */}
+            <Card className="border-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
+              <CardContent className="p-6">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-gray-900">Filters</h3>
-                  <Button variant="ghost" size="sm" className="text-blue-600">
-                    Save view
+                  <div>
+                    <h3 className="text-xl font-semibold mb-2">Continue Your Search</h3>
+                    <p className="text-blue-100">8 new matches found based on your preferences</p>
+                  </div>
+                  <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 font-medium">
+                    <Plus size={16} className="mr-2" />
+                    View Matches
                   </Button>
                 </div>
-
-                <Collapsible defaultOpen>
-                  <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-gray-50 rounded">
-                    <span className="font-medium">Stage in Buying Process</span>
-                    <ChevronDown size={16} />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="space-y-2 mt-2">
-                    {stages.map((stage) => (
-                      <div key={stage.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={stage.id}
-                          checked={selectedStages.includes(stage.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedStages([...selectedStages, stage.id]);
-                            } else {
-                              setSelectedStages(selectedStages.filter(s => s !== stage.id));
-                            }
-                          }}
-                        />
-                        <label htmlFor={stage.id} className="text-sm cursor-pointer">
-                          {stage.label}
-                        </label>
-                      </div>
-                    ))}
-                  </CollapsibleContent>
-                </Collapsible>
-
-                <Collapsible>
-                  <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-gray-50 rounded">
-                    <span className="font-medium">Upcoming Action Required</span>
-                    <ChevronDown size={16} />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="space-y-2 mt-2">
-                    {actions.map((action) => (
-                      <div key={action.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={action.id}
-                          checked={selectedActions.includes(action.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedActions([...selectedActions, action.id]);
-                            } else {
-                              setSelectedActions(selectedActions.filter(a => a !== action.id));
-                            }
-                          }}
-                        />
-                        <label htmlFor={action.id} className="text-sm cursor-pointer">
-                          {action.label}
-                        </label>
-                      </div>
-                    ))}
-                  </CollapsibleContent>
-                </Collapsible>
-
-                <Collapsible>
-                  <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-gray-50 rounded">
-                    <span className="font-medium">Last Activity Date</span>
-                    <ChevronDown size={16} />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="space-y-2 mt-2">
-                    {activities.map((activity) => (
-                      <div key={activity.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={activity.id}
-                          checked={selectedActivities.includes(activity.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedActivities([...selectedActivities, activity.id]);
-                            } else {
-                              setSelectedActivities(selectedActivities.filter(a => a !== activity.id));
-                            }
-                          }}
-                        />
-                        <label htmlFor={activity.id} className="text-sm cursor-pointer">
-                          {activity.label}
-                        </label>
-                      </div>
-                    ))}
-                  </CollapsibleContent>
-                </Collapsible>
               </CardContent>
             </Card>
-          )}
-        </div>
 
-        {/* Properties */}
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Properties</h3>
-          <div className="space-y-3">
-            {filteredProperties.map((property) => (
-              <Card 
-                key={property.id} 
-                className="border-0 bg-white/80 backdrop-blur-sm shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => onPropertyClick(property.id)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-20 h-20 bg-gray-200 rounded-lg flex-shrink-0">
-                      <img 
-                        src={property.image} 
-                        alt="Property"
-                        className="w-full h-full object-cover rounded-lg"
-                      />
+            {/* Search and Filters */}
+            <div className="space-y-4">
+              <div className="flex items-center space-x-4">
+                <div className="relative flex-1 max-w-md">
+                  <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <Input 
+                    placeholder="Search in properties" 
+                    className="pl-10 h-12"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`flex items-center space-x-2 h-12 ${activeFiltersCount > 0 ? 'bg-blue-50 border-blue-200' : ''}`}
+                >
+                  <Filter size={16} />
+                  <span>Filters</span>
+                  {activeFiltersCount > 0 && (
+                    <Badge className="bg-blue-500 text-white text-xs px-2 py-1">
+                      {activeFiltersCount}
+                    </Badge>
+                  )}
+                </Button>
+              </div>
+
+              {showFilters && (
+                <Card className="border-0 bg-white/80 backdrop-blur-sm shadow-sm">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
+                      <Button variant="ghost" size="sm" className="text-blue-600">
+                        Save view
+                      </Button>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <MapPin size={14} className="text-gray-500" />
-                            <p className="font-medium text-gray-900 truncate">
-                              {property.address}
-                            </p>
-                          </div>
-                          <p className="text-sm text-gray-600">{property.city}</p>
-                          <p className="text-lg font-bold text-gray-900">
-                            ${property.price.toLocaleString()}
-                          </p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <Collapsible defaultOpen>
+                        <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-gray-50 rounded">
+                          <span className="font-medium">Stage in Buying Process</span>
+                          <ChevronDown size={16} />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="space-y-3 mt-3">
+                          {stages.map((stage) => (
+                            <div key={stage.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={stage.id}
+                                checked={selectedStages.includes(stage.id)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setSelectedStages([...selectedStages, stage.id]);
+                                  } else {
+                                    setSelectedStages(selectedStages.filter(s => s !== stage.id));
+                                  }
+                                }}
+                              />
+                              <label htmlFor={stage.id} className="text-sm cursor-pointer">
+                                {stage.label}
+                              </label>
+                            </div>
+                          ))}
+                        </CollapsibleContent>
+                      </Collapsible>
+
+                      <Collapsible>
+                        <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-gray-50 rounded">
+                          <span className="font-medium">Upcoming Action Required</span>
+                          <ChevronDown size={16} />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="space-y-3 mt-3">
+                          {actions.map((action) => (
+                            <div key={action.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={action.id}
+                                checked={selectedActions.includes(action.id)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setSelectedActions([...selectedActions, action.id]);
+                                  } else {
+                                    setSelectedActions(selectedActions.filter(a => a !== action.id));
+                                  }
+                                }}
+                              />
+                              <label htmlFor={action.id} className="text-sm cursor-pointer">
+                                {action.label}
+                              </label>
+                            </div>
+                          ))}
+                        </CollapsibleContent>
+                      </Collapsible>
+
+                      <Collapsible>
+                        <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-gray-50 rounded">
+                          <span className="font-medium">Last Activity Date</span>
+                          <ChevronDown size={16} />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="space-y-3 mt-3">
+                          {activities.map((activity) => (
+                            <div key={activity.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={activity.id}
+                                checked={selectedActivities.includes(activity.id)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setSelectedActivities([...selectedActivities, activity.id]);
+                                  } else {
+                                    setSelectedActivities(selectedActivities.filter(a => a !== activity.id));
+                                  }
+                                }}
+                              />
+                              <label htmlFor={activity.id} className="text-sm cursor-pointer">
+                                {activity.label}
+                              </label>
+                            </div>
+                          ))}
+                        </CollapsibleContent>
+                      </Collapsible>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            {/* Properties */}
+            <div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-6">Your Properties</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {filteredProperties.map((property) => (
+                  <Card 
+                    key={property.id} 
+                    className="border-0 bg-white/80 backdrop-blur-sm shadow-sm hover:shadow-lg transition-all cursor-pointer group"
+                    onClick={() => onPropertyClick(property.id)}
+                  >
+                    <CardContent className="p-6">
+                      <div className="space-y-4">
+                        <div className="w-full h-48 bg-gray-200 rounded-lg overflow-hidden">
+                          <img 
+                            src={property.image} 
+                            alt="Property"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
                         </div>
-                        <Badge 
-                          className={getStatusColor(property.status)}
-                        >
-                          {getStatusText(property.status)}
-                        </Badge>
+                        <div>
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <MapPin size={16} className="text-gray-500" />
+                                <p className="font-semibold text-gray-900">
+                                  {property.address}
+                                </p>
+                              </div>
+                              <p className="text-gray-600 mb-2">{property.city}</p>
+                              <p className="text-xl font-bold text-gray-900">
+                                ${property.price.toLocaleString()}
+                              </p>
+                            </div>
+                            <Badge className={getStatusColor(property.status)}>
+                              {getStatusText(property.status)}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center space-x-4 text-sm text-gray-600">
+                            <span>{property.beds} beds</span>
+                            <span>•</span>
+                            <span>{property.baths} baths</span>
+                            <span>•</span>
+                            <span>{property.sqft} sqft</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-3 mt-2 text-xs text-gray-600">
-                        <span>{property.beds} beds</span>
-                        <span>•</span>
-                        <span>{property.baths} baths</span>
-                        <span>•</span>
-                        <span>{property.sqft} sqft</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Quick Stats */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">Quick Stats</h3>
+              <div className="space-y-4">
+                <Card className="border-0 bg-white/80 backdrop-blur-sm shadow-sm">
+                  <CardContent className="p-6 text-center">
+                    <Heart size={24} className="mx-auto text-red-500 mb-3" />
+                    <p className="text-3xl font-bold text-gray-900">{mockStats.savedHomes}</p>
+                    <p className="text-gray-600">Saved Homes</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-0 bg-white/80 backdrop-blur-sm shadow-sm">
+                  <CardContent className="p-6 text-center">
+                    <Calendar size={24} className="mx-auto text-blue-500 mb-3" />
+                    <p className="text-3xl font-bold text-gray-900">{mockStats.scheduledTours}</p>
+                    <p className="text-gray-600">Scheduled Tours</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-0 bg-white/80 backdrop-blur-sm shadow-sm">
+                  <CardContent className="p-6 text-center">
+                    <TrendingUp size={24} className="mx-auto text-green-500 mb-3" />
+                    <p className="text-3xl font-bold text-gray-900">{mockStats.marketAlerts}</p>
+                    <p className="text-gray-600">Market Alerts</p>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            {/* Action Items */}
+            <ActionItems />
           </div>
         </div>
       </div>
