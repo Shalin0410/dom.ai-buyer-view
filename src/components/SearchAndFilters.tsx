@@ -7,7 +7,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 
-const SearchAndFilters = () => {
+interface SearchAndFiltersProps {
+  selectedStages: string[];
+  selectedActions: string[];
+  selectedActivities: string[];
+  onStagesChange: (stages: string[]) => void;
+  onActionsChange: (actions: string[]) => void;
+  onActivitiesChange: (activities: string[]) => void;
+}
+
+const SearchAndFilters = ({ 
+  selectedStages, 
+  selectedActions, 
+  selectedActivities, 
+  onStagesChange, 
+  onActionsChange, 
+  onActivitiesChange 
+}: SearchAndFiltersProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [priceRange, setPriceRange] = useState('');
@@ -24,7 +40,7 @@ const SearchAndFilters = () => {
     <div className="w-full space-y-4">
       {/* Main Search Bar */}
       <div className="relative">
-        <div className="flex items-center bg-white/20 backdrop-blur-md border border-white/30 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300">
+        <div className="flex items-center bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300">
           <div className="flex-1 flex items-center px-4 py-3">
             <Search className="text-gray-600 mr-3" size={20} />
             <Input
@@ -40,7 +56,7 @@ const SearchAndFilters = () => {
               variant="ghost"
               size="sm"
               onClick={() => setShowFilters(!showFilters)}
-              className="text-gray-600 hover:text-gray-800 hover:bg-white/30 rounded-xl"
+              className="text-gray-600 hover:text-gray-800 hover:bg-white/20 rounded-xl"
             >
               <SlidersHorizontal size={16} className="mr-1" />
               Filters
@@ -60,7 +76,7 @@ const SearchAndFilters = () => {
           {activeFilters.map((filter, index) => (
             <Badge 
               key={index} 
-              className="bg-white/30 backdrop-blur-sm border border-white/40 text-gray-700 hover:bg-white/40 transition-colors text-xs px-3 py-1 rounded-full"
+              className="bg-white/20 backdrop-blur-sm border border-white/30 text-gray-700 hover:bg-white/30 transition-colors text-xs px-3 py-1 rounded-full"
             >
               {filter.label}
               <button className="ml-2 text-gray-500 hover:text-gray-700">×</button>
@@ -71,7 +87,7 @@ const SearchAndFilters = () => {
 
       {/* Expanded Filters */}
       {showFilters && (
-        <Card className="p-4 bg-white/30 backdrop-blur-md border border-white/40 rounded-2xl shadow-lg">
+        <Card className="p-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl shadow-lg">
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {/* Price Range */}
             <div className="space-y-2">
@@ -80,7 +96,7 @@ const SearchAndFilters = () => {
                 Price Range
               </label>
               <Select value={priceRange} onValueChange={setPriceRange}>
-                <SelectTrigger className="bg-white/50 border-white/60 text-gray-800 rounded-xl text-sm">
+                <SelectTrigger className="bg-white/30 backdrop-blur-sm border-white/40 text-gray-800 rounded-xl text-sm">
                   <SelectValue placeholder="Any price" />
                 </SelectTrigger>
                 <SelectContent className="bg-white/95 backdrop-blur-md border border-white/60">
@@ -99,7 +115,7 @@ const SearchAndFilters = () => {
                 Bedrooms
               </label>
               <Select value={bedrooms} onValueChange={setBedrooms}>
-                <SelectTrigger className="bg-white/50 border-white/60 text-gray-800 rounded-xl text-sm">
+                <SelectTrigger className="bg-white/30 backdrop-blur-sm border-white/40 text-gray-800 rounded-xl text-sm">
                   <SelectValue placeholder="Any" />
                 </SelectTrigger>
                 <SelectContent className="bg-white/95 backdrop-blur-md border border-white/60">
@@ -118,7 +134,7 @@ const SearchAndFilters = () => {
                 Property Type
               </label>
               <Select value={propertyType} onValueChange={setPropertyType}>
-                <SelectTrigger className="bg-white/50 border-white/60 text-gray-800 rounded-xl text-sm">
+                <SelectTrigger className="bg-white/30 backdrop-blur-sm border-white/40 text-gray-800 rounded-xl text-sm">
                   <SelectValue placeholder="Any type" />
                 </SelectTrigger>
                 <SelectContent className="bg-white/95 backdrop-blur-md border border-white/60">
@@ -137,7 +153,7 @@ const SearchAndFilters = () => {
                 Location
               </label>
               <Select>
-                <SelectTrigger className="bg-white/50 border-white/60 text-gray-800 rounded-xl text-sm">
+                <SelectTrigger className="bg-white/30 backdrop-blur-sm border-white/40 text-gray-800 rounded-xl text-sm">
                   <SelectValue placeholder="Neighborhood" />
                 </SelectTrigger>
                 <SelectContent className="bg-white/95 backdrop-blur-md border border-white/60">
@@ -156,7 +172,7 @@ const SearchAndFilters = () => {
                 Move-in Date
               </label>
               <Select>
-                <SelectTrigger className="bg-white/50 border-white/60 text-gray-800 rounded-xl text-sm">
+                <SelectTrigger className="bg-white/30 backdrop-blur-sm border-white/40 text-gray-800 rounded-xl text-sm">
                   <SelectValue placeholder="Any time" />
                 </SelectTrigger>
                 <SelectContent className="bg-white/95 backdrop-blur-md border border-white/60">
@@ -169,11 +185,11 @@ const SearchAndFilters = () => {
             </div>
           </div>
           
-          <div className="flex justify-between items-center mt-4 pt-4 border-t border-white/30">
+          <div className="flex justify-between items-center mt-4 pt-4 border-t border-white/20">
             <Button 
               variant="ghost" 
               size="sm"
-              className="text-gray-600 hover:text-gray-800 hover:bg-white/30 rounded-xl"
+              className="text-gray-600 hover:text-gray-800 hover:bg-white/20 rounded-xl"
             >
               Clear all filters
             </Button>
