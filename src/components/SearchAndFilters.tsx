@@ -57,24 +57,24 @@ const SearchAndFilters = ({
   const activeFiltersCount = selectedStages.length + selectedActions.length + selectedActivities.length;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center space-x-4">
-        <div className="relative flex-1">
-          <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+    <div className="space-y-6">
+      <div className="flex items-center gap-6">
+        <div className="relative flex-1 max-w-2xl">
+          <Search size={20} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
           <Input 
             placeholder="Search in properties" 
-            className="pl-10 h-12 placeholder:text-gray-400"
+            className="pl-12 h-14 text-base placeholder:text-gray-400 border-gray-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
           />
         </div>
         <Button
           variant="outline"
           onClick={() => setShowFilters(!showFilters)}
-          className={`flex items-center space-x-2 h-12 flex-shrink-0 ${activeFiltersCount > 0 ? 'bg-blue-50 border-blue-200' : ''}`}
+          className={`flex items-center gap-3 h-14 px-6 text-base border-gray-200 hover:bg-gray-50 ${activeFiltersCount > 0 ? 'bg-blue-50 border-blue-200 text-blue-700' : ''}`}
         >
-          <Filter size={16} />
+          <Filter size={18} />
           <span>Filters</span>
           {activeFiltersCount > 0 && (
-            <Badge className="bg-blue-500 text-white text-xs px-2 py-1">
+            <Badge className="bg-blue-500 text-white text-sm px-2.5 py-1 ml-1">
               {activeFiltersCount}
             </Badge>
           )}
@@ -82,24 +82,24 @@ const SearchAndFilters = ({
       </div>
 
       {showFilters && (
-        <Card className="border-0 bg-white/80 backdrop-blur-sm shadow-sm">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
-              <Button variant="ghost" size="sm" className="text-blue-600">
+        <Card className="border border-gray-200 bg-white shadow-lg">
+          <CardContent className="p-8">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-xl font-semibold text-gray-900">Filter Properties</h3>
+              <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
                 Save view
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <Collapsible defaultOpen>
-                <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-gray-50 rounded">
-                  <span className="font-medium">Stage in Buying Process</span>
-                  <ChevronDown size={16} />
+                <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-gray-50 rounded-lg transition-colors">
+                  <span className="font-medium text-gray-900 text-base">Stage in Buying Process</span>
+                  <ChevronDown size={18} className="text-gray-500" />
                 </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-3 mt-3">
+                <CollapsibleContent className="space-y-4 mt-4 pl-2">
                   {stages.map((stage) => (
-                    <div key={stage.id} className="flex items-center space-x-2">
+                    <div key={stage.id} className="flex items-center space-x-3">
                       <Checkbox
                         id={stage.id}
                         checked={selectedStages.includes(stage.id)}
@@ -111,7 +111,7 @@ const SearchAndFilters = ({
                           }
                         }}
                       />
-                      <label htmlFor={stage.id} className="text-sm cursor-pointer">
+                      <label htmlFor={stage.id} className="text-sm cursor-pointer text-gray-700 hover:text-gray-900">
                         {stage.label}
                       </label>
                     </div>
@@ -120,13 +120,13 @@ const SearchAndFilters = ({
               </Collapsible>
 
               <Collapsible>
-                <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-gray-50 rounded">
-                  <span className="font-medium">Upcoming Action Required</span>
-                  <ChevronDown size={16} />
+                <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-gray-50 rounded-lg transition-colors">
+                  <span className="font-medium text-gray-900 text-base">Upcoming Action Required</span>
+                  <ChevronDown size={18} className="text-gray-500" />
                 </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-3 mt-3">
+                <CollapsibleContent className="space-y-4 mt-4 pl-2">
                   {actions.map((action) => (
-                    <div key={action.id} className="flex items-center space-x-2">
+                    <div key={action.id} className="flex items-center space-x-3">
                       <Checkbox
                         id={action.id}
                         checked={selectedActions.includes(action.id)}
@@ -138,7 +138,7 @@ const SearchAndFilters = ({
                           }
                         }}
                       />
-                      <label htmlFor={action.id} className="text-sm cursor-pointer">
+                      <label htmlFor={action.id} className="text-sm cursor-pointer text-gray-700 hover:text-gray-900">
                         {action.label}
                       </label>
                     </div>
@@ -147,13 +147,13 @@ const SearchAndFilters = ({
               </Collapsible>
 
               <Collapsible>
-                <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-gray-50 rounded">
-                  <span className="font-medium">Last Activity Date</span>
-                  <ChevronDown size={16} />
+                <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-gray-50 rounded-lg transition-colors">
+                  <span className="font-medium text-gray-900 text-base">Last Activity Date</span>
+                  <ChevronDown size={18} className="text-gray-500" />
                 </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-3 mt-3">
+                <CollapsibleContent className="space-y-4 mt-4 pl-2">
                   {activities.map((activity) => (
-                    <div key={activity.id} className="flex items-center space-x-2">
+                    <div key={activity.id} className="flex items-center space-x-3">
                       <Checkbox
                         id={activity.id}
                         checked={selectedActivities.includes(activity.id)}
@@ -165,7 +165,7 @@ const SearchAndFilters = ({
                           }
                         }}
                       />
-                      <label htmlFor={activity.id} className="text-sm cursor-pointer">
+                      <label htmlFor={activity.id} className="text-sm cursor-pointer text-gray-700 hover:text-gray-900">
                         {activity.label}
                       </label>
                     </div>
