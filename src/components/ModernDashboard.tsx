@@ -19,12 +19,6 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
   const [selectedActions, setSelectedActions] = useState(['tour_scheduled']);
   const [selectedActivities, setSelectedActivities] = useState(['recently_updated']);
 
-  const mockStats = {
-    savedHomes: 12,
-    scheduledTours: 3,
-    marketAlerts: 5
-  };
-
   const mockProperties = [
     {
       id: 1,
@@ -34,7 +28,7 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
       beds: 3,
       baths: 2,
       sqft: 1850,
-      image: "/placeholder.svg",
+      image: "https://images.unsplash.com/photo-1721322800607-8c38375eef04?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
       status: "tour_scheduled",
       currentStage: "tour_scheduled",
       actionNeeded: "tour_scheduled",
@@ -48,7 +42,7 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
       beds: 4,
       baths: 3,
       sqft: 2100,
-      image: "/placeholder.svg",
+      image: "/lovable-uploads/473b81b4-4a7f-4522-9fc2-56e9031541f0.png",
       status: "liked",
       currentStage: "disclosure_review",
       actionNeeded: "disclosure_review",
@@ -62,11 +56,39 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
       beds: 3,
       baths: 2.5,
       sqft: 1920,
-      image: "/placeholder.svg",
+      image: "/lovable-uploads/412b2afb-6d99-48ae-994c-74fea8162b86.png",
       status: "offer_made",
       currentStage: "negotiating",
       actionNeeded: "offer_deadline",
       lastActivity: "recently_updated"
+    },
+    {
+      id: 4,
+      address: "321 Cedar Lane",
+      city: "Austin, TX",
+      price: 675000,
+      beds: 4,
+      baths: 3.5,
+      sqft: 2400,
+      image: "/lovable-uploads/be612467-888f-45c5-ac95-d87b77add016.png",
+      status: "liked",
+      currentStage: "tour_scheduled",
+      actionNeeded: "tour_scheduled",
+      lastActivity: "recently_updated"
+    },
+    {
+      id: 5,
+      address: "654 Birch Court",
+      city: "Austin, TX",
+      price: 595000,
+      beds: 3,
+      baths: 2.5,
+      sqft: 2050,
+      image: "https://images.unsplash.com/photo-1487958449943-2429e8be8625?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+      status: "interested",
+      currentStage: "disclosure_review",
+      actionNeeded: "disclosure_review",
+      lastActivity: "last_contacted"
     }
   ];
 
@@ -105,6 +127,8 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
         return 'bg-red-100 text-red-800';
       case 'offer_made':
         return 'bg-orange-100 text-orange-800';
+      case 'interested':
+        return 'bg-green-100 text-green-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -118,6 +142,8 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
         return 'Liked';
       case 'offer_made':
         return 'Offer Made';
+      case 'interested':
+        return 'Interested';
       default:
         return 'New';
     }
@@ -155,9 +181,9 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
 
       {/* Content - Web layout */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Main Content - Now spans 3 columns */}
+          <div className="lg:col-span-3 space-y-8">
             {/* Continue Your Search */}
             <Card className="border-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
               <CardContent className="p-6">
@@ -299,23 +325,29 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
             {/* Properties */}
             <div>
               <h3 className="text-xl font-semibold text-gray-900 mb-6">Your Properties</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredProperties.map((property) => (
                   <Card 
                     key={property.id} 
-                    className="border-0 bg-white/80 backdrop-blur-sm shadow-sm hover:shadow-lg transition-all cursor-pointer group"
+                    className="border-0 bg-white/80 backdrop-blur-sm shadow-sm hover:shadow-xl transition-all cursor-pointer group overflow-hidden"
                     onClick={() => onPropertyClick(property.id)}
                   >
-                    <CardContent className="p-6">
-                      <div className="space-y-4">
-                        <div className="w-full h-48 bg-gray-200 rounded-lg overflow-hidden">
+                    <CardContent className="p-0">
+                      <div className="space-y-0">
+                        <div className="relative w-full h-56 bg-gray-200 overflow-hidden">
                           <img 
                             src={property.image} 
                             alt="Property"
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                           />
+                          <div className="absolute top-3 right-3">
+                            <Badge className={getStatusColor(property.status)}>
+                              {getStatusText(property.status)}
+                            </Badge>
+                          </div>
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent"></div>
                         </div>
-                        <div>
+                        <div className="p-6">
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex-1">
                               <div className="flex items-center space-x-2 mb-1">
@@ -324,21 +356,27 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
                                   {property.address}
                                 </p>
                               </div>
-                              <p className="text-gray-600 mb-2">{property.city}</p>
-                              <p className="text-xl font-bold text-gray-900">
+                              <p className="text-gray-600 mb-3">{property.city}</p>
+                              <p className="text-2xl font-bold text-gray-900">
                                 ${property.price.toLocaleString()}
                               </p>
                             </div>
-                            <Badge className={getStatusColor(property.status)}>
-                              {getStatusText(property.status)}
-                            </Badge>
                           </div>
-                          <div className="flex items-center space-x-4 text-sm text-gray-600">
+                          <div className="flex items-center space-x-4 text-sm text-gray-600 mb-4">
                             <span>{property.beds} beds</span>
                             <span>•</span>
                             <span>{property.baths} baths</span>
                             <span>•</span>
                             <span>{property.sqft} sqft</span>
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button size="sm" className="flex-1 bg-blue-600 hover:bg-blue-700">
+                              <Calendar size={14} className="mr-1" />
+                              Schedule Tour
+                            </Button>
+                            <Button size="sm" variant="outline" className="flex-shrink-0">
+                              <Heart size={14} />
+                            </Button>
                           </div>
                         </div>
                       </div>
@@ -349,37 +387,8 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
             </div>
           </div>
 
-          {/* Sidebar */}
+          {/* Sidebar - Now only contains Action Items */}
           <div className="space-y-6">
-            {/* Quick Stats */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900">Quick Stats</h3>
-              <div className="space-y-4">
-                <Card className="border-0 bg-white/80 backdrop-blur-sm shadow-sm">
-                  <CardContent className="p-6 text-center">
-                    <Heart size={24} className="mx-auto text-red-500 mb-3" />
-                    <p className="text-3xl font-bold text-gray-900">{mockStats.savedHomes}</p>
-                    <p className="text-gray-600">Saved Homes</p>
-                  </CardContent>
-                </Card>
-                <Card className="border-0 bg-white/80 backdrop-blur-sm shadow-sm">
-                  <CardContent className="p-6 text-center">
-                    <Calendar size={24} className="mx-auto text-blue-500 mb-3" />
-                    <p className="text-3xl font-bold text-gray-900">{mockStats.scheduledTours}</p>
-                    <p className="text-gray-600">Scheduled Tours</p>
-                  </CardContent>
-                </Card>
-                <Card className="border-0 bg-white/80 backdrop-blur-sm shadow-sm">
-                  <CardContent className="p-6 text-center">
-                    <TrendingUp size={24} className="mx-auto text-green-500 mb-3" />
-                    <p className="text-3xl font-bold text-gray-900">{mockStats.marketAlerts}</p>
-                    <p className="text-gray-600">Market Alerts</p>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-
-            {/* Action Items */}
             <ActionItems />
           </div>
         </div>
