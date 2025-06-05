@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { ArrowLeft, MapPin, Bed, Bath, Square, DollarSign, MessageCircle, Bot, CheckCircle, Calendar, TrendingUp, Star, Clock, Target } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -67,7 +68,7 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed': return 'bg-green-500';
-      case 'pending': return 'bg-yellow-500';
+      case 'pending': return 'bg-gray-400';
       case 'upcoming': return 'bg-blue-500';
       default: return 'bg-gray-500';
     }
@@ -225,7 +226,7 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
                       </div>
                       <Badge className={`text-xs px-2 py-1 ${
                         item.status === 'completed' ? 'bg-green-100 text-green-800' :
-                        item.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        item.status === 'pending' ? 'bg-gray-100 text-gray-600' :
                         'bg-blue-100 text-blue-800'
                       }`}>
                         {item.status}

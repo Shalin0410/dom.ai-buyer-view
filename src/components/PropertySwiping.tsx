@@ -181,8 +181,8 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
                             {currentProperty.insights.whySuggested}
                           </p>
                           {currentProperty.insights.profileDeviation && (
-                            <div className="mt-2 p-2 border border-yellow-200 rounded-md shadow-sm">
-                              <p className="text-xs text-yellow-800">
+                            <div className="mt-2 p-2 border border-gray-200 rounded-md shadow-sm">
+                              <p className="text-xs text-gray-600">
                                 <strong>Note:</strong> {currentProperty.insights.profileDeviation}
                               </p>
                             </div>
