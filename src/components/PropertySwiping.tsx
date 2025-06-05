@@ -73,15 +73,12 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
     onPropertyAction(currentProperty.id, action);
     
     if (action !== 'dislike') {
-      // Show success message for like/save actions
       console.log(`Property ${action}d!`);
     }
     
-    // Move to next property
     if (currentPropertyIndex < mockProperties.length - 1) {
       setCurrentPropertyIndex(currentPropertyIndex + 1);
     } else {
-      // Reset to first property (in real app, would load more)
       setCurrentPropertyIndex(0);
     }
   };
@@ -90,13 +87,13 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-teal-50">
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
-        <div className="max-w-lg mx-auto px-4 py-4">
+        <div className="max-w-6xl mx-auto px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Your Matches</h1>
-              <p className="text-sm text-gray-600">Swipe to find your perfect home</p>
+              <h1 className="text-3xl font-bold text-gray-900">Your Property Matches</h1>
+              <p className="text-lg text-gray-600 mt-2">Discover properties curated just for you</p>
             </div>
-            <Button onClick={onOpenChat} variant="outline" size="sm">
+            <Button onClick={onOpenChat} variant="outline" size="lg" className="px-8 py-4 text-lg">
               Ask Questions
             </Button>
           </div>
@@ -104,131 +101,143 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
       </div>
 
       {/* Property Card */}
-      <div className="max-w-lg mx-auto px-4 py-6">
-        <Card className="overflow-hidden shadow-lg">
+      <div className="max-w-6xl mx-auto px-8 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
           {/* Property Image */}
-          <div className="aspect-[4/3] bg-gray-200 relative">
-            <img 
-              src={currentProperty.image} 
-              alt={currentProperty.address}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute top-4 left-4">
-              <Badge className="bg-blue-600 hover:bg-blue-600">
-                <Star size={12} className="mr-1" />
-                Perfect Match
-              </Badge>
-            </div>
-            <div className="absolute top-4 right-4">
-              <Badge variant="secondary">
-                {currentProperty.daysOnMarket} days on market
-              </Badge>
-            </div>
-          </div>
-
-          <CardContent className="p-6 space-y-4">
-            {/* Property Info */}
-            <div>
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  ${(currentProperty.price / 1000000).toFixed(2)}M
-                </h3>
-                <Badge variant="outline">{currentProperty.neighborhood}</Badge>
-              </div>
-              <div className="flex items-start space-x-2 mb-3">
-                <MapPin size={16} className="text-gray-500 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-gray-700">{currentProperty.address}</p>
-              </div>
-              <div className="flex items-center space-x-4 text-sm text-gray-600 mb-4">
-                <span>{currentProperty.beds} beds</span>
-                <span>•</span>
-                <span>{currentProperty.baths} baths</span>
-                <span>•</span>
-                <span>{currentProperty.sqft?.toLocaleString()} sqft</span>
-              </div>
-            </div>
-
-            {/* Features */}
-            <div>
-              <h4 className="text-sm font-medium text-gray-900 mb-2">Key Features</h4>
-              <div className="flex flex-wrap gap-2">
-                {currentProperty.features.map((feature, index) => (
-                  <Badge key={index} variant="secondary" className="text-xs">
-                    {feature}
+          <div className="relative">
+            <Card className="overflow-hidden shadow-xl">
+              <div className="aspect-[4/3] bg-gray-200 relative">
+                <img 
+                  src={currentProperty.image} 
+                  alt={currentProperty.address}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute top-6 left-6">
+                  <Badge className="bg-blue-600 hover:bg-blue-600 text-lg px-4 py-2">
+                    <Star size={16} className="mr-2" />
+                    Perfect Match
                   </Badge>
-                ))}
-              </div>
-            </div>
-
-            {/* Insights */}
-            {showInsights && (
-              <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                <div className="flex items-start space-x-2">
-                  <Info size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <h4 className="text-sm font-medium text-blue-900 mb-1">
-                      Why this is suggested for you
-                    </h4>
-                    <p className="text-sm text-blue-800">
-                      {currentProperty.insights.whySuggested}
-                    </p>
-                    {currentProperty.insights.profileDeviation && (
-                      <div className="mt-2 p-2 bg-yellow-50 rounded border border-yellow-200">
-                        <p className="text-xs text-yellow-800">
-                          <strong>Note:</strong> {currentProperty.insights.profileDeviation}
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                </div>
+                <div className="absolute top-6 right-6">
+                  <Badge variant="secondary" className="text-base px-4 py-2">
+                    {currentProperty.daysOnMarket} days on market
+                  </Badge>
                 </div>
               </div>
-            )}
+            </Card>
+          </div>
 
-            {/* Action Buttons */}
-            <div className="flex space-x-3 pt-2">
-              <Button
-                onClick={() => handleAction('dislike')}
-                variant="outline"
-                className="flex-1 border-red-200 text-red-600 hover:bg-red-50"
-              >
-                <X size={20} className="mr-2" />
-                Pass
-              </Button>
-              <Button
-                onClick={() => handleAction('save')}
-                variant="outline"
-                className="flex-1 border-yellow-200 text-yellow-600 hover:bg-yellow-50"
-              >
-                <Bookmark size={20} className="mr-2" />
-                Save
-              </Button>
-              <Button
-                onClick={() => handleAction('like')}
-                className="flex-1 bg-green-600 hover:bg-green-700"
-              >
-                <Heart size={20} className="mr-2" />
-                Love It
-              </Button>
-            </div>
+          {/* Property Details */}
+          <div className="space-y-8">
+            <Card className="shadow-lg">
+              <CardContent className="p-8 space-y-6">
+                {/* Property Info */}
+                <div>
+                  <div className="flex justify-between items-start mb-4">
+                    <h3 className="text-3xl font-bold text-gray-900">
+                      ${(currentProperty.price / 1000000).toFixed(2)}M
+                    </h3>
+                    <Badge variant="outline" className="text-lg px-4 py-2">{currentProperty.neighborhood}</Badge>
+                  </div>
+                  <div className="flex items-start space-x-3 mb-6">
+                    <MapPin size={20} className="text-gray-500 mt-1 flex-shrink-0" />
+                    <p className="text-lg text-gray-700">{currentProperty.address}</p>
+                  </div>
+                  <div className="flex items-center space-x-6 text-lg text-gray-600 mb-6">
+                    <span className="font-medium">{currentProperty.beds} beds</span>
+                    <span>•</span>
+                    <span className="font-medium">{currentProperty.baths} baths</span>
+                    <span>•</span>
+                    <span className="font-medium">{currentProperty.sqft?.toLocaleString()} sqft</span>
+                  </div>
+                </div>
 
-            {/* Schedule Tour Button */}
-            <Button className="w-full bg-blue-600 hover:bg-blue-700">
-              <Calendar size={16} className="mr-2" />
-              Schedule Tour (Auto-booking in progress...)
-            </Button>
-          </CardContent>
-        </Card>
+                {/* Features */}
+                <div>
+                  <h4 className="text-xl font-semibold text-gray-900 mb-4">Key Features</h4>
+                  <div className="flex flex-wrap gap-3">
+                    {currentProperty.features.map((feature, index) => (
+                      <Badge key={index} variant="secondary" className="text-base px-4 py-2">
+                        {feature}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Insights */}
+                {showInsights && (
+                  <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
+                    <div className="flex items-start space-x-3">
+                      <Info size={20} className="text-blue-600 mt-1 flex-shrink-0" />
+                      <div>
+                        <h4 className="text-lg font-semibold text-blue-900 mb-3">
+                          Why this is suggested for you
+                        </h4>
+                        <p className="text-base text-blue-800 leading-relaxed">
+                          {currentProperty.insights.whySuggested}
+                        </p>
+                        {currentProperty.insights.profileDeviation && (
+                          <div className="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                            <p className="text-sm text-yellow-800">
+                              <strong>Note:</strong> {currentProperty.insights.profileDeviation}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex space-x-4 pt-4">
+                  <Button
+                    onClick={() => handleAction('dislike')}
+                    variant="outline"
+                    size="lg"
+                    className="flex-1 border-red-200 text-red-600 hover:bg-red-50 py-4 text-lg"
+                  >
+                    <X size={20} className="mr-3" />
+                    Pass
+                  </Button>
+                  <Button
+                    onClick={() => handleAction('save')}
+                    variant="outline"
+                    size="lg"
+                    className="flex-1 border-yellow-200 text-yellow-600 hover:bg-yellow-50 py-4 text-lg"
+                  >
+                    <Bookmark size={20} className="mr-3" />
+                    Save
+                  </Button>
+                  <Button
+                    onClick={() => handleAction('like')}
+                    size="lg"
+                    className="flex-1 bg-green-600 hover:bg-green-700 py-4 text-lg"
+                  >
+                    <Heart size={20} className="mr-3" />
+                    Love It
+                  </Button>
+                </div>
+
+                {/* Schedule Tour Button */}
+                <Button size="lg" className="w-full bg-blue-600 hover:bg-blue-700 py-4 text-lg">
+                  <Calendar size={20} className="mr-3" />
+                  Schedule Tour (Auto-booking in progress...)
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
         {/* Progress Indicator */}
-        <div className="mt-4 text-center">
-          <p className="text-sm text-gray-600">
+        <div className="mt-12 text-center">
+          <p className="text-lg text-gray-600 mb-4">
             Property {currentPropertyIndex + 1} of {mockProperties.length}
           </p>
-          <div className="flex justify-center mt-2 space-x-1">
+          <div className="flex justify-center space-x-2">
             {mockProperties.map((_, index) => (
               <div
                 key={index}
-                className={`w-2 h-2 rounded-full ${
+                className={`w-3 h-3 rounded-full transition-colors ${
                   index === currentPropertyIndex ? 'bg-blue-600' : 'bg-gray-300'
                 }`}
               />
