@@ -28,7 +28,7 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
       beds: 3,
       baths: 2,
       sqft: 1850,
-      image: "https://images.unsplash.com/photo-1721322800607-8c38375eef04?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+      image: "/lovable-uploads/473b81b4-4a7f-4522-9fc2-56e9031541f0.png",
       status: "tour_scheduled",
       currentStage: "tour_scheduled",
       actionNeeded: "tour_scheduled",
@@ -42,7 +42,7 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
       beds: 4,
       baths: 3,
       sqft: 2100,
-      image: "/lovable-uploads/473b81b4-4a7f-4522-9fc2-56e9031541f0.png",
+      image: "/lovable-uploads/412b2afb-6d99-48ae-994c-74fea8162b86.png",
       status: "liked",
       currentStage: "disclosure_review",
       actionNeeded: "disclosure_review",
@@ -56,39 +56,11 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
       beds: 3,
       baths: 2.5,
       sqft: 1920,
-      image: "/lovable-uploads/412b2afb-6d99-48ae-994c-74fea8162b86.png",
+      image: "/lovable-uploads/be612467-888f-45c5-ac95-d87b77add016.png",
       status: "offer_made",
       currentStage: "negotiating",
       actionNeeded: "offer_deadline",
       lastActivity: "recently_updated"
-    },
-    {
-      id: 4,
-      address: "321 Cedar Lane",
-      city: "Austin, TX",
-      price: 675000,
-      beds: 4,
-      baths: 3.5,
-      sqft: 2400,
-      image: "/lovable-uploads/be612467-888f-45c5-ac95-d87b77add016.png",
-      status: "liked",
-      currentStage: "tour_scheduled",
-      actionNeeded: "tour_scheduled",
-      lastActivity: "recently_updated"
-    },
-    {
-      id: 5,
-      address: "654 Birch Court",
-      city: "Austin, TX",
-      price: 595000,
-      beds: 3,
-      baths: 2.5,
-      sqft: 2050,
-      image: "https://images.unsplash.com/photo-1487958449943-2429e8be8625?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-      status: "interested",
-      currentStage: "disclosure_review",
-      actionNeeded: "disclosure_review",
-      lastActivity: "last_contacted"
     }
   ];
 
@@ -200,10 +172,10 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
               </CardContent>
             </Card>
 
-            {/* Search and Filters */}
+            {/* Search and Filters - Width matches Continue Your Search */}
             <div className="space-y-4">
               <div className="flex items-center space-x-4">
-                <div className="relative flex-1 max-w-md">
+                <div className="relative flex-1">
                   <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <Input 
                     placeholder="Search in properties" 
@@ -213,7 +185,7 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
                 <Button
                   variant="outline"
                   onClick={() => setShowFilters(!showFilters)}
-                  className={`flex items-center space-x-2 h-12 ${activeFiltersCount > 0 ? 'bg-blue-50 border-blue-200' : ''}`}
+                  className={`flex items-center space-x-2 h-12 flex-shrink-0 ${activeFiltersCount > 0 ? 'bg-blue-50 border-blue-200' : ''}`}
                 >
                   <Filter size={16} />
                   <span>Filters</span>

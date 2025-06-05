@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Calendar, Clock, AlertTriangle, CheckCircle2, Circle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -57,16 +58,6 @@ const ActionItems = () => {
       dueDate: '2024-03-14',
       daysLeft: 2,
       property: '456 Oak Avenue'
-    },
-    {
-      id: 'walkthrough-schedule',
-      title: 'Schedule Final Walkthrough',
-      description: '789 Pine Road - Due by March 25, 2024',
-      type: 'walkthrough',
-      priority: 'low',
-      dueDate: '2024-03-25',
-      daysLeft: 13,
-      property: '789 Pine Road'
     }
   ];
 
@@ -79,7 +70,7 @@ const ActionItems = () => {
       case 'medium':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       default:
-        return 'bg-gray-100 text-[#2E2E2E] border-gray-200';
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
@@ -95,8 +86,6 @@ const ActionItems = () => {
         return <CheckCircle2 size={16} className="text-green-600" />;
       case 'disclosure':
         return <Circle size={16} className="text-gray-600" />;
-      case 'walkthrough':
-        return <Calendar size={16} className="text-teal-600" />;
       default:
         return <Circle size={16} className="text-gray-600" />;
     }
@@ -114,115 +103,110 @@ const ActionItems = () => {
   const completedItems = actionItems.filter(item => checkedItems.includes(item.id));
 
   return (
-    <div className="space-y-6">
-      <Card className="glass-card shadow-modern">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between text-[#2E2E2E]">
-            <span>Action Items</span>
-            <Badge variant="outline" className="text-sm border-brand-coral text-brand-coral">
-              {pendingItems.length} pending
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Pending Items */}
-          {pendingItems.length > 0 && (
-            <div className="space-y-3">
-              <h4 className="font-medium text-[#2E2E2E]">Pending Tasks</h4>
-              {pendingItems
-                .sort((a, b) => {
-                  const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
-                  return priorityOrder[a.priority] - priorityOrder[b.priority];
-                })
-                .map((item) => (
-                  <div
-                    key={item.id}
-                    className={`p-4 rounded-lg border ${
-                      item.priority === 'urgent' ? 'border-red-200 bg-red-50' :
-                      item.priority === 'high' ? 'border-orange-200 bg-orange-50' :
-                      'border-gray-200 bg-white'
-                    }`}
-                  >
-                    <div className="flex items-start space-x-3">
-                      <Checkbox
-                        id={item.id}
-                        checked={checkedItems.includes(item.id)}
-                        onCheckedChange={(checked) => handleCheckChange(item.id, checked as boolean)}
-                        className="mt-1"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center space-x-2">
-                            {getTypeIcon(item.type)}
-                            <h5 className="font-medium text-[#2E2E2E]">{item.title}</h5>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Badge className={getPriorityColor(item.priority)} variant="outline">
-                              {item.priority}
-                            </Badge>
-                            <Badge variant="secondary" className="text-xs bg-brand-gray text-[#2E2E2E]">
-                              {item.daysLeft} days left
-                            </Badge>
-                          </div>
-                        </div>
-                        <p className="text-sm text-[#2E2E2E]/70 mt-1">{item.description}</p>
-                        <div className="flex items-center space-x-4 mt-2 text-xs text-[#2E2E2E]/60">
-                          <div className="flex items-center space-x-1">
-                            <Calendar size={12} />
-                            <span>Due: {new Date(item.dueDate).toLocaleDateString()}</span>
-                          </div>
-                          <span>•</span>
-                          <span>{item.property}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          )}
-
-          {/* Completed Items */}
-          {completedItems.length > 0 && (
-            <div className="space-y-3 pt-4 border-t border-gray-200">
-              <h4 className="font-medium text-[#2E2E2E] flex items-center space-x-2">
-                <CheckCircle2 size={16} className="text-green-600" />
-                <span>Completed ({completedItems.length})</span>
-              </h4>
-              {completedItems.map((item) => (
-                <div key={item.id} className="p-4 rounded-lg border border-green-200 bg-green-50">
+    <Card className="border-0 bg-white/80 backdrop-blur-sm shadow-sm">
+      <CardHeader className="pb-4">
+        <CardTitle className="flex items-center justify-between text-gray-900 text-lg">
+          <span>Action Items</span>
+          <Badge variant="outline" className="text-sm border-blue-200 text-blue-600">
+            {pendingItems.length} pending
+          </Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Pending Items */}
+        {pendingItems.length > 0 && (
+          <div className="space-y-3">
+            {pendingItems
+              .sort((a, b) => {
+                const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
+                return priorityOrder[a.priority] - priorityOrder[b.priority];
+              })
+              .map((item) => (
+                <div
+                  key={item.id}
+                  className={`p-4 rounded-lg border transition-all ${
+                    item.priority === 'urgent' ? 'border-red-200 bg-red-50/50' :
+                    item.priority === 'high' ? 'border-orange-200 bg-orange-50/50' :
+                    'border-gray-200 bg-white'
+                  }`}
+                >
                   <div className="flex items-start space-x-3">
                     <Checkbox
                       id={item.id}
-                      checked={true}
+                      checked={checkedItems.includes(item.id)}
                       onCheckedChange={(checked) => handleCheckChange(item.id, checked as boolean)}
                       className="mt-1"
                     />
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2">
-                        {getTypeIcon(item.type)}
-                        <h5 className="font-medium text-[#2E2E2E] line-through">{item.title}</h5>
-                        <Badge className="bg-green-100 text-green-800 border-green-200" variant="outline">
-                          completed
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center space-x-2">
+                          {getTypeIcon(item.type)}
+                          <h5 className="font-medium text-gray-900 text-sm">{item.title}</h5>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Badge className={getPriorityColor(item.priority)} variant="outline">
+                            {item.priority}
+                          </Badge>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-600 mb-2">{item.description}</p>
+                      <div className="flex items-center justify-between text-xs text-gray-500">
+                        <div className="flex items-center space-x-1">
+                          <Calendar size={12} />
+                          <span>Due: {new Date(item.dueDate).toLocaleDateString()}</span>
+                        </div>
+                        <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-600">
+                          {item.daysLeft} days left
                         </Badge>
                       </div>
-                      <p className="text-sm text-[#2E2E2E]/70 mt-1 line-through">{item.description}</p>
                     </div>
                   </div>
                 </div>
               ))}
-            </div>
-          )}
+          </div>
+        )}
 
-          {pendingItems.length === 0 && (
-            <div className="text-center py-8 text-[#2E2E2E]/60">
-              <CheckCircle2 size={48} className="mx-auto text-green-500 mb-4" />
-              <p className="text-lg font-medium text-[#2E2E2E]">All caught up!</p>
-              <p className="text-sm">No pending action items at the moment.</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+        {/* Completed Items */}
+        {completedItems.length > 0 && (
+          <div className="space-y-3 pt-4 border-t border-gray-200">
+            <h4 className="font-medium text-gray-900 flex items-center space-x-2 text-sm">
+              <CheckCircle2 size={16} className="text-green-600" />
+              <span>Completed ({completedItems.length})</span>
+            </h4>
+            {completedItems.map((item) => (
+              <div key={item.id} className="p-4 rounded-lg border border-green-200 bg-green-50/50">
+                <div className="flex items-start space-x-3">
+                  <Checkbox
+                    id={item.id}
+                    checked={true}
+                    onCheckedChange={(checked) => handleCheckChange(item.id, checked as boolean)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-2 mb-1">
+                      {getTypeIcon(item.type)}
+                      <h5 className="font-medium text-gray-900 line-through text-sm">{item.title}</h5>
+                      <Badge className="bg-green-100 text-green-800 border-green-200" variant="outline">
+                        completed
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-gray-600 line-through">{item.description}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {pendingItems.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            <CheckCircle2 size={48} className="mx-auto text-green-500 mb-4" />
+            <p className="text-lg font-medium text-gray-900">All caught up!</p>
+            <p className="text-sm">No pending action items at the moment.</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 
