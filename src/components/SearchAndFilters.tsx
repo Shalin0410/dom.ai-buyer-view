@@ -63,7 +63,7 @@ const SearchAndFilters = ({
           <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           <Input 
             placeholder="Search in properties" 
-            className="pl-10 h-12"
+            className="pl-10 h-12 placeholder:text-gray-400"
           />
         </div>
         <Button
