@@ -23,7 +23,7 @@ const Header = ({ activeTab, onTabChange }: HeaderProps) => {
           strokeWidth={activeTab === tabKey ? 2.5 : 2} 
         />
         {count > 0 && (
-          <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 text-xs bg-gradient-to-r from-[#F47C6D] to-[#F47C6D]/80 border-0 text-[#E8ECF2] shadow-lg">
+          <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 text-xs bg-[#F47C6D] border-0 text-[#E8ECF2] shadow-lg">
             {count}
           </Badge>
         )}
@@ -46,7 +46,7 @@ const Header = ({ activeTab, onTabChange }: HeaderProps) => {
               <Home size={20} className="text-[#E8ECF2]" />
             </div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-[#3B4A6B] to-[#57C6A8] bg-clip-text text-transparent">
-              HomeFinder
+              Dom AI
             </h1>
           </div>
 
