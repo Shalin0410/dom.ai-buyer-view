@@ -112,7 +112,7 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30">
+    <div className="min-h-screen bg-gradient-to-br from-[#E8ECF2] via-white to-[#F47C6D]/10">
       {/* Header */}
       <div className="bg-white/80 backdrop-blur-sm shadow-lg border-b border-gray-200/50">
         <div className="max-w-4xl mx-auto px-6 py-4">
@@ -121,7 +121,7 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
               <ArrowLeft size={18} />
             </Button>
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+              <div className="w-10 h-10 bg-gradient-to-r from-[#3B4A6B] to-[#57C6A8] rounded-xl flex items-center justify-center shadow-lg">
                 <Bot className="text-white" size={18} />
               </div>
               <div>
@@ -211,7 +211,7 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
               <div
                 className={`max-w-[75%] rounded-2xl px-5 py-4 shadow-lg ${
                   message.sender === 'user'
-                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
+                    ? 'bg-gradient-to-r from-[#3B4A6B] to-[#57C6A8] text-white'
                     : 'bg-white/90 backdrop-blur-sm text-gray-900 border border-gray-200'
                 }`}
               >
@@ -241,7 +241,7 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               placeholder="Ask me anything about real estate..."
-              className="flex-1 border-0 bg-transparent text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+              className="flex-1 border-0 bg-transparent text-sm focus-visible:ring-0 focus-visible:ring-offset-0 text-gray-700 placeholder:text-gray-500"
               onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
             />
             <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700 p-2">
@@ -251,7 +251,7 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
               onClick={() => sendMessage()}
               disabled={!inputText.trim()}
               size="sm"
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-md px-4 py-2"
+              className="bg-gradient-to-r from-[#3B4A6B] to-[#57C6A8] hover:from-[#3B4A6B]/90 hover:to-[#57C6A8]/90 text-white shadow-md px-4 py-2"
             >
               <Send size={16} />
             </Button>
