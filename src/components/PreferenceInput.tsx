@@ -88,7 +88,7 @@ const PreferenceInput = ({ onComplete }: PreferenceInputProps) => {
                 value={preferences}
                 onChange={(e) => setPreferences(e.target.value)}
                 placeholder="Example: My husband and I are buying a home for the first time. We prefer to live in the city, however we are family planning and anticipate kids to be at school going age in 5-7 years..."
-                className="min-h-[140px] pr-14 border-gray-200 focus:border-blue-400 focus:ring-blue-400 resize-none"
+                className="min-h-[140px] pr-14 border-gray-200 focus:border-blue-400 focus:ring-blue-400 resize-none placeholder:text-[#E8ECF2]"
                 disabled={isRecording}
               />
               <Button
