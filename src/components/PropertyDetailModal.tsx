@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -210,9 +209,9 @@ const PropertyDetailModal = ({ property, isOpen, onClose }: PropertyDetailModalP
                 </div>
                 
                 <div className="space-y-3">
-                  <div className="border-l-4 border-yellow-400 pl-4">
-                    <h5 className="font-semibold text-yellow-800">Points to Discuss</h5>
-                    <ul className="text-sm text-yellow-700 mt-1 space-y-1">
+                  <div className="border-l-4 border-gray-400 pl-4">
+                    <h5 className="font-semibold text-gray-600">Points to Discuss</h5>
+                    <ul className="text-sm text-gray-600 mt-1 space-y-1">
                       <li>• HVAC system is 8 years old - consider inspection timeline</li>
                       <li>• Minor foundation settling noted - typical for area</li>
                       <li>• Roof replaced 3 years ago - good condition</li>
@@ -246,6 +245,7 @@ const PropertyDetailModal = ({ property, isOpen, onClose }: PropertyDetailModalP
                     placeholder="Ask any questions about this property..."
                     value={chatMessage}
                     onChange={(e) => setChatMessage(e.target.value)}
+                    className="text-gray-700 placeholder:text-gray-500"
                   />
                   <Button className="w-full">
                     <MessageCircle size={16} className="mr-2" />
@@ -274,6 +274,7 @@ const PropertyDetailModal = ({ property, isOpen, onClose }: PropertyDetailModalP
                     placeholder="Type your message to Sarah..."
                     value={agentMessage}
                     onChange={(e) => setAgentMessage(e.target.value)}
+                    className="text-gray-700 placeholder:text-gray-500"
                   />
                   <Button className="w-full" variant="outline">
                     Send to Agent
