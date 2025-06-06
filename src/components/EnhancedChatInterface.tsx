@@ -253,7 +253,7 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
               className="bg-gradient-to-r from-[#3B4A6B] to-[#57C6A8] hover:from-[#3B4A6B]/90 hover:to-[#57C6A8]/90 text-white shadow-md px-4 py-2"
             >
               <Send size={16} />
-            />
+            </Button>
           </div>
         </div>
       </div>
