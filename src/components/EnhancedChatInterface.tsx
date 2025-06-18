@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, ArrowLeft, Home, HelpCircle, TrendingUp, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -31,6 +30,7 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
   const [isTyping, setIsTyping] = useState(false);
+  const [hasTriggeredAutoResponse, setHasTriggeredAutoResponse] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -44,6 +44,7 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setInputText(value);
+    setHasTriggeredAutoResponse(false);
 
     if (typingTimeout) {
       clearTimeout(typingTimeout);
@@ -51,13 +52,16 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
 
     if (value.trim() && value.length > 10) {
       const newTimeout = setTimeout(() => {
-        triggerAutoResponse(value);
+        if (!hasTriggeredAutoResponse) {
+          triggerAutoResponse(value, true);
+          setHasTriggeredAutoResponse(true);
+        }
       }, 2000);
       setTypingTimeout(newTimeout);
     }
   };
 
-  const triggerAutoResponse = (userInput: string) => {
+  const triggerAutoResponse = (userInput: string, fromTimeout: boolean = false) => {
     const newMessage: Message = {
       id: messages.length + 1,
       text: userInput,
@@ -66,7 +70,10 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
       category: selectedCategory || undefined
     };
     setMessages(prev => [...prev, newMessage]);
-    setInputText('');
+    
+    if (fromTimeout) {
+      setInputText('');
+    }
 
     setIsTyping(true);
 
@@ -137,8 +144,9 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
 
   const sendMessage = (text?: string) => {
     const messageText = text || inputText;
-    if (messageText.trim()) {
+    if (messageText.trim() && !hasTriggeredAutoResponse) {
       triggerAutoResponse(messageText);
+      setInputText('');
     }
   };
 
