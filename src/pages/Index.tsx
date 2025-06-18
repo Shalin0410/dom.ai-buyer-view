@@ -1,10 +1,7 @@
 
 import { useState } from 'react';
 import Header from '@/components/Header';
-import AppStateManager from '@/components/AppStateManager';
 import MainAppContent from '@/components/MainAppContent';
-
-type AppState = 'auth' | 'preferences' | 'profile-notification' | 'swiping' | 'chat' | 'dashboard';
 
 interface UserData {
   id: number;
@@ -21,27 +18,22 @@ interface UserData {
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [appState, setAppState] = useState<AppState>('auth');
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [userPreferences, setUserPreferences] = useState<string>('');
+  
+  // Mock user data since we're removing authentication
+  const userData: UserData = {
+    id: 1,
+    email: 'user@example.com',
+    name: 'Sarah Johnson',
+    isFirstTime: false,
+    preferences: 'Modern homes with great views',
+    realtorInfo: {
+      name: 'John Smith',
+      email: 'john@realty.com',
+      phone: '(555) 123-4567'
+    }
+  };
 
-  // If user is not logged in, show the app state flow
-  if (appState !== 'dashboard' && appState !== 'swiping') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-[#E8ECF2] via-white to-[#F47C6D]/10">
-        <AppStateManager
-          appState={appState}
-          userData={userData}
-          userPreferences={userPreferences}
-          onStateChange={setAppState}
-          onUserDataUpdate={setUserData}
-          onPreferencesUpdate={setUserPreferences}
-        />
-      </div>
-    );
-  }
-
-  // Main website interface
+  // Main website interface - no authentication flow
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#E8ECF2] via-white to-[#F47C6D]/10">
       <Header activeTab={activeTab} onTabChange={setActiveTab} />

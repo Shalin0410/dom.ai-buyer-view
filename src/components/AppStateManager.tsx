@@ -1,12 +1,11 @@
 
 import { useState } from 'react';
-import AuthFlow from '@/components/AuthFlow';
 import PreferenceInput from '@/components/PreferenceInput';
 import PropertySwiping from '@/components/PropertySwiping';
 import EnhancedChatInterface from '@/components/EnhancedChatInterface';
 import PreferenceSuccess from '@/components/PreferenceSuccess';
 
-type AppState = 'auth' | 'preferences' | 'profile-notification' | 'swiping' | 'chat' | 'dashboard';
+type AppState = 'preferences' | 'profile-notification' | 'swiping' | 'chat' | 'dashboard';
 
 interface UserData {
   id: number;
@@ -38,16 +37,6 @@ const AppStateManager = ({
   onUserDataUpdate,
   onPreferencesUpdate
 }: AppStateManagerProps) => {
-  const handleLogin = (user: UserData) => {
-    onUserDataUpdate(user);
-    if (user.isFirstTime) {
-      onStateChange('preferences');
-    } else {
-      // Returning users go to dashboard
-      onStateChange('dashboard');
-    }
-  };
-
   const handlePreferencesComplete = (preferences: string, realtorInfo?: any) => {
     onPreferencesUpdate(preferences);
     if (userData) {
@@ -96,9 +85,6 @@ const AppStateManager = ({
   };
 
   switch (appState) {
-    case 'auth':
-      return <AuthFlow onLogin={handleLogin} />;
-    
     case 'preferences':
       return <PreferenceInput onComplete={handlePreferencesComplete} />;
     
