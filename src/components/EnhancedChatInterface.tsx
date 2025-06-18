@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 interface Message {
-  id: number;
+  id: string;
   text: string;
   sender: 'user' | 'bot';
   timestamp: Date;
@@ -20,7 +20,7 @@ interface EnhancedChatInterfaceProps {
 const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: 1,
+      id: '1',
       text: "Hi! I'm Dom AI, your real estate assistant. I can help you with listing searches, home buying questions, or market insights. What would you like to know?",
       sender: 'bot',
       timestamp: new Date(Date.now() - 600000)
@@ -30,8 +30,9 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
   const [isTyping, setIsTyping] = useState(false);
-  const [hasTriggeredAutoResponse, setHasTriggeredAutoResponse] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageIdCounter = useRef(2);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -44,17 +45,17 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setInputText(value);
-    setHasTriggeredAutoResponse(false);
 
+    // Clear existing timeout
     if (typingTimeout) {
       clearTimeout(typingTimeout);
     }
 
-    if (value.trim() && value.length > 10) {
+    // Set new timeout for auto-response
+    if (value.trim() && value.length > 10 && !isProcessing) {
       const newTimeout = setTimeout(() => {
-        if (!hasTriggeredAutoResponse) {
+        if (!isProcessing) {
           triggerAutoResponse(value, true);
-          setHasTriggeredAutoResponse(true);
         }
       }, 2000);
       setTypingTimeout(newTimeout);
@@ -62,13 +63,32 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
   };
 
   const triggerAutoResponse = (userInput: string, fromTimeout: boolean = false) => {
+    // Prevent duplicate processing
+    if (isProcessing) {
+      console.log('Already processing, skipping duplicate request');
+      return;
+    }
+
+    console.log('Processing message:', userInput, 'fromTimeout:', fromTimeout);
+    setIsProcessing(true);
+
+    // Clear any pending timeouts
+    if (typingTimeout) {
+      clearTimeout(typingTimeout);
+      setTypingTimeout(null);
+    }
+
+    const userMessageId = `user-${messageIdCounter.current++}`;
+    const botMessageId = `bot-${messageIdCounter.current++}`;
+
     const newMessage: Message = {
-      id: messages.length + 1,
+      id: userMessageId,
       text: userInput,
       sender: 'user',
       timestamp: new Date(),
       category: selectedCategory || undefined
     };
+
     setMessages(prev => [...prev, newMessage]);
     
     if (fromTimeout) {
@@ -99,13 +119,16 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
       }
 
       const aiMessage: Message = {
-        id: messages.length + 2,
+        id: botMessageId,
         text: aiResponse,
         sender: 'bot',
         timestamp: new Date()
       };
+
       setMessages(prev => [...prev, aiMessage]);
       setIsTyping(false);
+      setIsProcessing(false);
+      console.log('Response completed');
     }, 1500);
   };
 
@@ -144,7 +167,7 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
 
   const sendMessage = (text?: string) => {
     const messageText = text || inputText;
-    if (messageText.trim() && !hasTriggeredAutoResponse) {
+    if (messageText.trim() && !isProcessing) {
       triggerAutoResponse(messageText);
       setInputText('');
     }
@@ -305,7 +328,7 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
               </Button>
               <Button 
                 onClick={() => sendMessage()}
-                disabled={!inputText.trim()}
+                disabled={!inputText.trim() || isProcessing}
                 size="sm"
                 className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2"
               >
