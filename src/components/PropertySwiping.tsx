@@ -227,7 +227,7 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
                     onClick={() => handleAction('dislike')}
                     variant="outline"
                     size="sm"
-                    className="flex-1 border-red-200 text-red-600 hover:bg-red-50 py-2 text-xs shadow-sm"
+                    className="flex-1 border-red-200 text-red-600 hover:border-red-300 hover:text-red-700 hover:bg-transparent py-2 text-xs shadow-sm"
                   >
                     <X size={14} className="mr-1" />
                     Pass
@@ -236,7 +236,7 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
                     onClick={() => handleAction('save')}
                     variant="outline"
                     size="sm"
-                    className="flex-1 border-gray-200 text-gray-600 hover:bg-gray-50 py-2 text-xs shadow-sm"
+                    className="flex-1 border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-700 hover:bg-transparent py-2 text-xs shadow-sm"
                   >
                     <Bookmark size={14} className="mr-1" />
                     Save
@@ -244,7 +244,7 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
                   <Button
                     onClick={() => handleAction('like')}
                     size="sm"
-                    className="flex-1 bg-green-600 hover:bg-green-700 py-2 text-xs shadow-md"
+                    className="flex-1 bg-green-600 hover:bg-green-700 hover:text-white py-2 text-xs shadow-md"
                   >
                     <Heart size={14} className="mr-1" />
                     Love It
