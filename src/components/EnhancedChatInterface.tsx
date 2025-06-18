@@ -1,5 +1,3 @@
-
-
 import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, ArrowLeft, Home, HelpCircle, TrendingUp, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -163,14 +161,6 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#E8ECF2] via-white to-[#F47C6D]/10">
       <div className="max-w-4xl mx-auto px-6 py-8 pb-32">
-        {/* Back Button */}
-        <div className="mb-8">
-          <Button onClick={onBack} variant="ghost" size="sm" className="p-2 hover:bg-gray-100">
-            <ArrowLeft size={18} className="mr-2" />
-            Back
-          </Button>
-        </div>
-
         {/* Question Categories */}
         {!selectedCategory && messages.length <= 9 && (
           <div className="space-y-6 mb-8">
@@ -297,4 +287,3 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
 };
 
 export default EnhancedChatInterface;
-
