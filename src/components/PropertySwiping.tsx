@@ -100,6 +100,7 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
     toast({
       title: "We are on it!",
       description: "Your tour request has been sent to Kelsey.",
+      className: "text-black",
     });
   };
 
