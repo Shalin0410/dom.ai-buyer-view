@@ -62,7 +62,7 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
       image: "/lovable-uploads/412b2afb-6d99-48ae-994c-74fea8162b86.png",
       insights: {
         whySuggested: "We know you prefer the Mission, but have you considered Noe Valley? It's super walkable, family-friendly with great schools for your future plans, and still in the city - take a look!",
-        profileDeviation: "This is outside your preferred Mission neighborhood",
+        profileDeviation: "Not in your usual search area, but it has the charm, layout, and access you've been looking for. Feels like a great fit—check it out!",
         appreciation: "Noe Valley properties typically appreciate 5-7% annually. Family-friendly neighborhoods with top-rated schools tend to maintain strong property values and demand."
       },
       features: ["Great Schools", "Family-Friendly", "Near Transit", "Garden"],
