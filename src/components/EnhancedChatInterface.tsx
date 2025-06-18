@@ -1,4 +1,5 @@
 
+
 import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, ArrowLeft, Home, HelpCircle, TrendingUp, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -161,30 +162,15 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#E8ECF2] via-white to-[#F47C6D]/10">
-      {/* Header */}
-      <div className="bg-white/80 backdrop-blur-sm shadow-lg border-b border-gray-200/50">
-        <div className="max-w-4xl mx-auto px-6 py-4">
-          <div className="flex items-center space-x-4">
-            <Button onClick={onBack} variant="ghost" size="sm" className="p-2 hover:bg-gray-100">
-              <ArrowLeft size={18} />
-            </Button>
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-[#3B4A6B] to-[#57C6A8] rounded-xl flex items-center justify-center shadow-lg">
-                <Bot className="text-white" size={18} />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">AI Assistant</h3>
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full shadow-sm"></div>
-                  <span className="text-sm text-gray-600">Online</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div className="max-w-4xl mx-auto px-6 py-8 pb-32">
+        {/* Back Button */}
+        <div className="mb-8">
+          <Button onClick={onBack} variant="ghost" size="sm" className="p-2 hover:bg-gray-100">
+            <ArrowLeft size={18} className="mr-2" />
+            Back
+          </Button>
+        </div>
+
         {/* Question Categories */}
         {!selectedCategory && messages.length <= 9 && (
           <div className="space-y-6 mb-8">
@@ -311,3 +297,4 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
 };
 
 export default EnhancedChatInterface;
+
