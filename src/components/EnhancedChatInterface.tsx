@@ -21,7 +21,7 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
-      text: "Hi! I'm your AI real estate assistant. I can help you with listing searches, home buying questions, or market insights. What would you like to know?",
+      text: "Hi! I'm Dom AI, your real estate assistant. I can help you with listing searches, home buying questions, or market insights. What would you like to know?",
       sender: 'bot',
       timestamp: new Date(Date.now() - 600000)
     }
@@ -237,7 +237,7 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
                       <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
                         <Bot size={14} className="text-gray-600" />
                       </div>
-                      <span className="text-xs text-gray-500">AI Assistant</span>
+                      <span className="text-xs text-gray-500">Dom AI</span>
                     </div>
                   )}
                   <div
@@ -269,7 +269,7 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
                     <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
                       <Bot size={14} className="text-gray-600" />
                     </div>
-                    <span className="text-xs text-gray-500">AI Assistant</span>
+                    <span className="text-xs text-gray-500">Dom AI</span>
                   </div>
                   <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
                     <div className="flex items-center space-x-1">
