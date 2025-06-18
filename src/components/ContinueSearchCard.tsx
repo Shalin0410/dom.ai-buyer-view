@@ -17,7 +17,7 @@ const ContinueSearchCard = ({ onNavigateToSearch }: ContinueSearchCardProps) => 
               <Heart className="w-5 h-5 text-pink-200" />
               <h3 className="text-xl font-semibold">New Matches Available</h3>
             </div>
-            <p className="text-blue-100 mb-1">Kelsey found a place she thinks you'll love!</p>
+            <p className="text-blue-100 mb-1">Kelsey found 789 Valencia Street - she thinks you'll love it!</p>
             <p className="text-blue-100 text-sm">Plus 7 more matches based on your preferences</p>
           </div>
           <Button 

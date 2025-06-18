@@ -19,16 +19,16 @@ interface UserData {
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   
-  // Mock user data since we're removing authentication
+  // Mock user data for David Martinez
   const userData: UserData = {
     id: 1,
-    email: 'user@example.com',
-    name: 'Sarah Johnson',
+    email: 'david@example.com',
+    name: 'David Martinez',
     isFirstTime: false,
     preferences: 'Modern homes with great views',
     realtorInfo: {
-      name: 'John Smith',
-      email: 'john@realty.com',
+      name: 'Kelsey Johnson',
+      email: 'kelsey@realty.com',
       phone: '(555) 123-4567'
     }
   };

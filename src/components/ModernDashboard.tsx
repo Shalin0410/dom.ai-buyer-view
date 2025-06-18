@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import ActionItems from './ActionItems';
 import DashboardHeader from './DashboardHeader';
@@ -19,12 +20,12 @@ const ModernDashboard = ({ userData, onPropertyClick, onNavigateToSearch }: Mode
   const mockProperties = [
     {
       id: 1,
-      address: "123 Maple Street",
-      city: "Austin, TX",
-      price: 485000,
-      beds: 3,
-      baths: 2,
-      sqft: 1850,
+      address: "123 Main Street",
+      city: "San Francisco, CA",
+      price: 750000,
+      beds: 2,
+      baths: 1,
+      sqft: 1200,
       image: "/lovable-uploads/473b81b4-4a7f-4522-9fc2-56e9031541f0.png",
       status: "tour_scheduled",
       currentStage: "tour_scheduled",
@@ -34,11 +35,11 @@ const ModernDashboard = ({ userData, onPropertyClick, onNavigateToSearch }: Mode
     {
       id: 2,
       address: "456 Oak Avenue",
-      city: "Austin, TX", 
-      price: 520000,
-      beds: 4,
-      baths: 3,
-      sqft: 2100,
+      city: "San Francisco, CA", 
+      price: 850000,
+      beds: 3,
+      baths: 2,
+      sqft: 1500,
       image: "/lovable-uploads/412b2afb-6d99-48ae-994c-74fea8162b86.png",
       status: "liked",
       currentStage: "disclosure_review",
@@ -48,11 +49,11 @@ const ModernDashboard = ({ userData, onPropertyClick, onNavigateToSearch }: Mode
     {
       id: 3,
       address: "789 Pine Road",
-      city: "Austin, TX",
-      price: 445000,
+      city: "San Francisco, CA",
+      price: 920000,
       beds: 3,
       baths: 2.5,
-      sqft: 1920,
+      sqft: 1800,
       image: "/lovable-uploads/be612467-888f-45c5-ac95-d87b77add016.png",
       status: "offer_made",
       currentStage: "negotiating",
@@ -62,11 +63,11 @@ const ModernDashboard = ({ userData, onPropertyClick, onNavigateToSearch }: Mode
     {
       id: 4,
       address: "321 Cedar Lane",
-      city: "Austin, TX",
-      price: 395000,
+      city: "San Francisco, CA",
+      price: 680000,
       beds: 2,
       baths: 2,
-      sqft: 1650,
+      sqft: 1400,
       image: "/lovable-uploads/473b81b4-4a7f-4522-9fc2-56e9031541f0.png",
       status: "interested",
       currentStage: "tour_scheduled",
