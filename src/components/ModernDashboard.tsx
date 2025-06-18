@@ -4,7 +4,6 @@ import DashboardHeader from './DashboardHeader';
 import ContinueSearchCard from './ContinueSearchCard';
 import SearchAndFilters from './SearchAndFilters';
 import PropertyGrid from './PropertyGrid';
-import NotificationCard from './NotificationCard';
 
 interface ModernDashboardProps {
   userData: any;
@@ -96,9 +95,7 @@ const ModernDashboard = ({ userData, onPropertyClick, onNavigateToSearch }: Mode
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           <div className="lg:col-span-3 space-y-8">
-            <NotificationCard onNavigateToSearch={handleNavigateToSearch} />
-            
-            <ContinueSearchCard />
+            <ContinueSearchCard onNavigateToSearch={handleNavigateToSearch} />
 
             <SearchAndFilters
               selectedStages={selectedStages}
