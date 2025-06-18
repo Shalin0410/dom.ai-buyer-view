@@ -76,6 +76,8 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
   ]);
   const [inputText, setInputText] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -85,6 +87,73 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Handle real-time typing and trigger responses
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setInputText(value);
+
+    // Clear existing timeout
+    if (typingTimeout) {
+      clearTimeout(typingTimeout);
+    }
+
+    // Set new timeout to trigger response after user stops typing
+    if (value.trim() && value.length > 10) { // Only trigger for substantial input
+      const newTimeout = setTimeout(() => {
+        triggerAutoResponse(value);
+      }, 2000); // Wait 2 seconds after user stops typing
+      setTypingTimeout(newTimeout);
+    }
+  };
+
+  const triggerAutoResponse = (userInput: string) => {
+    // Add user message
+    const newMessage: Message = {
+      id: messages.length + 1,
+      text: userInput,
+      sender: 'user',
+      timestamp: new Date(),
+      category: selectedCategory || undefined
+    };
+    setMessages(prev => [...prev, newMessage]);
+    setInputText('');
+
+    // Show typing indicator
+    setIsTyping(true);
+
+    // Generate AI response based on input content
+    setTimeout(() => {
+      let aiResponse = "I understand your question. Let me help you with that.";
+      
+      const lowerInput = userInput.toLowerCase();
+      
+      if (lowerInput.includes('visit') || lowerInput.includes('looking for') || lowerInput.includes('what should')) {
+        aiResponse = "Look for more than just finishes—notice how the space flows, how much natural light it gets, and any signs of wear or needed repairs. Think about practical details too: parking, storage, noise levels, and whether the layout works for your day-to-day.";
+      } else if (lowerInput.includes('price') || lowerInput.includes('fairly') || lowerInput.includes('cost')) {
+        aiResponse = "A good starting point is looking at recent sales of similar homes in the area—called comps. Days on market can also be a clue. If you want, I can pull some recent comps for a specific address so you can compare.";
+      } else if (lowerInput.includes('neighborhood') || lowerInput.includes('value') || lowerInput.includes('investment')) {
+        aiResponse = "That's a great question—and a tricky one. I can't predict future market trends, but your agent might have insights based on development plans, school ratings, or recent demand shifts in the area. Want me to flag this for them to follow up?";
+      } else if (lowerInput.includes('yes') || lowerInput.includes('sure') || lowerInput.includes('ok')) {
+        aiResponse = "Great, Kelsey's been messaged!";
+      } else if (selectedCategory === 'listing') {
+        aiResponse = "I found 12 properties matching your criteria. Here are the top 3 matches with the highest fit scores. Would you like me to show you these properties in your main feed?";
+      } else if (selectedCategory === 'process') {
+        aiResponse = "The home buying process typically involves: 1) Getting pre-approved for a mortgage, 2) Finding a real estate agent, 3) House hunting, 4) Making an offer, 5) Home inspection, 6) Finalizing financing, and 7) Closing. Each step is important for a successful purchase.";
+      } else if (selectedCategory === 'market') {
+        aiResponse = "Based on current market data for San Francisco: Average home price is $1.4M (up 2.3% from last quarter), average interest rates are at 7.2%, and inventory is at a 3-month supply. It's a competitive but stable market for qualified buyers.";
+      }
+
+      const aiMessage: Message = {
+        id: messages.length + 2,
+        text: aiResponse,
+        sender: 'bot',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, aiMessage]);
+      setIsTyping(false);
+    }, 1500);
+  };
 
   const questionCategories = {
     listing: {
@@ -125,36 +194,7 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
   const sendMessage = (text?: string) => {
     const messageText = text || inputText;
     if (messageText.trim()) {
-      const newMessage: Message = {
-        id: messages.length + 1,
-        text: messageText,
-        sender: 'user',
-        timestamp: new Date(),
-        category: selectedCategory || undefined
-      };
-      setMessages([...messages, newMessage]);
-      setInputText('');
-
-      // Simulate AI response based on category
-      setTimeout(() => {
-        let aiResponse = "I understand your question. Let me help you with that.";
-        
-        if (selectedCategory === 'listing') {
-          aiResponse = "I found 12 properties matching your criteria. Here are the top 3 matches with the highest fit scores. Would you like me to show you these properties in your main feed?";
-        } else if (selectedCategory === 'process') {
-          aiResponse = "The home buying process typically involves: 1) Getting pre-approved for a mortgage, 2) Finding a real estate agent, 3) House hunting, 4) Making an offer, 5) Home inspection, 6) Finalizing financing, and 7) Closing. Each step is important for a successful purchase.";
-        } else if (selectedCategory === 'market') {
-          aiResponse = "Based on current market data for San Francisco: Average home price is $1.4M (up 2.3% from last quarter), average interest rates are at 7.2%, and inventory is at a 3-month supply. It's a competitive but stable market for qualified buyers.";
-        }
-
-        const aiMessage: Message = {
-          id: messages.length + 2,
-          text: aiResponse,
-          sender: 'bot',
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, aiMessage]);
-      }, 1000);
+      triggerAutoResponse(messageText);
     }
   };
 
@@ -235,7 +275,7 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
               <div
                 className={`max-w-[75%] rounded-2xl px-5 py-4 shadow-lg ${
                   message.sender === 'user'
-                    ? 'bg-gradient-to-r from-[#3B4A6B] to-[#57C6A8] text-white'
+                    ? 'bg-white border border-gray-200 text-gray-900'
                     : 'bg-white/90 backdrop-blur-sm text-gray-900 border border-gray-200'
                 }`}
               >
@@ -245,14 +285,29 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
                   </Badge>
                 )}
                 <p className="text-sm leading-relaxed">{message.text}</p>
-                <p className={`text-xs mt-2 ${
-                  message.sender === 'user' ? 'text-blue-100' : 'text-gray-500'
-                }`}>
+                <p className="text-xs mt-2 text-gray-500">
                   {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
             </div>
           ))}
+          
+          {/* Typing indicator */}
+          {isTyping && (
+            <div className="flex justify-start">
+              <div className="bg-white/90 backdrop-blur-sm text-gray-900 border border-gray-200 rounded-2xl px-5 py-4 shadow-lg">
+                <div className="flex items-center space-x-1">
+                  <div className="flex space-x-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  </div>
+                  <span className="text-xs text-gray-500 ml-2">AI is typing...</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <div ref={messagesEndRef} />
         </div>
       </div>
@@ -263,7 +318,7 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
           <div className="flex items-center space-x-3 bg-white rounded-2xl shadow-lg border border-gray-200 p-2">
             <Input
               value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
+              onChange={handleInputChange}
               placeholder="Ask me anything about real estate..."
               className="flex-1 border-0 bg-transparent text-sm focus-visible:ring-0 focus-visible:ring-offset-0 text-gray-700 placeholder:text-gray-500"
               onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
