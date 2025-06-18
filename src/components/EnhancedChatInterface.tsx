@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, ArrowLeft, Home, HelpCircle, TrendingUp, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,55 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
       id: 1,
       text: "Hi! I'm your AI real estate assistant. I can help you with listing searches, home buying questions, or market insights. What would you like to know?",
       sender: 'bot',
-      timestamp: new Date(Date.now() - 10000)
+      timestamp: new Date(Date.now() - 600000) // 10 minutes ago
+    },
+    {
+      id: 2,
+      text: "What should I be looking for when I go visit homes?",
+      sender: 'user',
+      timestamp: new Date(Date.now() - 540000) // 9 minutes ago
+    },
+    {
+      id: 3,
+      text: "Look for more than just finishes—notice how the space flows, how much natural light it gets, and any signs of wear or needed repairs. Think about practical details too: parking, storage, noise levels, and whether the layout works for your day-to-day.",
+      sender: 'bot',
+      timestamp: new Date(Date.now() - 480000) // 8 minutes ago
+    },
+    {
+      id: 4,
+      text: "How do I know if a home is priced fairly?",
+      sender: 'user',
+      timestamp: new Date(Date.now() - 420000) // 7 minutes ago
+    },
+    {
+      id: 5,
+      text: "A good starting point is looking at recent sales of similar homes in the area—called comps. Days on market can also be a clue. If you want, I can pull some recent comps for a specific address so you can compare.",
+      sender: 'bot',
+      timestamp: new Date(Date.now() - 360000) // 6 minutes ago
+    },
+    {
+      id: 6,
+      text: "Is this neighborhood likely to go up in value in the next few years?",
+      sender: 'user',
+      timestamp: new Date(Date.now() - 300000) // 5 minutes ago
+    },
+    {
+      id: 7,
+      text: "That's a great question—and a tricky one. I can't predict future market trends, but your agent might have insights based on development plans, school ratings, or recent demand shifts in the area. Want me to flag this for them to follow up?",
+      sender: 'bot',
+      timestamp: new Date(Date.now() - 240000) // 4 minutes ago
+    },
+    {
+      id: 8,
+      text: "Yes",
+      sender: 'user',
+      timestamp: new Date(Date.now() - 180000) // 3 minutes ago
+    },
+    {
+      id: 9,
+      text: "Great, Kelsey's been messaged!",
+      sender: 'bot',
+      timestamp: new Date(Date.now() - 120000) // 2 minutes ago
     }
   ]);
   const [inputText, setInputText] = useState('');
@@ -137,7 +186,7 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
 
       <div className="max-w-4xl mx-auto px-6 py-8 pb-32">
         {/* Question Categories */}
-        {!selectedCategory && messages.length <= 1 && (
+        {!selectedCategory && messages.length <= 9 && (
           <div className="space-y-6 mb-8">
             <h3 className="text-xl font-semibold text-gray-900">What can I help you with?</h3>
             <div className="grid gap-4 md:grid-cols-3">
@@ -170,7 +219,7 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
         )}
 
         {/* Selected Category Questions */}
-        {selectedCategory && messages.length <= 1 && (
+        {selectedCategory && messages.length <= 9 && (
           <div className="space-y-6 mb-8">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-semibold text-gray-900">
