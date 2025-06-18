@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Heart, X, Bookmark, Info, MapPin, Calendar, Star, TrendingUp } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -114,9 +113,6 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
               <h1 className="text-lg font-semibold text-gray-900">Your Property Matches</h1>
               <p className="text-xs text-gray-600 mt-1">Discover properties curated just for you</p>
             </div>
-            <Button onClick={onOpenChat} variant="outline" size="sm" className="px-3 py-2 text-xs shadow-sm">
-              Ask Questions
-            </Button>
           </div>
         </div>
       </div>
