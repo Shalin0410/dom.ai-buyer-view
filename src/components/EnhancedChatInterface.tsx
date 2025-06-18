@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, ArrowLeft, Home, HelpCircle, TrendingUp, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,55 +24,7 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
       id: 1,
       text: "Hi! I'm your AI real estate assistant. I can help you with listing searches, home buying questions, or market insights. What would you like to know?",
       sender: 'bot',
-      timestamp: new Date(Date.now() - 600000) // 10 minutes ago
-    },
-    {
-      id: 2,
-      text: "What should I be looking for when I go visit homes?",
-      sender: 'user',
-      timestamp: new Date(Date.now() - 540000) // 9 minutes ago
-    },
-    {
-      id: 3,
-      text: "Look for more than just finishes—notice how the space flows, how much natural light it gets, and any signs of wear or needed repairs. Think about practical details too: parking, storage, noise levels, and whether the layout works for your day-to-day.",
-      sender: 'bot',
-      timestamp: new Date(Date.now() - 480000) // 8 minutes ago
-    },
-    {
-      id: 4,
-      text: "How do I know if a home is priced fairly?",
-      sender: 'user',
-      timestamp: new Date(Date.now() - 420000) // 7 minutes ago
-    },
-    {
-      id: 5,
-      text: "A good starting point is looking at recent sales of similar homes in the area—called comps. Days on market can also be a clue. If you want, I can pull some recent comps for a specific address so you can compare.",
-      sender: 'bot',
-      timestamp: new Date(Date.now() - 360000) // 6 minutes ago
-    },
-    {
-      id: 6,
-      text: "Is this neighborhood likely to go up in value in the next few years?",
-      sender: 'user',
-      timestamp: new Date(Date.now() - 300000) // 5 minutes ago
-    },
-    {
-      id: 7,
-      text: "That's a great question—and a tricky one. I can't predict future market trends, but your agent might have insights based on development plans, school ratings, or recent demand shifts in the area. Want me to flag this for them to follow up?",
-      sender: 'bot',
-      timestamp: new Date(Date.now() - 240000) // 4 minutes ago
-    },
-    {
-      id: 8,
-      text: "Yes",
-      sender: 'user',
-      timestamp: new Date(Date.now() - 180000) // 3 minutes ago
-    },
-    {
-      id: 9,
-      text: "Great, Kelsey's been messaged!",
-      sender: 'bot',
-      timestamp: new Date(Date.now() - 120000) // 2 minutes ago
+      timestamp: new Date(Date.now() - 600000)
     }
   ]);
   const [inputText, setInputText] = useState('');
@@ -88,27 +41,23 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
     scrollToBottom();
   }, [messages]);
 
-  // Handle real-time typing and trigger responses
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setInputText(value);
 
-    // Clear existing timeout
     if (typingTimeout) {
       clearTimeout(typingTimeout);
     }
 
-    // Set new timeout to trigger response after user stops typing
-    if (value.trim() && value.length > 10) { // Only trigger for substantial input
+    if (value.trim() && value.length > 10) {
       const newTimeout = setTimeout(() => {
         triggerAutoResponse(value);
-      }, 2000); // Wait 2 seconds after user stops typing
+      }, 2000);
       setTypingTimeout(newTimeout);
     }
   };
 
   const triggerAutoResponse = (userInput: string) => {
-    // Add user message
     const newMessage: Message = {
       id: messages.length + 1,
       text: userInput,
@@ -119,10 +68,8 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
     setMessages(prev => [...prev, newMessage]);
     setInputText('');
 
-    // Show typing indicator
     setIsTyping(true);
 
-    // Generate AI response based on input content
     setTimeout(() => {
       let aiResponse = "I understand your question. Let me help you with that.";
       
@@ -159,7 +106,6 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
     listing: {
       icon: Home,
       title: "Listing Questions",
-      color: "bg-blue-50 text-blue-700 border-blue-200",
       questions: [
         "Show me listings in zipcode 94107",
         "Show me listings on the market for over 30 days",
@@ -170,7 +116,6 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
     process: {
       icon: HelpCircle,
       title: "Home Buying Process",
-      color: "bg-green-50 text-green-700 border-green-200",
       questions: [
         "What is the home buying process?",
         "Who are the key stakeholders?",
@@ -181,7 +126,6 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
     market: {
       icon: TrendingUp,
       title: "Market Insights",
-      color: "bg-purple-50 text-purple-700 border-purple-200",
       questions: [
         "Recent market trends in San Francisco",
         "What is the average interest rate?",
@@ -199,141 +143,167 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#E8ECF2] via-white to-[#F47C6D]/10">
-      <div className="max-w-4xl mx-auto px-6 py-8 pb-32">
-        {/* Question Categories */}
-        {!selectedCategory && messages.length <= 9 && (
-          <div className="space-y-6 mb-8">
-            <h3 className="text-xl font-semibold text-gray-900">What can I help you with?</h3>
-            <div className="grid gap-4 md:grid-cols-3">
-              {Object.entries(questionCategories).map(([key, category]) => {
-                const IconComponent = category.icon;
-                return (
-                  <Card 
-                    key={key} 
-                    className="cursor-pointer hover:shadow-lg transition-all duration-200 border border-gray-200 bg-white/80 backdrop-blur-sm hover:scale-105"
-                    onClick={() => setSelectedCategory(key)}
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex flex-col items-center text-center space-y-3">
-                        <div className={`p-3 rounded-xl border ${category.color} shadow-md`}>
-                          <IconComponent size={24} />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-gray-900 text-sm">{category.title}</h4>
-                          <p className="text-xs text-gray-600 mt-1">
-                            {category.questions[0]}...
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </div>
-        )}
+    <div className="min-h-screen bg-white">
+      <div className="max-w-3xl mx-auto">
+        {/* Header */}
+        <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 z-10">
+          <h1 className="text-xl font-semibold text-gray-900">Chat Assistant</h1>
+          <p className="text-sm text-gray-600">Ask me anything about real estate</p>
+        </div>
 
-        {/* Selected Category Questions */}
-        {selectedCategory && messages.length <= 9 && (
-          <div className="space-y-6 mb-8">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-gray-900">
-                {questionCategories[selectedCategory].title}
-              </h3>
-              <Button 
-                onClick={() => setSelectedCategory(null)} 
-                variant="outline" 
-                size="sm"
-                className="shadow-sm"
-              >
-                Back
-              </Button>
-            </div>
-            <div className="grid gap-3">
-              {questionCategories[selectedCategory].questions.map((question, index) => (
-                <Button
-                  key={index}
-                  variant="outline"
-                  className="text-left justify-start h-auto py-4 px-5 text-sm font-normal shadow-sm hover:shadow-md transition-all duration-200 bg-white/80 backdrop-blur-sm"
-                  onClick={() => sendMessage(question)}
-                >
-                  {question}
-                </Button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Messages */}
-        <div className="space-y-6 mb-8">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-[75%] rounded-2xl px-5 py-4 shadow-lg ${
-                  message.sender === 'user'
-                    ? 'bg-white border border-gray-200 text-gray-900'
-                    : 'bg-white/90 backdrop-blur-sm text-gray-900 border border-gray-200'
-                }`}
-              >
-                {message.category && (
-                  <Badge className={`mb-3 text-xs px-2 py-1 shadow-sm ${questionCategories[message.category].color}`}>
-                    {questionCategories[message.category].title}
-                  </Badge>
-                )}
-                <p className="text-sm leading-relaxed">{message.text}</p>
-                <p className="text-xs mt-2 text-gray-500">
-                  {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </p>
-              </div>
-            </div>
-          ))}
-          
-          {/* Typing indicator */}
-          {isTyping && (
-            <div className="flex justify-start">
-              <div className="bg-white/90 backdrop-blur-sm text-gray-900 border border-gray-200 rounded-2xl px-5 py-4 shadow-lg">
-                <div className="flex items-center space-x-1">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  </div>
-                  <span className="text-xs text-gray-500 ml-2">AI is typing...</span>
-                </div>
+        {/* Content */}
+        <div className="px-6 py-6 pb-32">
+          {/* Question Categories */}
+          {!selectedCategory && messages.length <= 1 && (
+            <div className="mb-8">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">What can I help you with?</h3>
+              <div className="grid gap-3 md:grid-cols-3">
+                {Object.entries(questionCategories).map(([key, category]) => {
+                  const IconComponent = category.icon;
+                  return (
+                    <Card 
+                      key={key} 
+                      className="cursor-pointer hover:shadow-md transition-shadow border border-gray-200"
+                      onClick={() => setSelectedCategory(key)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="p-2 rounded-lg bg-gray-50">
+                            <IconComponent size={20} className="text-gray-700" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-gray-900 text-sm">{category.title}</h4>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {category.questions.length} questions
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             </div>
           )}
-          
-          <div ref={messagesEndRef} />
-        </div>
-      </div>
 
-      {/* Input Area */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-t border-gray-200/50 shadow-2xl">
-        <div className="max-w-4xl mx-auto p-6">
-          <div className="flex items-center space-x-3 bg-white rounded-2xl shadow-lg border border-gray-200 p-2">
-            <Input
-              value={inputText}
-              onChange={handleInputChange}
-              placeholder="Ask me anything about real estate..."
-              className="flex-1 border-0 bg-transparent text-sm focus-visible:ring-0 focus-visible:ring-offset-0 text-gray-700 placeholder:text-gray-500"
-              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-            />
-            <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700 p-2">
-              <Mic size={18} />
-            </Button>
-            <Button 
-              onClick={() => sendMessage()}
-              disabled={!inputText.trim()}
-              size="sm"
-              className="bg-gradient-to-r from-[#3B4A6B] to-[#57C6A8] hover:from-[#3B4A6B]/90 hover:to-[#57C6A8]/90 text-white shadow-md px-4 py-2"
-            >
-              <Send size={16} />
-            </Button>
+          {/* Selected Category Questions */}
+          {selectedCategory && messages.length <= 1 && (
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  {questionCategories[selectedCategory].title}
+                </h3>
+                <Button 
+                  onClick={() => setSelectedCategory(null)} 
+                  variant="outline" 
+                  size="sm"
+                >
+                  Back
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {questionCategories[selectedCategory].questions.map((question, index) => (
+                  <Button
+                    key={index}
+                    variant="outline"
+                    className="w-full text-left justify-start h-auto py-3 px-4 font-normal border-gray-200 hover:bg-gray-50"
+                    onClick={() => sendMessage(question)}
+                  >
+                    {question}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Messages */}
+          <div className="space-y-4">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div className="max-w-[80%]">
+                  {message.sender === 'bot' && (
+                    <div className="flex items-center space-x-2 mb-2">
+                      <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
+                        <Bot size={14} className="text-gray-600" />
+                      </div>
+                      <span className="text-xs text-gray-500">AI Assistant</span>
+                    </div>
+                  )}
+                  <div
+                    className={`rounded-2xl px-4 py-3 ${
+                      message.sender === 'user'
+                        ? 'bg-gray-100 text-gray-900'
+                        : 'bg-white border border-gray-200 text-gray-900'
+                    }`}
+                  >
+                    {message.category && (
+                      <Badge className="mb-2 text-xs bg-gray-100 text-gray-700 border-gray-200">
+                        {questionCategories[message.category].title}
+                      </Badge>
+                    )}
+                    <p className="text-sm leading-relaxed">{message.text}</p>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1 px-1">
+                    {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              </div>
+            ))}
+            
+            {/* Typing indicator */}
+            {isTyping && (
+              <div className="flex justify-start">
+                <div className="max-w-[80%]">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
+                      <Bot size={14} className="text-gray-600" />
+                    </div>
+                    <span className="text-xs text-gray-500">AI Assistant</span>
+                  </div>
+                  <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
+                    <div className="flex items-center space-x-1">
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      </div>
+                      <span className="text-xs text-gray-500 ml-2">Typing...</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+
+        {/* Input Area */}
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100">
+          <div className="max-w-3xl mx-auto p-4">
+            <div className="flex items-center space-x-3 bg-gray-50 rounded-lg p-2 border border-gray-200">
+              <Input
+                value={inputText}
+                onChange={handleInputChange}
+                placeholder="Type your message..."
+                className="flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-gray-700 placeholder:text-gray-500"
+                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+              />
+              <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700 p-2">
+                <Mic size={18} />
+              </Button>
+              <Button 
+                onClick={() => sendMessage()}
+                disabled={!inputText.trim()}
+                size="sm"
+                className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2"
+              >
+                <Send size={16} />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
