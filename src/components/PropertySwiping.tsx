@@ -4,6 +4,7 @@ import { Heart, X, Bookmark, Info, MapPin, Calendar, Star, TrendingUp } from 'lu
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { toast } from '@/hooks/use-toast';
 
 interface Property {
   id: number;
@@ -41,7 +42,7 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
       beds: 3,
       baths: 2,
       sqft: 1850,
-      image: "/placeholder.svg",
+      image: "/lovable-uploads/473b81b4-4a7f-4522-9fc2-56e9031541f0.png",
       insights: {
         whySuggested: "In your price range, in the Mission (walkable neighborhood), and has the private backyard you need for your dog. You consistently liked homes with outdoor space.",
         profileDeviation: undefined,
@@ -58,7 +59,7 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
       beds: 3,
       baths: 2.5,
       sqft: 2100,
-      image: "/placeholder.svg",
+      image: "/lovable-uploads/412b2afb-6d99-48ae-994c-74fea8162b86.png",
       insights: {
         whySuggested: "We know you prefer the Mission, but have you considered Noe Valley? It's super walkable, family-friendly with great schools for your future plans, and still in the city - take a look!",
         profileDeviation: "This is outside your preferred Mission neighborhood",
@@ -75,15 +76,31 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
   const handleAction = (action: 'like' | 'dislike' | 'save') => {
     onPropertyAction(currentProperty.id, action);
     
-    if (action !== 'dislike') {
+    if (action === 'like') {
+      // Move to next property when "Love It" is clicked
+      if (currentPropertyIndex < mockProperties.length - 1) {
+        setCurrentPropertyIndex(currentPropertyIndex + 1);
+      } else {
+        setCurrentPropertyIndex(0);
+      }
+    } else if (action !== 'dislike') {
       console.log(`Property ${action}d!`);
     }
     
-    if (currentPropertyIndex < mockProperties.length - 1) {
-      setCurrentPropertyIndex(currentPropertyIndex + 1);
-    } else {
-      setCurrentPropertyIndex(0);
+    if (action === 'dislike') {
+      if (currentPropertyIndex < mockProperties.length - 1) {
+        setCurrentPropertyIndex(currentPropertyIndex + 1);
+      } else {
+        setCurrentPropertyIndex(0);
+      }
     }
+  };
+
+  const handleScheduleTour = () => {
+    toast({
+      title: "We are on it!",
+      description: "Your tour request has been sent to Kelsey.",
+    });
   };
 
   return (
@@ -238,7 +255,11 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
                 </div>
 
                 {/* Schedule Tour Button */}
-                <Button size="sm" className="w-full bg-blue-600 hover:bg-blue-700 py-2 text-xs shadow-md">
+                <Button 
+                  onClick={handleScheduleTour}
+                  size="sm" 
+                  className="w-full bg-blue-600 hover:bg-blue-700 py-2 text-xs shadow-md"
+                >
                   <Calendar size={14} className="mr-1" />
                   Schedule Tour (Auto-booking in progress...)
                 </Button>

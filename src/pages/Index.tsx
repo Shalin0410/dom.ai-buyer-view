@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import Header from '@/components/Header';
 import MainAppContent from '@/components/MainAppContent';
+import { Toaster } from '@/components/ui/toaster';
 
 interface UserData {
   id: number;
@@ -44,6 +45,7 @@ const Index = () => {
           onTabChange={setActiveTab}
         />
       </main>
+      <Toaster />
     </div>
   );
 };
