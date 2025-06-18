@@ -4,13 +4,15 @@ import DashboardHeader from './DashboardHeader';
 import ContinueSearchCard from './ContinueSearchCard';
 import SearchAndFilters from './SearchAndFilters';
 import PropertyGrid from './PropertyGrid';
+import NotificationCard from './NotificationCard';
 
 interface ModernDashboardProps {
   userData: any;
   onPropertyClick: (propertyId: number) => void;
+  onNavigateToSearch?: () => void;
 }
 
-const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) => {
+const ModernDashboard = ({ userData, onPropertyClick, onNavigateToSearch }: ModernDashboardProps) => {
   const [selectedStages, setSelectedStages] = useState(['tour_scheduled', 'disclosure_review']);
   const [selectedActions, setSelectedActions] = useState(['tour_scheduled']);
   const [selectedActivities, setSelectedActivities] = useState(['recently_updated']);
@@ -81,6 +83,12 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
     return true;
   });
 
+  const handleNavigateToSearch = () => {
+    if (onNavigateToSearch) {
+      onNavigateToSearch();
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30">
       <DashboardHeader userData={userData} />
@@ -88,6 +96,8 @@ const ModernDashboard = ({ userData, onPropertyClick }: ModernDashboardProps) =>
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           <div className="lg:col-span-3 space-y-8">
+            <NotificationCard onNavigateToSearch={handleNavigateToSearch} />
+            
             <ContinueSearchCard />
 
             <SearchAndFilters

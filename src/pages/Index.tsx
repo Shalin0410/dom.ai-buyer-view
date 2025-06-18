@@ -38,7 +38,11 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-to-br from-[#E8ECF2] via-white to-[#F47C6D]/10">
       <Header activeTab={activeTab} onTabChange={setActiveTab} />
       <main className="max-w-7xl mx-auto px-6 py-8">
-        <MainAppContent activeTab={activeTab} userData={userData} />
+        <MainAppContent 
+          activeTab={activeTab} 
+          userData={userData} 
+          onTabChange={setActiveTab}
+        />
       </main>
     </div>
   );

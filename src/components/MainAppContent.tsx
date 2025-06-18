@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import ModernDashboard from '@/components/ModernDashboard';
 import EnhancedChatInterface from '@/components/EnhancedChatInterface';
@@ -22,9 +21,10 @@ interface UserData {
 interface MainAppContentProps {
   activeTab: string;
   userData: UserData | null;
+  onTabChange?: (tab: string) => void;
 }
 
-const MainAppContent = ({ activeTab, userData }: MainAppContentProps) => {
+const MainAppContent = ({ activeTab, userData, onTabChange }: MainAppContentProps) => {
   const [selectedPropertyId, setSelectedPropertyId] = useState<number | null>(null);
 
   const handleChatBack = () => {
@@ -64,6 +64,12 @@ const MainAppContent = ({ activeTab, userData }: MainAppContentProps) => {
     setSelectedPropertyId(null);
   };
 
+  const handleNavigateToSearch = () => {
+    if (onTabChange) {
+      onTabChange('search');
+    }
+  };
+
   // Show property detail page if a property is selected
   if (selectedPropertyId) {
     return (
@@ -82,6 +88,7 @@ const MainAppContent = ({ activeTab, userData }: MainAppContentProps) => {
         <ModernDashboard 
           userData={userData} 
           onPropertyClick={handlePropertyClick}
+          onNavigateToSearch={handleNavigateToSearch}
         />
       )}
       {activeTab === 'chat' && <EnhancedChatInterface onBack={handleChatBack} />}
