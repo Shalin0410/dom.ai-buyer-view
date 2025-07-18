@@ -1,49 +1,65 @@
 
 import { useState } from 'react';
 import Header from '@/components/Header';
+import { useAuth } from '@/contexts/AuthContext';
 import MainAppContent from '@/components/MainAppContent';
 import { Toaster } from '@/components/ui/toaster';
 
+import { useBuyer } from '@/hooks/useBuyer';
+
 interface UserData {
-  id: number;
+  id: string;
   email: string;
+  first_name: string;
+  last_name: string;
   name: string;
   isFirstTime: boolean;
-  preferences?: string;
-  realtorInfo?: {
-    name: string;
+  preferences?: string | null;
+  agent_id?: string | null;
+  agent?: {
+    id: string;
+    first_name: string;
+    last_name: string;
     email: string;
-    phone: string;
-  };
+    phone: string | null;
+  } | null;
 }
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   
-  // Mock user data for David Martinez
-  const userData: UserData = {
-    id: 1,
-    email: 'david@example.com',
-    name: 'David Martinez',
+  const { user } = useAuth();
+  const email = user?.email ?? '';
+  const { data: buyer, isLoading, error } = useBuyer(email);
+
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error loading buyer data</div>;
+  if (!buyer) return <div>No buyer record found for {email}</div>;
+
+  const userData: UserData | null = buyer ? {
+    id: buyer.id,
+    email: buyer.email,
+    first_name: buyer.first_name,
+    last_name: buyer.last_name,
+    name: `${buyer.first_name} ${buyer.last_name}`,
     isFirstTime: false,
-    preferences: 'Modern homes with great views',
-    realtorInfo: {
-      name: 'Kelsey Johnson',
-      email: 'kelsey@realty.com',
-      phone: '(555) 123-4567'
-    }
-  };
+    preferences: '',
+    agent_id: buyer.agent_id,
+    agent: buyer.agent,
+  } : null;
 
   // Main website interface - no authentication flow
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#E8ECF2] via-white to-[#F47C6D]/10">
       <Header activeTab={activeTab} onTabChange={setActiveTab} />
       <main className="max-w-7xl mx-auto px-6 py-8">
-        <MainAppContent 
-          activeTab={activeTab} 
-          userData={userData} 
-          onTabChange={setActiveTab}
-        />
+        {userData && (
+          <MainAppContent 
+            activeTab={activeTab} 
+            userData={userData} 
+            onTabChange={setActiveTab}
+          />
+        )}
       </main>
       <Toaster />
     </div>

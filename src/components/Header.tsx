@@ -1,6 +1,8 @@
 
-import { MessageSquare, Search, Home, User } from 'lucide-react';
+import { MessageSquare, Search, Home, User, LogOut } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface HeaderProps {
   activeTab: string;
@@ -8,6 +10,15 @@ interface HeaderProps {
 }
 
 const Header = ({ activeTab, onTabChange }: HeaderProps) => {
+  const { signOut, user } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
   const NavButton = ({ icon: Icon, label, tabKey, count = 0 }) => (
     <button
       onClick={() => onTabChange(tabKey)}
@@ -73,6 +84,22 @@ const Header = ({ activeTab, onTabChange }: HeaderProps) => {
               label="Profile" 
               tabKey="profile" 
             />
+            
+            {/* User Info and Logout */}
+            <div className="flex items-center space-x-3 ml-6 pl-6 border-l border-white/20">
+              <div className="text-sm text-gray-600">
+                {user?.email}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                className="text-gray-600 hover:text-red-600 hover:bg-red-50"
+              >
+                <LogOut size={16} className="mr-1" />
+                Logout
+              </Button>
+            </div>
           </nav>
         </div>
       </div>

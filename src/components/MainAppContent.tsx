@@ -6,7 +6,7 @@ import ProfilePage from '@/components/ProfilePage';
 import PropertyDetailPage from '@/components/PropertyDetailPage';
 
 interface UserData {
-  id: number;
+  id: string;
   email: string;
   name: string;
   isFirstTime: boolean;

@@ -1,9 +1,8 @@
-
 import { useState } from 'react';
-import { Edit2, MapPin, DollarSign, Home, Star, Settings } from 'lucide-react';
+import { Edit2, MapPin, DollarSign, Home, Star, Settings, Heart, User, Phone, Mail, Calendar, UserCheck } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 interface ProfilePageProps {
   userData: any;
@@ -79,6 +78,43 @@ const ProfilePage = ({ userData }: ProfilePageProps) => {
 
       {/* Content */}
       <div className="max-w-lg mx-auto px-6 py-6 space-y-4">
+        {/* Assigned Agent Information */}
+        {userData?.agent_id && (
+          <ProfileSection title="Your Assigned Agent" icon={UserCheck}>
+            <div className="space-y-3">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center shadow-md">
+                  <span className="text-white font-semibold text-lg">
+                    {userData.agent?.first_name?.charAt(0) || 'A'}
+                  </span>
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">
+                    {userData.agent?.first_name} {userData.agent?.last_name}
+                  </p>
+                  <p className="text-sm text-gray-600">Real Estate Agent</p>
+                </div>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center space-x-2">
+                  <Mail size={14} className="text-gray-500" />
+                  <span className="text-gray-600">{userData.agent?.email}</span>
+                </div>
+                {userData.agent?.phone && (
+                  <div className="flex items-center space-x-2">
+                    <Phone size={14} className="text-gray-500" />
+                    <span className="text-gray-600">{userData.agent.phone}</span>
+                  </div>
+                )}
+              </div>
+              <div className="pt-2">
+                <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                  Active Assignment
+                </Badge>
+              </div>
+            </div>
+          </ProfileSection>
+        )}
         {/* Basic Requirements */}
         <ProfileSection title="Property Requirements" icon={Home}>
           <div className="grid grid-cols-2 gap-4">
