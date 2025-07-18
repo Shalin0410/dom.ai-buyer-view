@@ -6,6 +6,32 @@ import { ApiResponse, AuthUser, AuthSession } from '../api/types';
 export class SupabaseAuthService extends BaseAuthService {
   async signInWithMagicLink(email: string, redirectUrl?: string): Promise<ApiResponse<null>> {
     try {
+      console.log('Checking if buyer exists before sending magic link...');
+      
+      // First, check if the buyer exists in our database
+      const { data: buyer, error: buyerError } = await supabase
+        .from('buyers')
+        .select('email')
+        .eq('email', email)
+        .single();
+
+      if (buyerError && buyerError.code === 'PGRST116') {
+        // No buyer found with this email
+        console.log('Buyer not found for email:', email);
+        return this.createResponse(null, 'Your email is not registered in our system. Please contact your real estate agent to get access to the platform.');
+      }
+
+      if (buyerError) {
+        console.error('Error checking buyer:', buyerError);
+        return this.createResponse(null, 'There was an error verifying your access. Please try again later.');
+      }
+
+      if (!buyer) {
+        console.log('No buyer record found for email:', email);
+        return this.createResponse(null, 'Your email is not registered in our system. Please contact your real estate agent to get access to the platform.');
+      }
+
+      console.log('Buyer found, proceeding with magic link for:', email);
       console.log('Clearing existing sessions before sending magic link...');
       
       // Clear existing sessions to prevent conflicts
@@ -28,7 +54,17 @@ export class SupabaseAuthService extends BaseAuthService {
 
       if (error) {
         console.error('Error sending magic link:', error);
-        return this.createResponse(null, error.message);
+        
+        // Handle specific Supabase errors with user-friendly messages
+        if (error.message.includes('Signups not allowed')) {
+          return this.createResponse(null, 'Your email is not registered in our system. Please contact your real estate agent to get access to the platform.');
+        }
+        
+        if (error.message.includes('otp_expired') || error.message.includes('expired')) {
+          return this.createResponse(null, 'The magic link has expired. Please try logging in again.');
+        }
+        
+        return this.createResponse(null, 'There was an error sending the login link. Please try again later.');
       }
 
       console.log('Magic link sent successfully');
@@ -36,7 +72,7 @@ export class SupabaseAuthService extends BaseAuthService {
     } catch (error) {
       console.error('Error in signInWithMagicLink:', error);
       const apiError = this.handleError(error);
-      return this.createResponse(null, apiError.message);
+      return this.createResponse(null, 'There was an error processing your request. Please try again later.');
     }
   }
 
