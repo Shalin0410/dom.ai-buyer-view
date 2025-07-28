@@ -1,55 +1,127 @@
-
-import { Calendar, MapPin, TrendingUp, Star } from 'lucide-react';
+import React from 'react';
+import { Calendar, MapPin, TrendingUp, AlertCircle, Home, Bath, Bed, Heart } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Property, PropertyStatus, ActionRequired } from '@/services/api/types';
 
-const PropertyCard = ({ property }) => {
-  const getStatusColor = (status) => {
+// Extend the Property interface to include the optional statusText field
+interface PropertyWithStatusText extends Property {
+  statusText?: string;
+}
+
+interface PropertyCardProps {
+  property: PropertyWithStatusText;
+  onClick?: () => void;
+  mode?: 'tracked' | 'browse';
+  onAddToInterested?: (propertyId: string) => void;
+}
+
+export const PropertyCard: React.FC<PropertyCardProps> = ({ property, onClick, mode = 'tracked', onAddToInterested }) => {
+  // Get status color based on status value
+  const getStatusColor = (status: string) => {
     switch (status) {
-      case 'viewing_scheduled':
+      case 'researching':
         return 'bg-blue-100 text-blue-800';
-      case 'interested':
-        return 'bg-green-100 text-green-800';
-      case 'offer_made':
+      case 'viewing':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'offer_submitted':
         return 'bg-orange-100 text-orange-800';
+      case 'under_contract':
+        return 'bg-purple-100 text-purple-800';
+      case 'in_escrow':
+        return 'bg-indigo-100 text-indigo-800';
+      case 'closed':
+        return 'bg-green-100 text-green-800';
+      case 'withdrawn':
+        return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const getStatusText = (status) => {
-    switch (status) {
-      case 'viewing_scheduled':
-        return 'Viewing Scheduled';
-      case 'interested':
-        return 'Interested';
-      case 'offer_made':
-        return 'Offer Made';
-      default:
-        return 'New';
+  // Get action text for the action required badge
+  const getActionText = (action: string) => {
+    if (action === 'none') return null;
+    
+    // If action is already in a display format, return as is
+    if (typeof action === 'string' && action.includes(' ')) {
+      return action;
     }
+    
+    // Otherwise, format the action key into a display string
+    return action
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
+  const formatPrice = (price: number) => {
+    if (price >= 1000000) {
+      return `$${(price / 1000000).toFixed(1)}M`;
+    } else if (price >= 1000) {
+      return `$${(price / 1000).toFixed(0)}K`;
+    }
+    return `$${price.toLocaleString()}`;
+  };
+
+  const formatLastActivity = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks ago`;
+    return date.toLocaleDateString();
+  };
+
+  const primaryPhoto = property.photos?.find(photo => photo.is_primary) || property.photos?.[0];
+  const actionText = property.action_required ? getActionText(property.action_required) : null;
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't trigger card click if clicking on the Add to Interested button
+    if ((e.target as HTMLElement).closest('.add-to-interested-btn')) {
+      return;
+    }
+    onClick?.();
+  };
+
+  const handleAddToInterested = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onAddToInterested?.(property.id);
   };
 
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+    <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer" onClick={handleCardClick}>
       <div className="aspect-[16/10] bg-gray-200 relative">
-        <img 
-          src={property.image} 
-          alt={property.address}
-          className="w-full h-full object-cover"
-        />
+        {primaryPhoto ? (
+          <img 
+            src={primaryPhoto.url} 
+            alt={property.address}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gray-100">
+            <Home className="h-12 w-12 text-gray-400" />
+          </div>
+        )}
+        
         <div className="absolute top-3 left-3">
-          <Badge className="bg-green-600 hover:bg-green-600 text-white">
-            <Star size={12} className="mr-1" />
-            {property.fitScore}% Match
-          </Badge>
-        </div>
-        <div className="absolute top-3 right-3">
           <Badge className={getStatusColor(property.status)}>
-            {getStatusText(property.status)}
+            {property.statusText || property.status}
           </Badge>
         </div>
+        
+        {actionText && (
+          <div className="absolute top-3 right-3">
+            <Badge className="bg-red-100 text-red-800">
+              <AlertCircle size={12} className="mr-1" />
+              Action Required
+            </Badge>
+          </div>
+        )}
       </div>
       
       <CardContent className="p-4">
@@ -61,40 +133,58 @@ const PropertyCard = ({ property }) => {
                 {property.address}
               </p>
             </div>
+            <p className="text-xs text-gray-500">
+              {property.city}, {property.state} {property.zip_code}
+            </p>
           </div>
-          <p className="text-lg font-bold text-gray-900 ml-2">
-            ${(property.price / 1000).toFixed(0)}k
-          </p>
+          <div className="text-right ml-2">
+            <p className="text-lg font-bold text-gray-900">
+              {formatPrice(property.listing_price)}
+            </p>
+            {property.purchase_price && property.status === 'in_escrow' && (
+              <p className="text-sm text-green-600 font-medium">
+                Purchase: {formatPrice(property.purchase_price)}
+              </p>
+            )}
+          </div>
         </div>
         
         <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
-          <span>{property.beds} beds</span>
-          <span>•</span>
-          <span>{property.baths} baths</span>
-          <span>•</span>
-          <span>{property.sqft?.toLocaleString()} sqft</span>
+          <div className="flex items-center">
+            <Bed size={14} className="mr-1" />
+            <span>{property.bedrooms}</span>
+          </div>
+          <div className="flex items-center">
+            <Bath size={14} className="mr-1" />
+            <span>{property.bathrooms}</span>
+          </div>
+          {property.square_feet && (
+            <span>{property.square_feet.toLocaleString()} sqft</span>
+          )}
         </div>
 
-        <div className="flex space-x-2">
-          {property.status === 'viewing_scheduled' ? (
-            <Button size="sm" className="flex-1 bg-blue-600 hover:bg-blue-700">
-              <Calendar size={14} className="mr-1" />
-              View Tomorrow 2PM
-            </Button>
-          ) : (
-            <Button size="sm" className="flex-1">
-              <Calendar size={14} className="mr-1" />
-              Schedule Tour
+        <div className="flex justify-between items-center">
+          <div className="text-xs text-gray-500">
+            {mode === 'tracked' ? `Last activity: ${formatLastActivity(property.last_activity_at)}` : 'Available Property'}
+          </div>
+          {mode === 'tracked' && actionText && (
+            <Badge variant="outline" className="text-xs">
+              {actionText}
+            </Badge>
+          )}
+          {mode === 'browse' && (
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="add-to-interested-btn h-7 px-2 text-xs"
+              onClick={handleAddToInterested}
+            >
+              <Heart className="h-3 w-3 mr-1" />
+              Add to Interested
             </Button>
           )}
-          <Button size="sm" variant="outline">
-            <TrendingUp size={14} className="mr-1" />
-            Details
-          </Button>
         </div>
       </CardContent>
     </Card>
   );
 };
-
-export default PropertyCard;

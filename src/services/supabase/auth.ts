@@ -8,25 +8,16 @@ export class SupabaseAuthService extends BaseAuthService {
     try {
       console.log('Checking if buyer exists before sending magic link...');
       
-      // First, check if the buyer exists in our database
-      const { data: buyer, error: buyerError } = await supabase
-        .from('buyers')
-        .select('email')
-        .eq('email', email)
-        .single();
-
-      if (buyerError && buyerError.code === 'PGRST116') {
-        // No buyer found with this email
-        console.log('Buyer not found for email:', email);
-        return this.createResponse(null, 'Your email is not registered in our system. Please contact your real estate agent to get access to the platform.');
-      }
+      // First, check if the buyer exists in our database using the secure function
+      const { data: buyerData, error: buyerError } = await supabase
+        .rpc('get_buyer_by_email', { email_param: email });
 
       if (buyerError) {
         console.error('Error checking buyer:', buyerError);
         return this.createResponse(null, 'There was an error verifying your access. Please try again later.');
       }
 
-      if (!buyer) {
+      if (!buyerData) {
         console.log('No buyer record found for email:', email);
         return this.createResponse(null, 'Your email is not registered in our system. Please contact your real estate agent to get access to the platform.');
       }

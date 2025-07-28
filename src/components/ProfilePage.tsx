@@ -1,15 +1,29 @@
-import { useState } from 'react';
-import { Edit2, MapPin, DollarSign, Home, Star, Settings, Heart, User, Phone, Mail, Calendar, UserCheck } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Edit2, MapPin, DollarSign, Home, Star, Settings, Heart, User, Phone, Mail, Calendar, UserCheck, Loader2, MessageSquare, UserX } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useAgent } from '@/hooks/useAgent';
+import { Buyer } from '@/services/api/types';
 
 interface ProfilePageProps {
-  userData: any;
+  userData: Buyer & {
+    // Allow for any additional properties that might be present
+    [key: string]: any;
+  };
 }
 
 const ProfilePage = ({ userData }: ProfilePageProps) => {
   const [editMode, setEditMode] = useState(false);
+  
+  // Fetch agent data using the agent_id from userData
+  const { data: agent, isLoading: isLoadingAgent } = useAgent(userData.agent_id || null);
+  
+  // Log agent data for debugging
+  useEffect(() => {
+    console.log('Agent data:', agent);
+    console.log('Agent ID from userData:', userData.agent_id);
+  }, [agent, userData.agent_id]);
 
   // Mock profile data extracted from user preferences
   const profileData = {
@@ -30,6 +44,8 @@ const ProfilePage = ({ userData }: ProfilePageProps) => {
     niceToHaves: ['Updated kitchen', 'Garage', 'View']
   };
 
+  console.log('Profile userData:', userData);
+
   const ProfileSection = ({ title, children, icon: Icon }) => (
     <Card className="border-0 bg-white/80 backdrop-blur-sm shadow-sm">
       <CardHeader className="pb-3">
@@ -45,76 +61,103 @@ const ProfilePage = ({ userData }: ProfilePageProps) => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30">
-      {/* Header */}
-      <div className="bg-white/80 backdrop-blur-lg border-b border-gray-100">
-        <div className="max-w-lg mx-auto px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
-                <span className="text-white font-semibold text-xl">
-                  {userData?.name?.charAt(0) || 'S'}
-                </span>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">
-                  {userData?.name || 'Sarah Johnson'}
-                </h1>
-                <p className="text-gray-600 text-sm">First-time buyer</p>
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setEditMode(!editMode)}
-              className="text-blue-600"
-            >
-              <Edit2 size={16} className="mr-1" />
-              Edit
-            </Button>
-          </div>
+    <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
+          <p className="mt-1 text-gray-600">Manage your personal information and preferences</p>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="max-w-lg mx-auto px-6 py-6 space-y-4">
-        {/* Assigned Agent Information */}
-        {userData?.agent_id && (
-          <ProfileSection title="Your Assigned Agent" icon={UserCheck}>
-            <div className="space-y-3">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center shadow-md">
-                  <span className="text-white font-semibold text-lg">
-                    {userData.agent?.first_name?.charAt(0) || 'A'}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Personal Information */}
+        <ProfileSection title="Personal Information" icon={User}>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-md">
+                <span className="text-white font-semibold text-xl">
+                  {userData?.name?.charAt(0) || 'U'}
+                </span>
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">{userData?.name || 'User'}</p>
+                <p className="text-sm text-gray-600">{userData?.email || 'No email provided'}</p>
+              </div>
+            </div>
+            
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center space-x-2">
+                <Phone size={14} className="text-gray-500" />
+                <span>{userData?.phone || 'No phone number provided'}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Home size={14} className="text-gray-500" />
+                <span>{userData?.address || 'No address provided'}</span>
+              </div>
+            </div>
+          </div>
+        </ProfileSection>
+
+        {/* Agent Information */}
+        <ProfileSection title="Your Agent" icon={UserCheck}>
+          {isLoadingAgent ? (
+            <div className="flex flex-col items-center justify-center py-6">
+              <Loader2 className="h-8 w-8 text-blue-500 animate-spin mb-2" />
+              <p className="text-sm text-gray-600">Loading agent information...</p>
+            </div>
+          ) : agent ? (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-gray-900">Your Agent</h3>
+                <Button variant="ghost" size="sm" className="text-blue-600 hover:bg-blue-50">
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  Message
+                </Button>
+              </div>
+              
+              <div className="flex items-center space-x-4">
+                <div className="flex-shrink-0 h-12 w-12 rounded-full bg-blue-600 flex items-center justify-center">
+                  <span className="text-white font-semibold text-xl">
+                    {agent.first_name?.charAt(0) || 'A'}
                   </span>
                 </div>
                 <div>
                   <p className="font-semibold text-gray-900">
-                    {userData.agent?.first_name} {userData.agent?.last_name}
+                    {agent.first_name || 'Agent'} {agent.last_name || ''}
                   </p>
                   <p className="text-sm text-gray-600">Real Estate Agent</p>
                 </div>
               </div>
+              
               <div className="space-y-2 text-sm">
-                <div className="flex items-center space-x-2">
-                  <Mail size={14} className="text-gray-500" />
-                  <span className="text-gray-600">{userData.agent?.email}</span>
-                </div>
-                {userData.agent?.phone && (
+                {agent.email && (
                   <div className="flex items-center space-x-2">
-                    <Phone size={14} className="text-gray-500" />
-                    <span className="text-gray-600">{userData.agent.phone}</span>
+                    <Mail size={14} className="text-gray-500 flex-shrink-0" />
+                    <span className="truncate">{agent.email}</span>
+                  </div>
+                )}
+                {agent.phone && (
+                  <div className="flex items-center space-x-2">
+                    <Phone size={14} className="text-gray-500 flex-shrink-0" />
+                    <span>{agent.phone}</span>
                   </div>
                 )}
               </div>
-              <div className="pt-2">
-                <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                  Active Assignment
-                </Badge>
-              </div>
             </div>
-          </ProfileSection>
-        )}
+          ) : (
+            <div className="text-center py-6">
+              <UserX className="mx-auto h-10 w-10 text-gray-400" />
+              <p className="mt-2 text-sm text-gray-600">
+                No agent assigned yet. Contact support to get matched with an agent.
+              </p>
+              <Button className="mt-4" variant="outline">
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Contact Support
+              </Button>
+            </div>
+          )}
+        </ProfileSection>
+
         {/* Basic Requirements */}
         <ProfileSection title="Property Requirements" icon={Home}>
           <div className="grid grid-cols-2 gap-4">

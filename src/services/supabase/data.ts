@@ -1,7 +1,8 @@
 // Supabase Data Service Implementation
 import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@supabase/supabase-js';
 import { BaseDataService } from '../api/data';
-import { ApiResponse, Buyer, Agent } from '../api/types';
+import { ApiResponse, Buyer, Agent, Property, PropertyFilter, PropertyActivity, PropertySummary } from '../api/types';
 
 export class SupabaseDataService extends BaseDataService {
   // Buyer operations
@@ -48,31 +49,65 @@ export class SupabaseDataService extends BaseDataService {
 
   async getBuyerByEmail(email: string): Promise<ApiResponse<Buyer>> {
     try {
-      const { data, error } = await supabase
+      // First, get the buyer data
+      const { data: buyerData, error: buyerError } = await supabase
         .from('buyers')
-        .select(`
-          *,
-          agent:agents(
-            id,
-            first_name,
-            last_name,
-            email,
-            phone
-          )
-        `)
+        .select('*')
         .eq('email', email)
         .single();
 
-      if (error) {
-        if (error.code === 'PGRST116') {
+      if (buyerError) {
+        if (buyerError.code === 'PGRST116') {
           // No rows returned - buyer not found
           return this.createResponse(null, 'Buyer not found');
         }
-        console.error('Error fetching buyer by email:', error);
-        return this.createResponse(null, error.message);
+        console.error('Error fetching buyer by email:', buyerError);
+        return this.createResponse(null, buyerError.message);
       }
 
-      return this.createResponse(data);
+      // If there's an agent_id, fetch the agent data
+      if (buyerData.agent_id) {
+        try {
+          const { data: agentData, error: agentError } = await supabase
+            .from('agents')
+            .select('*')
+            .eq('id', buyerData.agent_id)
+            .maybeSingle(); // Use maybeSingle instead of single to handle no rows case
+
+          if (agentError) {
+            console.warn('Error fetching agent data:', agentError);
+            // Continue with buyer data even if agent fetch fails
+          } else if (agentData) {
+            // Map the agent data to match the Agent interface
+            const agent: Agent = {
+              id: agentData.id,
+              first_name: agentData.first_name || 'Unknown',
+              last_name: agentData.last_name || 'Agent',
+              email: agentData.email || '',
+              phone: agentData.phone || null,
+              created_at: agentData.created_at,
+              updated_at: agentData.updated_at
+            };
+            
+            // Combine buyer and agent data
+            return this.createResponse({
+              ...buyerData,
+              agent
+            });
+          }
+        } catch (error) {
+          console.error('Unexpected error fetching agent:', error);
+          // Continue with buyer data even if agent fetch fails
+        }
+      }
+
+      // Return buyer data with null agent if no agent_id or agent fetch failed
+      const buyer: Buyer = {
+        ...buyerData,
+        agent: null
+      };
+      
+      return this.createResponse(buyer);
     } catch (error) {
       console.error('Error in getBuyerByEmail:', error);
       const apiError = this.handleError(error);
@@ -144,6 +179,88 @@ export class SupabaseDataService extends BaseDataService {
   }
 
   // Agent operations
+  async getAgentById(id: string): Promise<ApiResponse<Agent | null>> {
+    console.log('getAgentById - Fetching agent with ID:', id);
+    
+    if (!id) {
+      console.error('getAgentById - No ID provided');
+      return this.createResponse(null, 'Agent ID is required');
+    }
+
+    try {
+      console.log('getAgentById - Executing database function get_agent_by_id...');
+      
+      // Use the database function which enforces RLS
+      const { data, error } = await supabase
+        .rpc('get_agent_by_id', { agent_id: id });
+
+      console.log('getAgentById - Database function response:', {
+        data,
+        error,
+        hasData: !!data
+      });
+
+      if (error) {
+        console.error('getAgentById - Error from database function:', error);
+        return this.createResponse(null, error.message);
+      }
+
+      if (!data) {
+        console.warn('getAgentById - No agent found with ID:', id);
+        return this.createResponse(null, 'Agent not found or not authorized');
+      }
+
+      // If we got here, we have valid agent data
+      console.log('getAgentById - Successfully retrieved agent data:', data);
+      return this.createResponse(data);
+
+      if (error) {
+        console.error('getAgentById - Error fetching agent:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        return this.createResponse(null, error.message);
+      }
+
+      // If no data is returned, the agent doesn't exist
+      if (!data) {
+        console.warn('getAgentById - No agent found with ID:', id);
+        return this.createResponse(null, 'Agent not found');
+      }
+
+      console.log('getAgentById - Successfully retrieved agent data:', data);
+      return this.createResponse(data);
+    } catch (error) {
+      console.error('getAgentById - Unexpected error:', error);
+      // If we get here, it might be because multiple rows were returned
+      // Let's try a different approach
+      try {
+        console.log('getAgentById - Trying alternative query with limit 1...');
+        const { data, error } = await supabase
+          .from('agents')
+          .select('*')
+          .eq('id', id)
+          .limit(1);
+
+        if (error) throw error;
+        
+        if (!data || data.length === 0) {
+          console.warn('getAgentById - No agent found with ID (alternative query):', id);
+          return this.createResponse(null, 'Agent not found');
+        }
+
+        console.log('getAgentById - Successfully retrieved agent data (alternative query):', data[0]);
+        return this.createResponse(data[0]);
+      } catch (retryError) {
+        console.error('getAgentById - Error in alternative query:', retryError);
+        const apiError = this.handleError(retryError);
+        return this.createResponse(null, apiError.message);
+      }
+    }
+  }
+
   async getAgents(): Promise<ApiResponse<Agent[]>> {
     try {
       const { data, error } = await supabase
@@ -159,27 +276,6 @@ export class SupabaseDataService extends BaseDataService {
       return this.createResponse(data || []);
     } catch (error) {
       console.error('Error in getAgents:', error);
-      const apiError = this.handleError(error);
-      return this.createResponse(null, apiError.message);
-    }
-  }
-
-  async getAgentById(id: string): Promise<ApiResponse<Agent>> {
-    try {
-      const { data, error } = await supabase
-        .from('agents')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error) {
-        console.error('Error fetching agent by ID:', error);
-        return this.createResponse(null, error.message);
-      }
-
-      return this.createResponse(data);
-    } catch (error) {
-      console.error('Error in getAgentById:', error);
       const apiError = this.handleError(error);
       return this.createResponse(null, apiError.message);
     }
@@ -303,6 +399,627 @@ export class SupabaseDataService extends BaseDataService {
       return this.createResponse(data || []);
     } catch (error) {
       console.error('Error in getBuyersByAgentId:', error);
+      const apiError = this.handleError(error);
+      return this.createResponse(null, apiError.message);
+    }
+  }
+
+  // Property operations
+  async getProperties(buyerId?: string, filter?: PropertyFilter): Promise<ApiResponse<Property[]>> {
+    try {
+      let query = supabase
+        .from('properties')
+        .select(`
+          *,
+          buyer_properties!inner(
+            id,
+            buyer_id,
+            status,
+            buying_stage,
+            action_required,
+            notes,
+            purchase_price,
+            added_at,
+            last_activity_at
+          )
+        `);
+
+      // Filter by buyer if specified
+      if (buyerId) {
+        query = query.eq('buyer_properties.buyer_id', buyerId);
+      }
+
+      // Apply filters based on buyer_properties data
+      if (filter) {
+        if (filter.status && filter.status.length > 0) {
+          query = query.in('buyer_properties.status', filter.status);
+        }
+        if (filter.buying_stage && filter.buying_stage.length > 0) {
+          query = query.in('buyer_properties.buying_stage', filter.buying_stage);
+        }
+        if (filter.action_required && filter.action_required.length > 0) {
+          query = query.in('buyer_properties.action_required', filter.action_required);
+        }
+        if (filter.price_min) {
+          query = query.gte('price', filter.price_min);
+        }
+        if (filter.price_max) {
+          query = query.lte('price', filter.price_max);
+        }
+        if (filter.bedrooms_min) {
+          query = query.gte('bedrooms', filter.bedrooms_min);
+        }
+        if (filter.bathrooms_min) {
+          query = query.gte('baths', filter.bathrooms_min);
+        }
+        if (filter.last_activity_days) {
+          const cutoffDate = new Date();
+          cutoffDate.setDate(cutoffDate.getDate() - filter.last_activity_days);
+          query = query.gte('buyer_properties.last_activity_at', cutoffDate.toISOString());
+        }
+      }
+
+      query = query.order('buyer_properties.last_activity_at', { ascending: false });
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching properties:', error);
+        return this.createResponse(null, error.message);
+      }
+
+      // Transform data to match expected Property interface
+      const transformedProperties = (data || []).map(property => {
+        const buyerProperty = Array.isArray(property.buyer_properties) 
+          ? property.buyer_properties[0] 
+          : property.buyer_properties;
+
+        return {
+          id: property.id,
+          buyer_id: buyerProperty?.buyer_id || buyerId || 'no-buyer',
+          address: property.address,
+          city: property.city,
+          state: property.state,
+          zip_code: property.zip_code || '',
+          listing_price: property.price,
+          purchase_price: buyerProperty?.purchase_price,
+          bedrooms: property.bedrooms,
+          bathrooms: property.baths,
+          square_feet: property.sqft,
+          lot_size: property.lot_size,
+          year_built: property.year_built,
+          property_type: property.property_type || 'single_family',
+          status: buyerProperty?.status || 'interested',
+          buying_stage: buyerProperty?.buying_stage || 'initial_research',
+          action_required: buyerProperty?.action_required || 'none',
+          mls_number: property.mls_number,
+          listing_url: property.listing_url,
+          notes: buyerProperty?.notes,
+          last_activity_at: buyerProperty?.last_activity_at || property.created_at,
+          created_at: property.created_at,
+          updated_at: property.updated_at || property.created_at,
+          photos: property.image_url ? [{
+            id: `${property.id}-main`,
+            property_id: property.id,
+            url: property.image_url,
+            caption: 'Main photo',
+            is_primary: true,
+            order: 0,
+            created_at: property.created_at,
+            updated_at: property.updated_at || property.created_at
+          }] : []
+        };
+      });
+
+      return this.createResponse(transformedProperties);
+    } catch (error) {
+      console.error('Error in getProperties:', error);
+      const apiError = this.handleError(error);
+      return this.createResponse(null, apiError.message);
+    }
+  }
+
+  async getPropertyById(id: string): Promise<ApiResponse<Property>> {
+    try {
+      const { data, error } = await supabase
+        .from('properties')
+        .select(`
+          *,
+          buyer:buyers(
+            id,
+            first_name,
+            last_name,
+            email
+          )
+        `)
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching property by ID:', error);
+        return this.createResponse(null, error.message);
+      }
+
+      // Fetch photos
+      const { data: photos } = await supabase
+        .from('property_photos')
+        .select('*')
+        .eq('property_id', id)
+        .order('order', { ascending: true });
+
+      const propertyWithPhotos = {
+        ...data,
+        photos: photos || []
+      };
+
+      return this.createResponse(propertyWithPhotos);
+    } catch (error) {
+      console.error('Error in getPropertyById:', error);
+      const apiError = this.handleError(error);
+      return this.createResponse(null, apiError.message);
+    }
+  }
+
+  async createProperty(property: Omit<Property, 'id' | 'created_at' | 'updated_at' | 'last_activity_at' | 'photos'>): Promise<ApiResponse<Property>> {
+    try {
+      const now = new Date().toISOString();
+      const propertyData = {
+        ...property,
+        last_activity_at: now
+      };
+
+      const { data, error } = await supabase
+        .from('properties')
+        .insert(propertyData)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating property:', error);
+        return this.createResponse(null, error.message);
+      }
+
+      const propertyWithPhotos = {
+        ...data,
+        photos: []
+      };
+
+      return this.createResponse(propertyWithPhotos);
+    } catch (error) {
+      console.error('Error in createProperty:', error);
+      const apiError = this.handleError(error);
+      return this.createResponse(null, apiError.message);
+    }
+  }
+
+  async updateProperty(id: string, updates: Partial<Property>): Promise<ApiResponse<Property>> {
+    try {
+      const updateData = {
+        ...updates,
+        last_activity_at: new Date().toISOString()
+      };
+      
+      // Remove photos from updates as they're handled separately
+      delete updateData.photos;
+
+      const { data, error } = await supabase
+        .from('properties')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating property:', error);
+        return this.createResponse(null, error.message);
+      }
+
+      // Fetch photos
+      const { data: photos } = await supabase
+        .from('property_photos')
+        .select('*')
+        .eq('property_id', id)
+        .order('order', { ascending: true });
+
+      const propertyWithPhotos = {
+        ...data,
+        photos: photos || []
+      };
+
+      return this.createResponse(propertyWithPhotos);
+    } catch (error) {
+      console.error('Error in updateProperty:', error);
+      const apiError = this.handleError(error);
+      return this.createResponse(null, apiError.message);
+    }
+  }
+
+  async deleteProperty(id: string): Promise<ApiResponse<null>> {
+    try {
+      const { error } = await supabase
+        .from('properties')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error deleting property:', error);
+        return this.createResponse(null, error.message);
+      }
+
+      return this.createResponse(null);
+    } catch (error) {
+      console.error('Error in deleteProperty:', error);
+      const apiError = this.handleError(error);
+      return this.createResponse(null, apiError.message);
+    }
+  }
+
+  async getPropertyActivities(propertyId: string): Promise<ApiResponse<PropertyActivity[]>> {
+    try {
+      const { data, error } = await supabase
+        .from('property_activities')
+        .select('*')
+        .eq('property_id', propertyId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching property activities:', error);
+        return this.createResponse(null, error.message);
+      }
+
+      return this.createResponse(data || []);
+    } catch (error) {
+      console.error('Error in getPropertyActivities:', error);
+      const apiError = this.handleError(error);
+      return this.createResponse(null, apiError.message);
+    }
+  }
+
+  async addPropertyActivity(activity: Omit<PropertyActivity, 'id' | 'created_at'>): Promise<ApiResponse<PropertyActivity>> {
+    try {
+      const { data, error } = await supabase
+        .from('property_activities')
+        .insert(activity)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error adding property activity:', error);
+        return this.createResponse(null, error.message);
+      }
+
+      // Update property's last_activity_at
+      await supabase
+        .from('properties')
+        .update({ last_activity_at: new Date().toISOString() })
+        .eq('id', activity.property_id);
+
+      return this.createResponse(data);
+    } catch (error) {
+      console.error('Error in addPropertyActivity:', error);
+      const apiError = this.handleError(error);
+      return this.createResponse(null, apiError.message);
+    }
+  }
+
+  async getPropertySummary(buyerId: string): Promise<ApiResponse<PropertySummary>> {
+    try {
+      const { data: buyerProperties, error } = await supabase
+        .from('buyer_properties')
+        .select('status, buying_stage, action_required')
+        .eq('buyer_id', buyerId);
+
+      if (error) {
+        console.error('Error fetching property summary:', error);
+        return this.createResponse(null, error.message);
+      }
+
+      const summary: PropertySummary = {
+        total_properties: buyerProperties?.length || 0,
+        by_status: {
+          researching: 0,
+          viewing: 0,
+          offer_submitted: 0,
+          under_contract: 0,
+          in_escrow: 0,
+          closed: 0,
+          withdrawn: 0
+        },
+        by_stage: {
+          initial_research: 0,
+          active_search: 0,
+          offer_negotiation: 0,
+          under_contract: 0,
+          closing: 0
+        },
+        requiring_action: 0
+      };
+
+      buyerProperties?.forEach(bp => {
+        // Map buyer_properties status to PropertyStatus
+        const mappedStatus = bp.status === 'interested' ? 'researching' : bp.status;
+        if (summary.by_status[mappedStatus as keyof typeof summary.by_status] !== undefined) {
+          summary.by_status[mappedStatus as keyof typeof summary.by_status]++;
+        }
+        
+        summary.by_stage[bp.buying_stage]++;
+        if (bp.action_required !== 'none') {
+          summary.requiring_action++;
+        }
+      });
+
+      return this.createResponse(summary);
+    } catch (error) {
+      console.error('Error in getPropertySummary:', error);
+      const apiError = this.handleError(error);
+      return this.createResponse(null, apiError.message);
+    }
+  }
+
+  // New methods for buyer-property relationships
+  async getAvailableProperties(filter?: PropertyFilter, buyerId?: string): Promise<ApiResponse<Property[]>> {
+    try {
+      // Start with a query to get properties assigned to the buyer
+      let query = supabase
+        .from('buyer_properties')
+        .select(`
+          property:properties (
+            *
+          )
+        `)
+        .eq('buyer_id', buyerId || '');
+
+      // If no buyer ID is provided, fall back to the old behavior (for backward compatibility)
+      if (!buyerId) {
+        query = supabase
+          .from('properties')
+          .select('*')
+          .eq('status', 'available');
+      }
+
+      // Apply filters
+      if (filter) {
+        if (filter.price_min) {
+          query = query.gte('price', filter.price_min);
+        }
+        if (filter.price_max) {
+          query = query.lte('price', filter.price_max);
+        }
+        if (filter.bedrooms_min) {
+          query = query.gte('bedrooms', filter.bedrooms_min);
+        }
+        if (filter.bathrooms_min) {
+          query = query.gte('baths', filter.bathrooms_min);
+        }
+        if (filter.property_type && filter.property_type.length > 0) {
+          query = query.in('property_type', filter.property_type);
+        }
+      }
+
+      // Use 'added_at' for buyer_properties and 'created_at' for properties
+      const orderByColumn = buyerId ? 'added_at' : 'created_at';
+      query = query.order(orderByColumn, { ascending: false });
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching available properties:', error);
+        return this.createResponse(null, error.message);
+      }
+
+      // Extract properties from the joined result if we're using buyer_properties
+      const properties = buyerId 
+        ? (data || []).map((item: any) => item.property)
+        : (data || []);
+
+      // Transform to Property interface
+      const transformedProperties = properties.map((property: any) => ({
+        id: property.id,
+        buyer_id: '', // No buyer relationship yet
+        address: property.address,
+        city: property.city,
+        state: property.state,
+        zip_code: property.zip_code || '',
+        listing_price: property.price,
+        purchase_price: undefined,
+        bedrooms: property.bedrooms,
+        bathrooms: property.baths,
+        square_feet: property.sqft,
+        lot_size: property.lot_size,
+        year_built: property.year_built,
+        property_type: property.property_type || 'single_family',
+        status: 'researching' as const,
+        buying_stage: 'initial_research' as const,
+        action_required: 'none' as const,
+        mls_number: property.mls_number,
+        listing_url: property.listing_url,
+        notes: undefined,
+        last_activity_at: property.created_at,
+        created_at: property.created_at,
+        updated_at: property.updated_at || property.created_at,
+        photos: property.image_url ? [{
+          id: `${property.id}-main`,
+          property_id: property.id,
+          url: property.image_url,
+          caption: 'Main photo',
+          is_primary: true,
+          order: 0,
+          created_at: property.created_at,
+          updated_at: property.updated_at || property.created_at
+        }] : []
+      }));
+
+      return this.createResponse(transformedProperties);
+    } catch (error) {
+      console.error('Error in getAvailableProperties:', error);
+      const apiError = this.handleError(error);
+      return this.createResponse(null, apiError.message);
+    }
+  }
+
+  async addPropertyToBuyer(buyerId: string, propertyId: string): Promise<ApiResponse<any>> {
+    try {
+      // First, check if the property is available (not in escrow by someone else)
+      const { data: property, error: propertyError } = await supabase
+        .from('properties')
+        .select('overall_status')
+        .eq('id', propertyId)
+        .single();
+
+      if (propertyError) {
+        console.error('Error checking property status:', propertyError);
+        return this.createResponse(null, propertyError.message);
+      }
+
+      // If property is in escrow or under contract by someone else, don't allow tracking
+      if (property.overall_status === 'in_escrow' || property.overall_status === 'under_contract') {
+        return this.createResponse(
+          null, 
+          'This property is no longer available for tracking as it is already in escrow or under contract.'
+        );
+      }
+
+      // Check if the buyer is already tracking this property
+      const { data: existing, error: existingError } = await supabase
+        .from('buyer_properties')
+        .select('id')
+        .eq('buyer_id', buyerId)
+        .eq('property_id', propertyId)
+        .maybeSingle();
+
+      if (existingError) {
+        console.error('Error checking existing tracking:', existingError);
+        return this.createResponse(null, existingError.message);
+      }
+
+      if (existing) {
+        return this.createResponse(
+          { id: existing.id, message: 'You are already tracking this property' },
+          null
+        );
+      }
+
+      // Add the property to buyer's tracked properties
+      const { data, error } = await supabase
+        .from('buyer_properties')
+        .insert({
+          buyer_id: buyerId,
+          property_id: propertyId,
+          status: 'interested',
+          buying_stage: 'initial_research',
+          action_required: 'schedule_viewing',
+          last_activity_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error adding property to buyer:', error);
+        return this.createResponse(null, error.message);
+      }
+
+      // Add an activity log entry
+      await supabase
+        .from('property_activities')
+        .insert({
+          buyer_property_id: data.id,
+          activity_type: 'property_added',
+          title: 'Property Added to Tracked List',
+          description: 'You started tracking this property.'
+        });
+
+      return this.createResponse({
+        ...data,
+        message: 'Property added to your tracked properties'
+      });
+    } catch (error) {
+      console.error('Error in addPropertyToBuyer:', error);
+      const apiError = this.handleError(error);
+      return this.createResponse(null, apiError.message);
+    }
+  }
+
+  async updateBuyerProperty(buyerId: string, propertyId: string, updates: any): Promise<ApiResponse<any>> {
+    try {
+      // First, verify the buyer has access to this property
+      const { data: existing, error: accessError } = await supabase
+        .from('buyer_properties')
+        .select('id, status')
+        .eq('buyer_id', buyerId)
+        .eq('property_id', propertyId)
+        .single();
+
+      if (accessError || !existing) {
+        console.error('Error or no access to property:', accessError);
+        return this.createResponse(
+          null, 
+          accessError?.message || 'You do not have access to update this property.'
+        );
+      }
+
+      // Prepare the update data
+      const updateData: any = {
+        ...updates,
+        last_activity_at: new Date().toISOString()
+      };
+
+      // Update the buyer_property relationship
+      const { data, error } = await supabase
+        .from('buyer_properties')
+        .update(updateData)
+        .eq('id', existing.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating buyer property:', error);
+        return this.createResponse(null, error.message);
+      }
+
+      // If status was updated to in_escrow, update the property's overall_status
+      if (updates.status === 'in_escrow') {
+        await supabase
+          .from('properties')
+          .update({ overall_status: 'in_escrow' })
+          .eq('id', propertyId);
+      }
+
+      // Add an activity log entry if status or important fields changed
+      if (updates.status || updates.buying_stage || updates.action_required) {
+        let activityType = 'status_updated';
+        let activityTitle = 'Status Updated';
+        let activityDescription = `Status changed to ${updates.status || 'unknown'}`;
+
+        if (updates.status === 'in_escrow') {
+          activityType = 'entered_escrow';
+          activityTitle = 'Entered Escrow';
+          activityDescription = 'Property entered escrow';
+        } else if (updates.status === 'under_contract') {
+          activityType = 'under_contract';
+          activityTitle = 'Under Contract';
+          activityDescription = 'Offer accepted, under contract';
+        } else if (updates.status === 'closed') {
+          activityType = 'closed';
+          activityTitle = 'Purchase Closed';
+          activityDescription = 'Property purchase completed';
+        }
+
+        await supabase
+          .from('property_activities')
+          .insert({
+            buyer_property_id: existing.id,
+            activity_type: activityType,
+            title: activityTitle,
+            description: activityDescription
+          });
+      }
+
+      return this.createResponse({
+        ...data,
+        message: 'Property updated successfully'
+      });
+    } catch (error) {
+      console.error('Error in updateBuyerProperty:', error);
       const apiError = this.handleError(error);
       return this.createResponse(null, apiError.message);
     }

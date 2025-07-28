@@ -1,18 +1,21 @@
-import { useState, useEffect } from 'react';
-import { Heart, X, Bookmark, Info, MapPin, Calendar, Star, TrendingUp } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Heart, X, Bookmark, Calendar, TrendingUp, Loader2, Star, MapPin, Info } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useProperties } from '@/hooks/useProperties';
+import { Property, PropertyStatus } from '@/services/api/types';
 import { toast } from '@/hooks/use-toast';
 
-interface Property {
-  id: number;
-  address: string;
+// UI extension for property swiping
+interface SwipeProperty extends Omit<Property, 'status'> {
+  statusText: string;
+  image: string;
   price: number;
   beds: number;
   baths: number;
   sqft: number;
-  image: string;
+  address: string;
   insights: {
     whySuggested: string;
     profileDeviation?: string;
@@ -24,84 +27,124 @@ interface Property {
 }
 
 interface PropertySwipingProps {
-  userProfile: any;
-  onPropertyAction: (propertyId: number, action: 'like' | 'dislike' | 'save') => void;
+  userProfile: { id: string };
+  onPropertyAction: (propertyId: string, action: 'like' | 'dislike' | 'save') => void;
   onOpenChat: () => void;
 }
 
 const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: PropertySwipingProps) => {
+  // State management - all hooks must be called unconditionally at the top level
   const [currentPropertyIndex, setCurrentPropertyIndex] = useState(0);
   const [showInsights, setShowInsights] = useState(true);
+  const [swipeProperties, setSwipeProperties] = useState<SwipeProperty[]>([]);
+  
+  // Get buyer ID from user profile
+  const buyerId = userProfile?.id;
 
-  const mockProperties: Property[] = [
-    {
-      id: 1,
-      address: "1234 Valencia Street, San Francisco, CA 94110",
-      price: 1250000,
-      beds: 3,
-      baths: 2,
-      sqft: 1850,
-      image: "/lovable-uploads/473b81b4-4a7f-4522-9fc2-56e9031541f0.png",
-      insights: {
-        whySuggested: "In your price range, in the Mission (walkable neighborhood), and has the private backyard you need for your dog. You consistently liked homes with outdoor space.",
-        profileDeviation: undefined,
-        appreciation: "This property is expected to appreciate 4-6% annually based on Mission District trends. The area's ongoing development and proximity to tech companies suggest strong long-term value growth."
-      },
-      features: ["Private Backyard", "Near CalTrain", "Pet-Friendly", "Great Restaurants Nearby"],
-      neighborhood: "Mission District",
-      daysOnMarket: 12
-    },
-    {
-      id: 2,
-      address: "567 Noe Street, San Francisco, CA 94114",
-      price: 1450000,
-      beds: 3,
-      baths: 2.5,
-      sqft: 2100,
-      image: "/lovable-uploads/412b2afb-6d99-48ae-994c-74fea8162b86.png",
-      insights: {
-        whySuggested: "We know you prefer the Mission, but have you considered Noe Valley? It's super walkable, family-friendly with great schools for your future plans, and still in the city - take a look!",
-        profileDeviation: "Not in your usual search area, but it has the charm, layout, and access you've been looking for. Feels like a great fit—check it out!",
-        appreciation: "Noe Valley properties typically appreciate 5-7% annually. Family-friendly neighborhoods with top-rated schools tend to maintain strong property values and demand."
-      },
-      features: ["Great Schools", "Family-Friendly", "Near Transit", "Garden"],
-      neighborhood: "Noe Valley",
-      daysOnMarket: 8
-    }
-  ];
+  // Fetch available properties
+  const { properties: availableProperties, loading, error } = useProperties(
+    buyerId,
+    { status: ['researching'] as PropertyStatus[] },
+    'available'
+  );
 
-  const currentProperty = mockProperties[currentPropertyIndex];
-
-  const handleAction = (action: 'like' | 'dislike' | 'save') => {
+  // Memoized event handlers - must be defined before any conditional returns
+  const handleAction = useCallback((action: 'like' | 'dislike' | 'save') => {
+    const currentProperty = swipeProperties[currentPropertyIndex];
+    if (!currentProperty) return;
+    
     onPropertyAction(currentProperty.id, action);
     
-    if (action === 'like') {
-      // Move to next property when "Love It" is clicked
-      if (currentPropertyIndex < mockProperties.length - 1) {
-        setCurrentPropertyIndex(currentPropertyIndex + 1);
-      } else {
-        setCurrentPropertyIndex(0);
-      }
-    } else if (action !== 'dislike') {
-      console.log(`Property ${action}d!`);
-    }
+    const nextIndex = currentPropertyIndex < (swipeProperties.length - 1) 
+      ? currentPropertyIndex + 1 
+      : 0;
+      
+    setCurrentPropertyIndex(nextIndex);
     
-    if (action === 'dislike') {
-      if (currentPropertyIndex < mockProperties.length - 1) {
-        setCurrentPropertyIndex(currentPropertyIndex + 1);
-      } else {
-        setCurrentPropertyIndex(0);
-      }
+    if (nextIndex === 0 && swipeProperties.length > 0) {
+      toast({
+        title: "You've seen all properties!",
+        description: "Starting over from the beginning.",
+      });
     }
-  };
+  }, [currentPropertyIndex, onPropertyAction, swipeProperties]);
 
-  const handleScheduleTour = () => {
+  const handleScheduleTour = useCallback(() => {
     toast({
       title: "We are on it!",
       description: "Your tour request has been sent to Kelsey.",
-      className: "text-black",
     });
-  };
+  }, []);
+
+  // Transform properties when availableProperties changes
+  useEffect(() => {
+    if (availableProperties && availableProperties.length > 0) {
+      const transformed = availableProperties.map(property => {
+        const primaryPhoto = property.photos?.find(p => p.is_primary) || property.photos?.[0];
+        const imageUrl = primaryPhoto?.url || '/placeholder-property.jpg';
+        const formattedAddress = [property.address, property.city, property.state, property.zip_code]
+          .filter(Boolean).join(', ');
+        return {
+          ...property,
+          statusText: 'Available',
+          image: imageUrl,
+          price: property.listing_price || 0,
+          beds: property.bedrooms || 0,
+          baths: property.bathrooms || 0,
+          sqft: property.square_feet || 0,
+          address: formattedAddress,
+          insights: {
+            whySuggested: "This property matches your search criteria and preferences.",
+            appreciation: "Market appreciation rates vary. This property is in a desirable location with good growth potential.",
+            profileDeviation: undefined
+          },
+          features: [
+            property.bedrooms ? `${property.bedrooms} Bed` : '',
+            property.bathrooms ? `${property.bathrooms} Bath` : '',
+            property.square_feet ? `${property.square_feet.toLocaleString()} sqft` : '',
+            property.property_type ? property.property_type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : ''
+          ].filter(Boolean) as string[],
+          neighborhood: property.city || 'Unknown',
+          daysOnMarket: Math.floor(Math.random() * 30) + 1
+        } as SwipeProperty;
+      });
+      
+      setSwipeProperties(transformed);
+    }
+  }, [availableProperties]);
+
+  // Get current property safely
+  const currentProperty = swipeProperties[currentPropertyIndex];
+  
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+        <span className="ml-2">Loading properties...</span>
+      </div>
+    );
+  }
+  
+  // Show error state
+  if (error) {
+    return (
+      <div className="text-center p-8 text-red-600">
+        Error loading properties. Please try again later.
+      </div>
+    );
+  }
+  
+  // Show empty state
+  if (swipeProperties.length === 0 && !loading) {
+    return (
+      <div className="text-center p-8">
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No properties found</h3>
+        <p className="text-gray-600 mb-4">We couldn't find any properties matching your criteria.</p>
+        <Button onClick={() => window.location.reload()}>Refresh</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -268,18 +311,20 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
         {/* Progress Indicator */}
         <div className="mt-8 text-center">
           <p className="text-xs text-gray-600 mb-3">
-            Property {currentPropertyIndex + 1} of {mockProperties.length}
+            {swipeProperties.length > 0 ? `Property ${currentPropertyIndex + 1} of ${swipeProperties.length}` : 'No properties available'}
           </p>
-          <div className="flex justify-center space-x-2">
-            {mockProperties.map((_, index) => (
-              <div
-                key={index}
-                className={`w-2 h-2 rounded-full transition-colors shadow-sm ${
-                  index === currentPropertyIndex ? 'bg-blue-600' : 'bg-gray-300'
-                }`}
-              />
-            ))}
-          </div>
+          {swipeProperties.length > 0 && (
+            <div className="flex justify-center space-x-2">
+              {swipeProperties.map((_, index) => (
+                <div
+                  key={index}
+                  className={`w-2 h-2 rounded-full transition-colors shadow-sm ${
+                    index === currentPropertyIndex ? 'bg-blue-600' : 'bg-gray-300'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
