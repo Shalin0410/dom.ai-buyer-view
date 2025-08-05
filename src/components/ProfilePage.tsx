@@ -4,13 +4,27 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAgent } from '@/hooks/useAgent';
-import { Buyer } from '@/services/api/types';
+interface UserData {
+  id: string;
+  email: string;
+  name: string;
+  isFirstTime: boolean;
+  preferences?: string;
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  address?: string;
+  agent_id?: string | null;
+  agent?: any;
+  realtorInfo?: {
+    name: string;
+    email: string;
+    phone: string;
+  };
+}
 
 interface ProfilePageProps {
-  userData: Buyer & {
-    // Allow for any additional properties that might be present
-    [key: string]: any;
-  };
+  userData: UserData;
 }
 
 const ProfilePage = ({ userData }: ProfilePageProps) => {

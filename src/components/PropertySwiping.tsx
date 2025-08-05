@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Heart, X, Bookmark, Calendar, TrendingUp, Loader2, Star, MapPin, Info } from 'lucide-react';
+import { Heart, X, Bookmark, Calendar, Loader2, Star, MapPin } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,11 +16,6 @@ interface SwipeProperty extends Omit<Property, 'status'> {
   baths: number;
   sqft: number;
   address: string;
-  insights: {
-    whySuggested: string;
-    profileDeviation?: string;
-    appreciation: string;
-  };
   features: string[];
   neighborhood: string;
   daysOnMarket: number;
@@ -35,7 +30,6 @@ interface PropertySwipingProps {
 const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: PropertySwipingProps) => {
   // State management - all hooks must be called unconditionally at the top level
   const [currentPropertyIndex, setCurrentPropertyIndex] = useState(0);
-  const [showInsights, setShowInsights] = useState(true);
   const [swipeProperties, setSwipeProperties] = useState<SwipeProperty[]>([]);
   
   // Get buyer ID from user profile
@@ -93,11 +87,6 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
           baths: property.bathrooms || 0,
           sqft: property.square_feet || 0,
           address: formattedAddress,
-          insights: {
-            whySuggested: "This property matches your search criteria and preferences.",
-            appreciation: "Market appreciation rates vary. This property is in a desirable location with good growth potential.",
-            profileDeviation: undefined
-          },
           features: [
             property.bedrooms ? `${property.bedrooms} Bed` : '',
             property.bathrooms ? `${property.bathrooms} Bath` : '',
@@ -195,7 +184,7 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
                 <div>
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="text-xl font-semibold text-gray-900">
-                      ${(currentProperty.price / 1000000).toFixed(2)}M
+                      ${currentProperty.price.toLocaleString()}
                     </h3>
                     <Badge className="bg-black text-white text-xs px-2 py-1 shadow-sm">{currentProperty.neighborhood}</Badge>
                   </div>
@@ -224,45 +213,7 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
                   </div>
                 </div>
 
-                {/* Insights */}
-                {showInsights && (
-                  <div className="space-y-3">
-                    <div className="p-3 rounded-lg shadow-sm bg-gray-50/50">
-                      <div className="flex items-start space-x-2">
-                        <Info size={14} className="text-blue-500 mt-0.5 flex-shrink-0" />
-                        <div>
-                          <h4 className="text-xs font-semibold text-gray-900 mb-1">
-                            Why this is suggested for you
-                          </h4>
-                          <p className="text-xs text-gray-700 leading-relaxed">
-                            {currentProperty.insights.whySuggested}
-                          </p>
-                          {currentProperty.insights.profileDeviation && (
-                            <div className="mt-2 p-2 border border-gray-200 rounded-md shadow-sm">
-                              <p className="text-xs text-gray-600">
-                                <strong>Note:</strong> {currentProperty.insights.profileDeviation}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
 
-                    <div className="p-3 rounded-lg shadow-sm bg-gray-50/50">
-                      <div className="flex items-start space-x-2">
-                        <TrendingUp size={14} className="text-green-500 mt-0.5 flex-shrink-0" />
-                        <div>
-                          <h4 className="text-xs font-semibold text-gray-900 mb-1">
-                            Property Appreciation Outlook
-                          </h4>
-                          <p className="text-xs text-gray-700 leading-relaxed">
-                            {currentProperty.insights.appreciation}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* Action Buttons */}
                 <div className="flex space-x-2 pt-2">

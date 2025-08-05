@@ -25,13 +25,13 @@ interface MainAppContentProps {
 }
 
 const MainAppContent = ({ activeTab, userData, onTabChange }: MainAppContentProps) => {
-  const [selectedPropertyId, setSelectedPropertyId] = useState<number | null>(null);
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
 
   const handleChatBack = () => {
     // Navigation handled by header now
   };
 
-  const handlePropertyAction = (propertyId: number, action: 'like' | 'dislike' | 'save') => {
+  const handlePropertyAction = (propertyId: string, action: 'like' | 'dislike' | 'save') => {
     console.log(`Property ${propertyId} ${action}d`);
     
     if (action === 'like') {
@@ -56,7 +56,7 @@ const MainAppContent = ({ activeTab, userData, onTabChange }: MainAppContentProp
     console.log('Open chat from property swiping');
   };
 
-  const handlePropertyClick = (propertyId: number) => {
+  const handlePropertyClick = (propertyId: string) => {
     setSelectedPropertyId(propertyId);
   };
 

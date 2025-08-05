@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
 interface Property {
-  id: number;
+  id: string; // Changed from number to string to match database UUIDs
   address: string;
   city: string;
   price: number;
@@ -21,7 +21,7 @@ interface Property {
 
 interface PropertyGridProps {
   properties: Property[];
-  onPropertyClick: (propertyId: number) => void;
+  onPropertyClick: (propertyId: string) => void; // Changed from number to string
 }
 
 const PropertyGrid = ({ properties, onPropertyClick }: PropertyGridProps) => {

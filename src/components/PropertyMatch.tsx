@@ -71,8 +71,8 @@ const PropertyMatch = () => {
                   className="w-full"
                 />
                 <div className="flex justify-between text-xs text-gray-500 mt-1">
-                  <span>${(priceRange[0] / 1000).toFixed(0)}k</span>
-                  <span>${(priceRange[1] / 1000).toFixed(0)}k</span>
+                  <span>${priceRange[0].toLocaleString()}</span>
+                  <span>${priceRange[1].toLocaleString()}</span>
                 </div>
               </div>
             </div>
@@ -148,7 +148,7 @@ const PropertyMatch = () => {
                   {property.address}
                 </h4>
                 <p className="text-lg font-bold text-gray-900">
-                  ${(property.price / 1000).toFixed(0)}k
+                  ${property.price.toLocaleString()}
                 </p>
               </div>
               

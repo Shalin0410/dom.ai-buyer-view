@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, MapPin, TrendingUp, AlertCircle, Home, Bath, Bed, Heart } from 'lucide-react';
+import { Calendar, MapPin, TrendingUp, AlertCircle, Home, Bath, Bed, Heart, Clock, DollarSign, Eye, FileText } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,50 +18,103 @@ interface PropertyCardProps {
 }
 
 export const PropertyCard: React.FC<PropertyCardProps> = ({ property, onClick, mode = 'tracked', onAddToInterested }) => {
-  // Get status color based on status value
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'researching':
-        return 'bg-blue-100 text-blue-800';
-      case 'viewing':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'offer_submitted':
-        return 'bg-orange-100 text-orange-800';
-      case 'under_contract':
-        return 'bg-purple-100 text-purple-800';
-      case 'in_escrow':
-        return 'bg-indigo-100 text-indigo-800';
-      case 'closed':
-        return 'bg-green-100 text-green-800';
-      case 'withdrawn':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+  // Enhanced status colors with modern design
+  const getStatusConfig = (status: string) => {
+    const configs = {
+      'researching': {
+        bg: 'bg-blue-50 border-blue-200',
+        text: 'text-blue-700',
+        dot: 'bg-blue-500',
+        label: 'Researching'
+      },
+      'viewing': {
+        bg: 'bg-amber-50 border-amber-200',
+        text: 'text-amber-700',
+        dot: 'bg-amber-500',
+        label: 'Viewing'
+      },
+      'offer_submitted': {
+        bg: 'bg-orange-50 border-orange-200',
+        text: 'text-orange-700',
+        dot: 'bg-orange-500',
+        label: 'Offer Submitted'
+      },
+      'under_contract': {
+        bg: 'bg-purple-50 border-purple-200',
+        text: 'text-purple-700',
+        dot: 'bg-purple-500',
+        label: 'Under Contract'
+      },
+      'in_escrow': {
+        bg: 'bg-indigo-50 border-indigo-200',
+        text: 'text-indigo-700',
+        dot: 'bg-indigo-500',
+        label: 'In Escrow'
+      },
+      'closed': {
+        bg: 'bg-green-50 border-green-200',
+        text: 'text-green-700',
+        dot: 'bg-green-500',
+        label: 'Closed'
+      },
+      'withdrawn': {
+        bg: 'bg-gray-50 border-gray-200',
+        text: 'text-gray-700',
+        dot: 'bg-gray-500',
+        label: 'Withdrawn'
+      }
+    };
+    return configs[status as keyof typeof configs] || configs['researching'];
   };
 
-  // Get action text for the action required badge
-  const getActionText = (action: string) => {
+  // Enhanced action colors
+  const getActionConfig = (action: string) => {
     if (action === 'none') return null;
     
-    // If action is already in a display format, return as is
-    if (typeof action === 'string' && action.includes(' ')) {
-      return action;
-    }
-    
-    // Otherwise, format the action key into a display string
-    return action
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
+    const configs = {
+      'schedule_viewing': {
+        bg: 'bg-blue-50 border-blue-200',
+        text: 'text-blue-700',
+        icon: Eye,
+        label: 'Schedule Viewing'
+      },
+      'submit_offer': {
+        bg: 'bg-green-50 border-green-200',
+        text: 'text-green-700',
+        icon: DollarSign,
+        label: 'Submit Offer'
+      },
+      'review_documents': {
+        bg: 'bg-orange-50 border-orange-200',
+        text: 'text-orange-700',
+        icon: FileText,
+        label: 'Review Documents'
+      },
+      'inspection': {
+        bg: 'bg-purple-50 border-purple-200',
+        text: 'text-purple-700',
+        icon: Home,
+        label: 'Inspection'
+      },
+      'appraisal': {
+        bg: 'bg-indigo-50 border-indigo-200',
+        text: 'text-indigo-700',
+        icon: TrendingUp,
+        label: 'Appraisal'
+      },
+      'final_walkthrough': {
+        bg: 'bg-amber-50 border-amber-200',
+        text: 'text-amber-700',
+        icon: Eye,
+        label: 'Final Walkthrough'
+      }
+    };
+
+    const actionKey = action.replace(/\s+/g, '_').toLowerCase();
+    return configs[actionKey as keyof typeof configs];
   };
 
   const formatPrice = (price: number) => {
-    if (price >= 1000000) {
-      return `$${(price / 1000000).toFixed(1)}M`;
-    } else if (price >= 1000) {
-      return `$${(price / 1000).toFixed(0)}K`;
-    }
     return `$${price.toLocaleString()}`;
   };
 
@@ -78,7 +131,8 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property, onClick, m
   };
 
   const primaryPhoto = property.photos?.find(photo => photo.is_primary) || property.photos?.[0];
-  const actionText = property.action_required ? getActionText(property.action_required) : null;
+  const statusConfig = getStatusConfig(property.status);
+  const actionConfig = getActionConfig(property.action_required);
 
   const handleCardClick = (e: React.MouseEvent) => {
     // Don't trigger card click if clicking on the Add to Interested button
@@ -94,54 +148,74 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property, onClick, m
   };
 
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer" onClick={handleCardClick}>
-      <div className="aspect-[16/10] bg-gray-200 relative">
+    <Card className="group overflow-hidden bg-white border border-gray-200 hover:border-gray-300 hover:shadow-xl transition-all duration-300 cursor-pointer" onClick={handleCardClick}>
+      {/* Property Image */}
+      <div className="aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden">
         {primaryPhoto ? (
           <img 
             src={primaryPhoto.url} 
             alt={property.address}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gray-100">
-            <Home className="h-12 w-12 text-gray-400" />
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+            <Home className="h-16 w-16 text-gray-400" />
           </div>
         )}
         
+        {/* Overlay gradient for better text readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
+        
+        {/* Status Badge */}
         <div className="absolute top-3 left-3">
-          <Badge className={getStatusColor(property.status)}>
-            {property.statusText || property.status}
-          </Badge>
+          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${statusConfig.bg} ${statusConfig.text} backdrop-blur-sm`}>
+            <div className={`w-2 h-2 rounded-full ${statusConfig.dot}`} />
+            <span className="text-xs font-medium">{statusConfig.label}</span>
+          </div>
         </div>
         
-        {actionText && (
+        {/* Action Required Badge */}
+        {actionConfig && (
           <div className="absolute top-3 right-3">
-            <Badge className="bg-red-100 text-red-800">
-              <AlertCircle size={12} className="mr-1" />
-              Action Required
-            </Badge>
+            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${actionConfig.bg} ${actionConfig.text} backdrop-blur-sm`}>
+              <AlertCircle className="w-3 h-3" />
+              <span className="text-xs font-medium">Action Required</span>
+            </div>
+          </div>
+        )}
+
+        {/* Photo Count */}
+        {property.photos && property.photos.length > 1 && (
+          <div className="absolute bottom-3 right-3">
+            <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-black/50 text-white backdrop-blur-sm">
+              <span className="text-xs font-medium">{property.photos.length}</span>
+              <span className="text-xs">photos</span>
+            </div>
           </div>
         )}
       </div>
       
-      <CardContent className="p-4">
-        <div className="flex justify-between items-start mb-2">
-          <div className="flex-1">
-            <div className="flex items-start space-x-2 mb-1">
-              <MapPin size={14} className="text-gray-500 mt-0.5 flex-shrink-0" />
-              <p className="text-sm font-medium text-gray-900 leading-tight">
-                {property.address}
-              </p>
+      <CardContent className="p-5">
+        {/* Address and Price */}
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start gap-2 mb-1">
+              <MapPin className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-900 truncate">
+                  {property.address}
+                </p>
+                <p className="text-xs text-gray-600">
+                  {property.city}, {property.state} {property.zip_code}
+                </p>
+              </div>
             </div>
-            <p className="text-xs text-gray-500">
-              {property.city}, {property.state} {property.zip_code}
-            </p>
           </div>
-          <div className="text-right ml-2">
+          <div className="text-right ml-3">
             <p className="text-lg font-bold text-gray-900">
               {formatPrice(property.listing_price)}
             </p>
-            {property.purchase_price && property.status === 'in_escrow' && (
+            {property.purchase_price && ['under_contract', 'in_escrow', 'closed'].includes(property.status) && (
               <p className="text-sm text-green-600 font-medium">
                 Purchase: {formatPrice(property.purchase_price)}
               </p>
@@ -149,41 +223,75 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property, onClick, m
           </div>
         </div>
         
-        <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
-          <div className="flex items-center">
-            <Bed size={14} className="mr-1" />
-            <span>{property.bedrooms}</span>
+        {/* Property Details */}
+        <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
+          <div className="flex items-center gap-1.5">
+            <Bed className="w-4 h-4" />
+            <span className="font-medium">{property.bedrooms}</span>
+            <span className="text-xs">bed</span>
           </div>
-          <div className="flex items-center">
-            <Bath size={14} className="mr-1" />
-            <span>{property.bathrooms}</span>
+          <div className="flex items-center gap-1.5">
+            <Bath className="w-4 h-4" />
+            <span className="font-medium">{property.bathrooms}</span>
+            <span className="text-xs">bath</span>
           </div>
           {property.square_feet && (
-            <span>{property.square_feet.toLocaleString()} sqft</span>
+            <div className="flex items-center gap-1.5">
+              <Home className="w-4 h-4" />
+              <span className="font-medium">{property.square_feet.toLocaleString()}</span>
+              <span className="text-xs">sqft</span>
+            </div>
           )}
         </div>
 
+        {/* Last Activity and Action */}
         <div className="flex justify-between items-center">
-          <div className="text-xs text-gray-500">
-            {mode === 'tracked' ? `Last activity: ${formatLastActivity(property.last_activity_at)}` : 'Available Property'}
+          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+            <Clock className="w-3 h-3" />
+            {mode === 'tracked' ? formatLastActivity(property.last_activity_at) : 'Available Property'}
           </div>
-          {mode === 'tracked' && actionText && (
-            <Badge variant="outline" className="text-xs">
-              {actionText}
-            </Badge>
+          
+          {mode === 'tracked' && actionConfig && (
+            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border text-xs font-medium ${actionConfig.bg} ${actionConfig.text}`}>
+              <actionConfig.icon className="w-3 h-3" />
+              <span>{actionConfig.label}</span>
+            </div>
           )}
+          
           {mode === 'browse' && (
             <Button 
               size="sm" 
-              variant="outline" 
-              className="add-to-interested-btn h-7 px-2 text-xs"
+              className="add-to-interested-btn h-8 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white"
               onClick={handleAddToInterested}
             >
-              <Heart className="h-3 w-3 mr-1" />
+              <Heart className="h-3 w-3 mr-1.5" />
               Add to Interested
             </Button>
           )}
         </div>
+
+        {/* Additional Property Info for Tracked Mode */}
+        {mode === 'tracked' && (
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <div className="flex justify-between items-center text-xs">
+              <div className="flex items-center gap-4">
+                <span className="text-gray-500">
+                  <span className="font-medium text-gray-700">{property.property_type.replace('_', ' ')}</span>
+                </span>
+                {property.year_built && (
+                  <span className="text-gray-500">
+                    Built <span className="font-medium text-gray-700">{property.year_built}</span>
+                  </span>
+                )}
+              </div>
+              {property.mls_number && (
+                <span className="text-gray-500">
+                  MLS: <span className="font-medium text-gray-700">{property.mls_number}</span>
+                </span>
+              )}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

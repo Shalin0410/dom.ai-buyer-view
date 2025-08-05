@@ -66,29 +66,36 @@ export interface PropertyActivity {
 
 export interface Property {
   id: string;
-  buyer_id: string;
+  // Core property info from properties table
   address: string;
   city: string;
   state: string;
   zip_code: string;
   listing_price: number;
-  purchase_price?: number;
   bedrooms: number;
   bathrooms: number;
   square_feet?: number;
   lot_size?: number;
   year_built?: number;
   property_type: 'single_family' | 'condo' | 'townhouse' | 'multi_family' | 'other';
+  mls_number?: string;
+  listing_url?: string;
+  created_at: string;
+  updated_at: string;
+  
+  // Buyer-specific property info from buyer_properties table
+  buyer_id?: string;
   status: PropertyStatus;
   buying_stage: BuyingStage;
   action_required: ActionRequired;
-  mls_number?: string;
-  listing_url?: string;
   notes?: string;
-  photos: PropertyPhoto[];
+  purchase_price?: number;
+  offer_date?: string;
+  closing_date?: string;
   last_activity_at: string;
-  created_at: string;
-  updated_at: string;
+  
+  // Related data
+  photos: PropertyPhoto[];
   buyer?: Buyer;
 }
 

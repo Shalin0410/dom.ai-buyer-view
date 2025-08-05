@@ -408,58 +408,68 @@ export class SupabaseDataService extends BaseDataService {
   async getProperties(buyerId?: string, filter?: PropertyFilter): Promise<ApiResponse<Property[]>> {
     try {
       let query = supabase
-        .from('properties')
+        .from('buyer_properties')
         .select(`
           *,
-          buyer_properties!inner(
+          property:properties(
             id,
-            buyer_id,
-            status,
-            buying_stage,
-            action_required,
-            notes,
-            purchase_price,
-            added_at,
-            last_activity_at
+            address,
+            city,
+            state,
+            zip_code,
+            listing_price,
+            bedrooms,
+            bathrooms,
+            square_feet,
+            lot_size,
+            year_built,
+            property_type,
+            mls_number,
+            listing_url,
+            created_at,
+            updated_at
           )
         `);
 
       // Filter by buyer if specified
       if (buyerId) {
-        query = query.eq('buyer_properties.buyer_id', buyerId);
+        query = query.eq('buyer_id', buyerId);
       }
 
       // Apply filters based on buyer_properties data
       if (filter) {
         if (filter.status && filter.status.length > 0) {
-          query = query.in('buyer_properties.status', filter.status);
+          query = query.in('status', filter.status);
         }
         if (filter.buying_stage && filter.buying_stage.length > 0) {
-          query = query.in('buyer_properties.buying_stage', filter.buying_stage);
+          query = query.in('buying_stage', filter.buying_stage);
         }
         if (filter.action_required && filter.action_required.length > 0) {
-          query = query.in('buyer_properties.action_required', filter.action_required);
+          query = query.in('action_required', filter.action_required);
         }
         if (filter.price_min) {
-          query = query.gte('price', filter.price_min);
+          query = query.gte('property.listing_price', filter.price_min);
         }
         if (filter.price_max) {
-          query = query.lte('price', filter.price_max);
+          query = query.lte('property.listing_price', filter.price_max);
         }
         if (filter.bedrooms_min) {
-          query = query.gte('bedrooms', filter.bedrooms_min);
+          query = query.gte('property.bedrooms', filter.bedrooms_min);
         }
         if (filter.bathrooms_min) {
-          query = query.gte('baths', filter.bathrooms_min);
+          query = query.gte('property.bathrooms', filter.bathrooms_min);
+        }
+        if (filter.property_type && filter.property_type.length > 0) {
+          query = query.in('property.property_type', filter.property_type);
         }
         if (filter.last_activity_days) {
           const cutoffDate = new Date();
           cutoffDate.setDate(cutoffDate.getDate() - filter.last_activity_days);
-          query = query.gte('buyer_properties.last_activity_at', cutoffDate.toISOString());
+          query = query.gte('last_activity_at', cutoffDate.toISOString());
         }
       }
 
-      query = query.order('buyer_properties.last_activity_at', { ascending: false });
+      query = query.order('last_activity_at', { ascending: false });
 
       const { data, error } = await query;
 
@@ -468,46 +478,64 @@ export class SupabaseDataService extends BaseDataService {
         return this.createResponse(null, error.message);
       }
 
+      // Fetch photos for all properties
+      const propertyIds = (data || []).map(item => item.property.id);
+      let photos: any[] = [];
+      if (propertyIds.length > 0) {
+        const { data: photosData } = await supabase
+          .from('property_photos')
+          .select('*')
+          .in('property_id', propertyIds)
+          .order('order', { ascending: true });
+        photos = photosData || [];
+      }
+
       // Transform data to match expected Property interface
-      const transformedProperties = (data || []).map(property => {
-        const buyerProperty = Array.isArray(property.buyer_properties) 
-          ? property.buyer_properties[0] 
-          : property.buyer_properties;
+      const transformedProperties = (data || []).map(buyerProperty => {
+        const property = buyerProperty.property;
+        const propertyPhotos = photos.filter(photo => photo.property_id === property.id);
 
         return {
           id: property.id,
-          buyer_id: buyerProperty?.buyer_id || buyerId || 'no-buyer',
+          // Core property info
           address: property.address,
           city: property.city,
           state: property.state,
-          zip_code: property.zip_code || '',
-          listing_price: property.price,
-          purchase_price: buyerProperty?.purchase_price,
+          zip_code: property.zip_code,
+          listing_price: property.listing_price,
           bedrooms: property.bedrooms,
-          bathrooms: property.baths,
-          square_feet: property.sqft,
+          bathrooms: property.bathrooms,
+          square_feet: property.square_feet,
           lot_size: property.lot_size,
           year_built: property.year_built,
-          property_type: property.property_type || 'single_family',
-          status: buyerProperty?.status || 'interested',
-          buying_stage: buyerProperty?.buying_stage || 'initial_research',
-          action_required: buyerProperty?.action_required || 'none',
+          property_type: property.property_type,
           mls_number: property.mls_number,
           listing_url: property.listing_url,
-          notes: buyerProperty?.notes,
-          last_activity_at: buyerProperty?.last_activity_at || property.created_at,
           created_at: property.created_at,
-          updated_at: property.updated_at || property.created_at,
-          photos: property.image_url ? [{
-            id: `${property.id}-main`,
-            property_id: property.id,
-            url: property.image_url,
-            caption: 'Main photo',
-            is_primary: true,
-            order: 0,
-            created_at: property.created_at,
-            updated_at: property.updated_at || property.created_at
-          }] : []
+          updated_at: property.updated_at,
+          
+          // Buyer-specific info
+          buyer_id: buyerProperty.buyer_id,
+          status: buyerProperty.status,
+          buying_stage: buyerProperty.buying_stage,
+          action_required: buyerProperty.action_required,
+          notes: buyerProperty.notes,
+          purchase_price: buyerProperty.purchase_price,
+          offer_date: buyerProperty.offer_date,
+          closing_date: buyerProperty.closing_date,
+          last_activity_at: buyerProperty.last_activity_at,
+          
+          // Related data
+          photos: propertyPhotos.map(photo => ({
+            id: photo.id,
+            property_id: photo.property_id,
+            url: photo.url,
+            caption: photo.caption,
+            is_primary: photo.is_primary,
+            order: photo.order,
+            created_at: photo.created_at,
+            updated_at: photo.updated_at
+          }))
         };
       });
 
@@ -521,24 +549,24 @@ export class SupabaseDataService extends BaseDataService {
 
   async getPropertyById(id: string): Promise<ApiResponse<Property>> {
     try {
-      const { data, error } = await supabase
+      // First get the property data
+      const { data: propertyData, error: propertyError } = await supabase
         .from('properties')
-        .select(`
-          *,
-          buyer:buyers(
-            id,
-            first_name,
-            last_name,
-            email
-          )
-        `)
+        .select('*')
         .eq('id', id)
         .single();
 
-      if (error) {
-        console.error('Error fetching property by ID:', error);
-        return this.createResponse(null, error.message);
+      if (propertyError) {
+        console.error('Error fetching property by ID:', propertyError);
+        return this.createResponse(null, propertyError.message);
       }
+
+      // Get buyer-property relationship if it exists
+      const { data: buyerPropertyData } = await supabase
+        .from('buyer_properties')
+        .select('*')
+        .eq('property_id', id)
+        .maybeSingle();
 
       // Fetch photos
       const { data: photos } = await supabase
@@ -547,12 +575,51 @@ export class SupabaseDataService extends BaseDataService {
         .eq('property_id', id)
         .order('order', { ascending: true });
 
-      const propertyWithPhotos = {
-        ...data,
-        photos: photos || []
+      // Transform to Property interface
+      const property: Property = {
+        id: propertyData.id,
+        // Core property info
+        address: propertyData.address,
+        city: propertyData.city,
+        state: propertyData.state,
+        zip_code: propertyData.zip_code,
+        listing_price: propertyData.listing_price,
+        bedrooms: propertyData.bedrooms,
+        bathrooms: propertyData.bathrooms,
+        square_feet: propertyData.square_feet,
+        lot_size: propertyData.lot_size,
+        year_built: propertyData.year_built,
+        property_type: propertyData.property_type,
+        mls_number: propertyData.mls_number,
+        listing_url: propertyData.listing_url,
+        created_at: propertyData.created_at,
+        updated_at: propertyData.updated_at,
+        
+        // Buyer-specific info (from buyer_properties or defaults)
+        buyer_id: buyerPropertyData?.buyer_id,
+        status: buyerPropertyData?.status || 'researching',
+        buying_stage: buyerPropertyData?.buying_stage || 'initial_research',
+        action_required: buyerPropertyData?.action_required || 'none',
+        notes: buyerPropertyData?.notes,
+        purchase_price: buyerPropertyData?.purchase_price,
+        offer_date: buyerPropertyData?.offer_date,
+        closing_date: buyerPropertyData?.closing_date,
+        last_activity_at: buyerPropertyData?.last_activity_at || propertyData.created_at,
+        
+        // Related data
+        photos: (photos || []).map(photo => ({
+          id: photo.id,
+          property_id: photo.property_id,
+          url: photo.url,
+          caption: photo.caption,
+          is_primary: photo.is_primary,
+          order: photo.order,
+          created_at: photo.created_at,
+          updated_at: photo.updated_at
+        }))
       };
 
-      return this.createResponse(propertyWithPhotos);
+      return this.createResponse(property);
     } catch (error) {
       console.error('Error in getPropertyById:', error);
       const apiError = this.handleError(error);
@@ -780,16 +847,16 @@ export class SupabaseDataService extends BaseDataService {
       // Apply filters
       if (filter) {
         if (filter.price_min) {
-          query = query.gte('price', filter.price_min);
+          query = query.gte('listing_price', filter.price_min);
         }
         if (filter.price_max) {
-          query = query.lte('price', filter.price_max);
+          query = query.lte('listing_price', filter.price_max);
         }
         if (filter.bedrooms_min) {
           query = query.gte('bedrooms', filter.bedrooms_min);
         }
         if (filter.bathrooms_min) {
-          query = query.gte('baths', filter.bathrooms_min);
+          query = query.gte('bathrooms', filter.bathrooms_min);
         }
         if (filter.property_type && filter.property_type.length > 0) {
           query = query.in('property_type', filter.property_type);
@@ -812,19 +879,34 @@ export class SupabaseDataService extends BaseDataService {
         ? (data || []).map((item: any) => item.property)
         : (data || []);
 
+      // Fetch photos for all properties
+      const propertyIds = properties.map((property: any) => property.id);
+      let photos: any[] = [];
+      if (propertyIds.length > 0) {
+        const { data: photosData } = await supabase
+          .from('property_photos')
+          .select('*')
+          .in('property_id', propertyIds)
+          .order('order', { ascending: true });
+        photos = photosData || [];
+      }
+
       // Transform to Property interface
-      const transformedProperties = properties.map((property: any) => ({
+      const transformedProperties = properties.map((property: any) => {
+        const propertyPhotos = photos.filter(photo => photo.property_id === property.id);
+        
+        return {
         id: property.id,
         buyer_id: '', // No buyer relationship yet
         address: property.address,
         city: property.city,
         state: property.state,
         zip_code: property.zip_code || '',
-        listing_price: property.price,
+        listing_price: property.listing_price,
         purchase_price: undefined,
         bedrooms: property.bedrooms,
-        bathrooms: property.baths,
-        square_feet: property.sqft,
+        bathrooms: property.bathrooms,
+        square_feet: property.square_feet,
         lot_size: property.lot_size,
         year_built: property.year_built,
         property_type: property.property_type || 'single_family',
@@ -837,17 +919,18 @@ export class SupabaseDataService extends BaseDataService {
         last_activity_at: property.created_at,
         created_at: property.created_at,
         updated_at: property.updated_at || property.created_at,
-        photos: property.image_url ? [{
-          id: `${property.id}-main`,
-          property_id: property.id,
-          url: property.image_url,
-          caption: 'Main photo',
-          is_primary: true,
-          order: 0,
-          created_at: property.created_at,
-          updated_at: property.updated_at || property.created_at
-        }] : []
-      }));
+        photos: propertyPhotos.map(photo => ({
+          id: photo.id,
+          property_id: photo.property_id,
+          url: photo.url,
+          caption: photo.caption,
+          is_primary: photo.is_primary,
+          order: photo.order,
+          created_at: photo.created_at,
+          updated_at: photo.updated_at
+        }))
+        }
+      });
 
       return this.createResponse(transformedProperties);
     } catch (error) {
@@ -905,7 +988,7 @@ export class SupabaseDataService extends BaseDataService {
         .insert({
           buyer_id: buyerId,
           property_id: propertyId,
-          status: 'interested',
+          status: 'researching',
           buying_stage: 'initial_research',
           action_required: 'schedule_viewing',
           last_activity_at: new Date().toISOString()

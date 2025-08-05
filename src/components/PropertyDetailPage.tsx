@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import ProgressTracker from './ProgressTracker';
 
 interface PropertyDetailPageProps {
-  propertyId: number;
+  propertyId: string;
   onBack: () => void;
 }
 
