@@ -5,48 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
+import { useActionItems } from '@/hooks/useActionItems';
+import { useAuth } from '@/contexts/AuthContext';
 
 const ActionItems = () => {
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
-
-  const actionItems = [
-    {
-      id: 'inspection-schedule',
-      title: 'Schedule Home Inspection',
-      description: '123 Maple Street',
-      type: 'inspection',
-      priority: 'high',
-      dueDate: '2024-03-15',
-      status: 'Inspection Ready'
-    },
-    {
-      id: 'contingency-deadline',
-      title: 'Remove Loan Contingency',
-      description: '456 Oak Avenue',
-      type: 'contingency',
-      priority: 'high',
-      dueDate: '2024-03-18',
-      status: 'Documents Available'
-    },
-    {
-      id: 'offer-deadline',
-      title: 'Respond to Counter Offer',
-      description: '789 Pine Road',
-      type: 'offer',
-      priority: 'urgent',
-      dueDate: '2024-03-12',
-      status: 'Counter Offer Ready'
-    },
-    {
-      id: 'appraisal-schedule',
-      title: 'Schedule Appraisal',
-      description: '123 Maple Street',
-      type: 'appraisal',
-      priority: 'medium',
-      dueDate: '2024-03-20',
-      status: 'Appraisal Available'
-    }
-  ];
+  const { user } = useAuth();
+  const { actionItems, loading, error } = useActionItems(user?.id);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -81,6 +46,40 @@ const ActionItems = () => {
       setCheckedItems(checkedItems.filter(id => id !== itemId));
     }
   };
+
+  if (loading) {
+    return (
+      <Card className="border-0 bg-white shadow-sm">
+        <CardHeader className="pb-6">
+          <CardTitle className="text-xl font-semibold text-gray-900">
+            Action Items
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-gray-500">
+            Loading action items...
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="border-0 bg-white shadow-sm">
+        <CardHeader className="pb-6">
+          <CardTitle className="text-xl font-semibold text-gray-900">
+            Action Items
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-red-500">
+            {error}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const pendingItems = actionItems.filter(item => !checkedItems.includes(item.id));
   const completedItems = actionItems.filter(item => checkedItems.includes(item.id));
@@ -137,13 +136,13 @@ const ActionItems = () => {
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <div className="flex items-center gap-1">
                     <Circle size={8} className="text-green-500 fill-current" />
-                    <span>{item.status}</span>
+                    <span className="capitalize">{item.status.replace('_', ' ')}</span>
                   </div>
                   
                   <div className="flex items-center gap-1">
                     <Calendar size={12} />
                     <span>
-                      {new Date(item.dueDate).toLocaleDateString('en-US', { 
+                      {new Date(item.due_date).toLocaleDateString('en-US', { 
                         month: 'short', 
                         day: 'numeric'
                       })}

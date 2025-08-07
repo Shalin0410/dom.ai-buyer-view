@@ -5,6 +5,11 @@
 -- Enable necessary extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Create custom types
+CREATE TYPE property_status AS ENUM ('researching', 'viewing', 'offer_submitted', 'under_contract', 'in_escrow', 'closed', 'withdrawn');
+CREATE TYPE property_buying_stage AS ENUM ('initial_research', 'active_search', 'offer_negotiation', 'under_contract', 'closing');
+CREATE TYPE property_action_required AS ENUM ('schedule_viewing', 'submit_offer', 'review_documents', 'inspection', 'appraisal', 'final_walkthrough', 'none');
+
 -- Create agents table
 CREATE TABLE IF NOT EXISTS agents (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,

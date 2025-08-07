@@ -1,5 +1,5 @@
 // Data Service Interface
-import { ApiResponse, PaginatedResponse, Buyer, Agent, Property, PropertyFilter, PropertyActivity, PropertySummary, ApiError } from './types';
+import { ApiResponse, PaginatedResponse, Buyer, Agent, Property, PropertyFilter, PropertyActivity, PropertySummary, ActionItem, ApiError } from './types';
 
 export interface DataService {
   // Buyer operations
@@ -31,6 +31,7 @@ export interface DataService {
   getPropertyActivities(propertyId: string): Promise<ApiResponse<PropertyActivity[]>>;
   addPropertyActivity(activity: Omit<PropertyActivity, 'id' | 'created_at'>): Promise<ApiResponse<PropertyActivity>>;
   getPropertySummary(buyerId: string): Promise<ApiResponse<PropertySummary>>;
+  getActionItems(buyerId: string): Promise<ApiResponse<ActionItem[]>>;
   
   // Buyer-Property relationship operations
   addPropertyToBuyer(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;

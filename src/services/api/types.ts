@@ -118,6 +118,23 @@ export interface PropertySummary {
   requiring_action: number;
 }
 
+export interface ActionItem {
+  id: string;
+  property_id: string;
+  buyer_id: string;
+  title: string;
+  description: string;
+  property_address: string;
+  action_required: ActionRequired;
+  status: PropertyStatus;
+  buying_stage: BuyingStage;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  due_date: string;
+  last_activity_at: string;
+  offer_date?: string;
+  closing_date?: string;
+}
+
 export interface AuthUser {
   id: string;
   email: string;

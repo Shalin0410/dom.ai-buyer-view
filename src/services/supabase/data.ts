@@ -2,7 +2,7 @@
 import { supabase } from '@/lib/supabaseClient';
 import { createClient } from '@supabase/supabase-js';
 import { BaseDataService } from '../api/data';
-import { ApiResponse, Buyer, Agent, Property, PropertyFilter, PropertyActivity, PropertySummary } from '../api/types';
+import { ApiResponse, Buyer, Agent, Property, PropertyFilter, PropertyActivity, PropertySummary, ActionItem } from '../api/types';
 
 export class SupabaseDataService extends BaseDataService {
   // Buyer operations
@@ -723,10 +723,28 @@ export class SupabaseDataService extends BaseDataService {
 
   async getPropertyActivities(propertyId: string): Promise<ApiResponse<PropertyActivity[]>> {
     try {
+      // First get the buyer_property_id for this property
+      const { data: buyerPropertyData, error: buyerPropertyError } = await supabase
+        .from('buyer_properties')
+        .select('id')
+        .eq('property_id', propertyId)
+        .maybeSingle();
+
+      if (buyerPropertyError) {
+        console.error('Error fetching buyer property for activities:', buyerPropertyError);
+        return this.createResponse(null, buyerPropertyError.message);
+      }
+
+      if (!buyerPropertyData) {
+        // No buyer-property relationship exists, return empty array
+        return this.createResponse([]);
+      }
+
+      // Now get activities for this buyer_property_id
       const { data, error } = await supabase
         .from('property_activities')
         .select('*')
-        .eq('property_id', propertyId)
+        .eq('buyer_property_id', buyerPropertyData.id)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -734,7 +752,18 @@ export class SupabaseDataService extends BaseDataService {
         return this.createResponse(null, error.message);
       }
 
-      return this.createResponse(data || []);
+      // Transform to match PropertyActivity interface
+      const activities = (data || []).map(activity => ({
+        id: activity.id,
+        property_id: propertyId, // Add the property_id for the interface
+        type: activity.type,
+        title: activity.title,
+        description: activity.description,
+        created_at: activity.created_at,
+        created_by: activity.created_by
+      }));
+
+      return this.createResponse(activities);
     } catch (error) {
       console.error('Error in getPropertyActivities:', error);
       const apiError = this.handleError(error);
@@ -1103,6 +1132,181 @@ export class SupabaseDataService extends BaseDataService {
       });
     } catch (error) {
       console.error('Error in updateBuyerProperty:', error);
+      const apiError = this.handleError(error);
+      return this.createResponse(null, apiError.message);
+    }
+  }
+
+  async getActionItems(buyerId: string): Promise<ApiResponse<ActionItem[]>> {
+    try {
+      // Get all buyer properties that require action
+      const { data, error } = await supabase
+        .from('buyer_properties')
+        .select(`
+          id,
+          buyer_id,
+          property_id,
+          status,
+          buying_stage,
+          action_required,
+          notes,
+          offer_date,
+          closing_date,
+          last_activity_at,
+          property:properties(
+            id,
+            address,
+            city,
+            state
+          )
+        `)
+        .eq('buyer_id', buyerId)
+        .neq('action_required', 'none')
+        .order('last_activity_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching action items:', error);
+        return this.createResponse(null, error.message);
+      }
+
+      // Transform the data into ActionItem format
+      const actionItems: ActionItem[] = (data || []).map(item => {
+        const property = item.property;
+        
+        // Generate title based on action required
+        const getActionTitle = (buyingStage: string, actionRequired: string, status: string) => {
+          // Primary logic: base title on buying stage for proper correlation
+          switch (buyingStage) {
+            case 'initial_research':
+              switch (actionRequired) {
+                case 'schedule_viewing': return 'Schedule Property Viewing';
+                default: return 'Research Property Details';
+              }
+            case 'active_search':
+              switch (actionRequired) {
+                case 'schedule_viewing': return 'Schedule Property Viewing';
+                case 'submit_offer': return 'Prepare Offer Strategy';
+                default: return 'Continue Property Search';
+              }
+            case 'offer_negotiation':
+              switch (actionRequired) {
+                case 'submit_offer': return 'Submit Offer';
+                case 'review_documents': return 'Review Offer Terms';
+                default: return 'Negotiate Offer Terms';
+              }
+            case 'under_contract':
+              switch (actionRequired) {
+                case 'review_documents': return 'Review Contract Documents';
+                case 'inspection': return 'Schedule Home Inspection';
+                case 'appraisal': return 'Coordinate Appraisal';
+                default: return 'Manage Contract Process';
+              }
+            case 'closing':
+              switch (actionRequired) {
+                case 'final_walkthrough': return 'Final Walkthrough';
+                case 'review_documents': return 'Review Closing Documents';
+                default: return 'Prepare for Closing';
+              }
+            default:
+              // Fallback to action-based titles
+              switch (actionRequired) {
+                case 'schedule_viewing': return 'Schedule Property Viewing';
+                case 'submit_offer': return 'Submit Offer';
+                case 'review_documents': return 'Review Documents';
+                case 'inspection': return 'Schedule Home Inspection';
+                case 'appraisal': return 'Schedule Appraisal';
+                case 'final_walkthrough': return 'Complete Final Walkthrough';
+                default: return 'Property Action Required';
+              }
+          }
+        };
+
+        // Calculate priority based on stage and dates with logical correlation
+        const getPriority = (stage: string, status: string, offerDate?: string, closingDate?: string) => {
+          // Urgent if closing is soon
+          if (closingDate) {
+            const daysToClosing = Math.ceil((new Date(closingDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+            if (daysToClosing <= 7) return 'urgent';
+            if (daysToClosing <= 14) return 'high';
+          }
+          
+          // Priority based on buying stage correlation
+          switch (stage) {
+            case 'closing':
+              return 'urgent'; // Always urgent when approaching closing
+            case 'under_contract':
+              return 'high'; // High priority during contract phase
+            case 'offer_negotiation':
+              return 'high'; // High priority for offers
+            case 'active_search':
+              return 'medium'; // Medium for active searching
+            case 'initial_research':
+              return 'low'; // Low for research phase
+            default:
+              // Fallback to status-based priority
+              if (status === 'under_contract' || status === 'in_escrow') return 'high';
+              if (status === 'offer_submitted') return 'medium';
+              return 'medium';
+          }
+        };
+
+        // Calculate due date based on action and status
+        const getDueDate = (action: string, status: string, offerDate?: string, closingDate?: string) => {
+          const now = new Date();
+          
+          if (closingDate) {
+            // If we have a closing date, base due dates on that
+            const closingDateObj = new Date(closingDate);
+            switch (action) {
+              case 'inspection':
+                // Inspection typically 5-10 days after offer
+                return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+              case 'appraisal':
+                // Appraisal typically 2-3 weeks before closing
+                return new Date(closingDateObj.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString();
+              case 'final_walkthrough':
+                // Final walkthrough typically 1-2 days before closing
+                return new Date(closingDateObj.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString();
+              case 'review_documents':
+                // Document review should be done soon
+                return new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
+            }
+          }
+          
+          // Default due dates based on action type
+          switch (action) {
+            case 'schedule_viewing':
+              return new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString(); // 2 days
+            case 'submit_offer':
+              return new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString(); // 1 day
+            case 'review_documents':
+              return new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString(); // 3 days
+            default:
+              return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 1 week
+          }
+        };
+
+        return {
+          id: item.id,
+          property_id: item.property_id,
+          buyer_id: item.buyer_id,
+          title: getActionTitle(item.buying_stage, item.action_required, item.status),
+          description: `${property.address}, ${property.city}, ${property.state}`,
+          property_address: `${property.address}, ${property.city}, ${property.state}`,
+          action_required: item.action_required,
+          status: item.status,
+          buying_stage: item.buying_stage,
+          priority: getPriority(item.buying_stage, item.status, item.offer_date, item.closing_date),
+          due_date: getDueDate(item.action_required, item.status, item.offer_date, item.closing_date),
+          last_activity_at: item.last_activity_at,
+          offer_date: item.offer_date,
+          closing_date: item.closing_date
+        };
+      });
+
+      return this.createResponse(actionItems);
+    } catch (error) {
+      console.error('Error in getActionItems:', error);
       const apiError = this.handleError(error);
       return this.createResponse(null, apiError.message);
     }

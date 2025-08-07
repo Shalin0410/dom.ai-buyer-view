@@ -5,6 +5,136 @@
 -- Clean up existing test data (if any)
 TRUNCATE TABLE property_activities, property_photos, buyer_properties, properties, buyers, agents CASCADE;
 
+-- Create test auth users first (these will be the foundation for our buyers)
+-- Note: In production, users would sign up through the normal flow
+-- Only insert if users don't already exist
+DO $$
+BEGIN
+  -- Insert first test user
+  IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = '11111111-1111-1111-1111-111111111111'::uuid) THEN
+    INSERT INTO auth.users (
+      id,
+      instance_id,
+      email,
+      encrypted_password,
+      email_confirmed_at,
+      created_at,
+      updated_at,
+      raw_app_meta_data,
+      raw_user_meta_data,
+      is_super_admin,
+      role,
+      aud,
+      confirmation_token,
+      recovery_token,
+      email_change_token_new,
+      email_change
+    ) VALUES (
+      '11111111-1111-1111-1111-111111111111'::uuid,
+      '00000000-0000-0000-0000-000000000000'::uuid,
+      'shalinshah1998@gmail.com',
+      crypt('TempPass123!', gen_salt('bf')),
+      NOW(),
+      NOW(),
+      NOW(),
+      '{"provider":"email","providers":["email"]}',
+      '{}',
+      false,
+      'authenticated',
+      'authenticated',
+      '',
+      '',
+      '',
+      ''
+    );
+  END IF;
+
+  -- Insert second test user
+  IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = '22222222-2222-2222-2222-222222222222'::uuid) THEN
+    INSERT INTO auth.users (
+      id,
+      instance_id,
+      email,
+      encrypted_password,
+      email_confirmed_at,
+      created_at,
+      updated_at,
+      raw_app_meta_data,
+      raw_user_meta_data,
+      is_super_admin,
+      role,
+      aud,
+      confirmation_token,
+      recovery_token,
+      email_change_token_new,
+      email_change
+    ) VALUES (
+      '22222222-2222-2222-2222-222222222222'::uuid,
+      '00000000-0000-0000-0000-000000000000'::uuid,
+      'shalin41098@yahoo.com.sg',
+      crypt('TempPass123!', gen_salt('bf')),
+      NOW(),
+      NOW(),
+      NOW(),
+      '{"provider":"email","providers":["email"]}',
+      '{}',
+      false,
+      'authenticated',
+      'authenticated',
+      '',
+      '',
+      '',
+      ''
+    );
+  END IF;
+END $$;
+
+-- Create corresponding auth.identities records
+DO $$
+BEGIN
+  -- Insert first identity
+  IF NOT EXISTS (SELECT 1 FROM auth.identities WHERE user_id = '11111111-1111-1111-1111-111111111111'::uuid AND provider = 'email') THEN
+    INSERT INTO auth.identities (
+      provider_id,
+      user_id,
+      identity_data,
+      provider,
+      last_sign_in_at,
+      created_at,
+      updated_at
+    ) VALUES (
+      '11111111-1111-1111-1111-111111111111',
+      '11111111-1111-1111-1111-111111111111'::uuid,
+      '{"sub":"11111111-1111-1111-1111-111111111111","email":"shalinshah1998@gmail.com"}',
+      'email',
+      NOW(),
+      NOW(),
+      NOW()
+    );
+  END IF;
+
+  -- Insert second identity
+  IF NOT EXISTS (SELECT 1 FROM auth.identities WHERE user_id = '22222222-2222-2222-2222-222222222222'::uuid AND provider = 'email') THEN
+    INSERT INTO auth.identities (
+      provider_id,
+      user_id,
+      identity_data,
+      provider,
+      last_sign_in_at,
+      created_at,
+      updated_at
+    ) VALUES (
+      '22222222-2222-2222-2222-222222222222',
+      '22222222-2222-2222-2222-222222222222'::uuid,
+      '{"sub":"22222222-2222-2222-2222-222222222222","email":"shalin41098@yahoo.com.sg"}',
+      'email',
+      NOW(),
+      NOW(),
+      NOW()
+    );
+  END IF;
+END $$;
+
 -- Insert test agents (without user_id as it should be set by auth system)
 INSERT INTO agents (id, first_name, last_name, email, phone, created_at, updated_at)
 VALUES 
@@ -12,37 +142,27 @@ VALUES
   ('f6b23420-9a70-484c-bca1-def78a0d9c09', 'Sarah', 'Johnson', 'sarah.j@example.com', '+14155550124', NOW(), NOW())
 ON CONFLICT (id) DO NOTHING;
 
--- Insert test buyers - Only insert if corresponding user exists in auth.users
--- First, ensure the agents exist
-WITH agent_check AS (
-  SELECT id FROM agents WHERE id IN (
-    'e5a1231f-9a70-484c-bca1-def78a0d9c08'::uuid, 
-    'f6b23420-9a70-484c-bca1-def78a0d9c09'::uuid
-  )
-),
--- Get existing users from auth.users
-existing_users AS (
-  SELECT id, email 
-  FROM auth.users 
-  WHERE email IN ('shalinshah1998@gmail.com', 'shalin41098@yahoo.com.sg')
-)
+-- Insert test buyers using the auth users we just created
 INSERT INTO buyers (id, email, first_name, last_name, agent_id, created_at, updated_at)
-SELECT 
-  eu.id,
-  data.email,
-  data.first_name,
-  data.last_name,
-  data.agent_id,
-  NOW(),
-  NOW()
-FROM (
-  VALUES 
-    ('shalinshah1998@gmail.com', 'Shalin', 'Shah', 'e5a1231f-9a70-484c-bca1-def78a0d9c08'::uuid),
-    ('shalin41098@yahoo.com.sg', 'Emma', 'Wilson', 'f6b23420-9a70-484c-bca1-def78a0d9c09'::uuid)
-) AS data(email, first_name, last_name, agent_id)
-JOIN existing_users eu ON eu.email = data.email
-LEFT JOIN buyers b ON b.id = eu.id
-WHERE b.id IS NULL
+VALUES 
+  (
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    'shalinshah1998@gmail.com',
+    'Shalin',
+    'Shah',
+    'e5a1231f-9a70-484c-bca1-def78a0d9c08'::uuid,
+    NOW(),
+    NOW()
+  ),
+  (
+    '22222222-2222-2222-2222-222222222222'::uuid,
+    'shalin41098@yahoo.com.sg',
+    'Emma',
+    'Wilson',
+    'f6b23420-9a70-484c-bca1-def78a0d9c09'::uuid,
+    NOW(),
+    NOW()
+  )
 ON CONFLICT (id) 
 DO UPDATE SET 
   first_name = EXCLUDED.first_name,
@@ -89,17 +209,24 @@ WITH inserted_properties AS (
         895000, 880000, 2, 1, 1200, 3000, 1985, 'condo',
         'in_escrow', 'closing', 'final_walkthrough', 'OK12345678',
         'https://example.com/listings/ok12345678', 'Condo with great views'
+      ),
+      (
+        'd4e5f6a7-b8c9-0123-4567-890123456789', 
+        '321 Elm St', 'Berkeley', 'CA', '94705',
+        985000, 950000, 3, 2, 1800, 4500, 2000, 'single_family',
+        'viewing', 'offer_negotiation', 'submit_offer', 'BK98765432',
+        'https://example.com/listings/bk98765432', 'Family home with potential mismatch'
       )
   ) AS data(id, address, city, state, zip_code, listing_price, purchase_price, bedrooms, bathrooms, square_feet, lot_size, year_built, property_type, status, buying_stage, action_required, mls_number, listing_url, notes)
   LEFT JOIN properties p ON p.id = data.id::uuid
   WHERE p.id IS NULL
   RETURNING id, mls_number
 ),
--- Create buyer-property relationships
+-- Create buyer-property relationships using direct UUIDs
 buyer_property_data AS (
   SELECT 
     data.property_id::uuid,
-    b.id as buyer_id,
+    data.buyer_id::uuid,
     data.status::property_status,
     data.buying_stage::property_buying_stage,
     data.action_required::property_action_required,
@@ -113,7 +240,7 @@ buyer_property_data AS (
     VALUES 
       (
         'a1b2c3d4-e5f6-7890-1234-567890abcdef', 
-        'shalinshah1998@gmail.com',
+        '11111111-1111-1111-1111-111111111111',
         'under_contract',
         'under_contract',
         'review_documents',
@@ -122,7 +249,7 @@ buyer_property_data AS (
       ),
       (
         'b2c3d4e5-f6a7-8901-2345-678901234567', 
-        'shalinshah1998@gmail.com',
+        '11111111-1111-1111-1111-111111111111',
         'researching',
         'initial_research',
         'schedule_viewing',
@@ -131,15 +258,23 @@ buyer_property_data AS (
       ),
       (
         'c3d4e5f6-a7b8-9012-3456-789012345678', 
-        'shalin41098@yahoo.com.sg',
+        '22222222-2222-2222-2222-222222222222',
         'in_escrow',
         'closing',
         'final_walkthrough',
         'Condo with great views',
         880000.00
+      ),
+      (
+        'd4e5f6a7-b8c9-0123-4567-890123456789', 
+        '11111111-1111-1111-1111-111111111111',
+        'viewing',
+        'offer_negotiation',
+        'submit_offer',
+        'Family home with potential mismatch',
+        950000.00
       )
-  ) AS data(property_id, buyer_email, status, buying_stage, action_required, notes, purchase_price)
-  JOIN buyers b ON b.email = data.buyer_email
+  ) AS data(property_id, buyer_id, status, buying_stage, action_required, notes, purchase_price)
 )
 INSERT INTO buyer_properties (
   property_id,
@@ -197,11 +332,10 @@ ON CONFLICT DO NOTHING;
 WITH bp_ids AS (
   SELECT 
     bp.id,
-    p.status,
-    p.purchase_price,
+    bp.status,
+    bp.purchase_price,
     bp.buyer_id
   FROM buyer_properties bp
-  JOIN properties p ON bp.property_id = p.id
 )
 INSERT INTO property_activities (buyer_property_id, type, title, description, created_by, created_at)
 SELECT 

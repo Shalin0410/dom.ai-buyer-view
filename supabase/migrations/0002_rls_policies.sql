@@ -122,3 +122,32 @@ BEGIN
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to safely check if buyer exists by email (for authentication)
+CREATE OR REPLACE FUNCTION public.get_buyer_by_email(email_param text)
+RETURNS TABLE(
+  id uuid,
+  email text,
+  first_name text,
+  last_name text,
+  phone text,
+  agent_id uuid,
+  created_at timestamptz,
+  updated_at timestamptz
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    b.id,
+    b.email,
+    b.first_name,
+    b.last_name,
+    b.phone,
+    b.agent_id,
+    b.created_at,
+    b.updated_at
+  FROM buyers b
+  WHERE b.email = email_param
+  LIMIT 1;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
