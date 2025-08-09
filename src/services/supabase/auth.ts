@@ -33,7 +33,8 @@ export class SupabaseAuthService extends BaseAuthService {
       // Small delay to ensure cleanup is complete
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      const finalRedirectUrl = redirectUrl || `${window.location.origin}/auth/callback`;
+      const siteUrl = (import.meta as any)?.env?.VITE_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+      const finalRedirectUrl = redirectUrl || `${siteUrl}/auth/callback`;
       
       const { error } = await supabase.auth.signInWithOtp({
         email,
