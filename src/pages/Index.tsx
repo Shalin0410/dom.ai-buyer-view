@@ -4,26 +4,8 @@ import Header from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import MainAppContent from '@/components/MainAppContent';
 import { Toaster } from '@/components/ui/toaster';
-
 import { useBuyer } from '@/hooks/useBuyer';
-
-interface UserData {
-  id: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  name: string;
-  isFirstTime: boolean;
-  preferences?: string | null;
-  agent_id?: string | null;
-  agent?: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    email: string;
-    phone: string | null;
-  } | null;
-}
+import { UserData } from '@/types/user';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');

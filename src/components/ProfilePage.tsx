@@ -4,24 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAgent } from '@/hooks/useAgent';
-interface UserData {
-  id: string;
-  email: string;
-  name: string;
-  isFirstTime: boolean;
-  preferences?: string;
-  first_name?: string;
-  last_name?: string;
-  phone?: string;
-  address?: string;
-  agent_id?: string | null;
-  agent?: any;
-  realtorInfo?: {
-    name: string;
-    email: string;
-    phone: string;
-  };
-}
+import { UserData } from '@/types/user';
 
 interface ProfilePageProps {
   userData: UserData;
@@ -35,8 +18,7 @@ const ProfilePage = ({ userData }: ProfilePageProps) => {
   
   // Log agent data for debugging
   useEffect(() => {
-    console.log('Agent data:', agent);
-    console.log('Agent ID from userData:', userData.agent_id);
+
   }, [agent, userData.agent_id]);
 
   // Mock profile data extracted from user preferences
@@ -58,7 +40,7 @@ const ProfilePage = ({ userData }: ProfilePageProps) => {
     niceToHaves: ['Updated kitchen', 'Garage', 'View']
   };
 
-  console.log('Profile userData:', userData);
+
 
   const ProfileSection = ({ title, children, icon: Icon }) => (
     <Card className="border-0 bg-white/80 backdrop-blur-sm shadow-sm">

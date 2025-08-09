@@ -4,19 +4,7 @@ import EnhancedChatInterface from '@/components/EnhancedChatInterface';
 import PropertySwiping from '@/components/PropertySwiping';
 import ProfilePage from '@/components/ProfilePage';
 import PropertyDetailPage from '@/components/PropertyDetailPage';
-
-interface UserData {
-  id: string;
-  email: string;
-  name: string;
-  isFirstTime: boolean;
-  preferences?: string;
-  realtorInfo?: {
-    name: string;
-    email: string;
-    phone: string;
-  };
-}
+import { UserData } from '@/types/user';
 
 interface MainAppContentProps {
   activeTab: string;
@@ -32,28 +20,12 @@ const MainAppContent = ({ activeTab, userData, onTabChange }: MainAppContentProp
   };
 
   const handlePropertyAction = (propertyId: string, action: 'like' | 'dislike' | 'save') => {
-    console.log(`Property ${propertyId} ${action}d`);
-    
-    if (action === 'like') {
-      console.log('- Saved under liked homes');
-      console.log('- Realtor notified');
-      console.log('- Auto-booking appointment process started');
-      console.log('- Learning user preferences for algorithm improvement');
-    } else if (action === 'save') {
-      console.log('- Saved under liked homes');
-      console.log('- Realtor notified');
-      console.log('- Learning user preferences for algorithm improvement');
-    } else if (action === 'dislike') {
-      console.log('- Learning user preferences for algorithm improvement');
-    }
-
-    if (Math.random() > 0.7) {
-      console.log('🔔 Profile Update: We noticed you like homes with views. Should we add this to your preferences?');
-    }
+    // Property action logic can be implemented here
+    // Future: Add property to saved/liked list, notify agent, etc.
   };
 
   const handleOpenChat = () => {
-    console.log('Open chat from property swiping');
+    onTabChange?.('chat');
   };
 
   const handlePropertyClick = (propertyId: string) => {

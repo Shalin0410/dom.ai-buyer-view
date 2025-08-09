@@ -6,9 +6,29 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Create custom types
-CREATE TYPE property_status AS ENUM ('researching', 'viewing', 'offer_submitted', 'under_contract', 'in_escrow', 'closed', 'withdrawn');
-CREATE TYPE property_buying_stage AS ENUM ('initial_research', 'active_search', 'offer_negotiation', 'under_contract', 'closing');
-CREATE TYPE property_action_required AS ENUM ('schedule_viewing', 'submit_offer', 'review_documents', 'inspection', 'appraisal', 'final_walkthrough', 'none');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'property_status') THEN
+    CREATE TYPE property_status AS ENUM (
+      'researching', 'viewing', 'offer_submitted', 'under_contract', 'in_escrow', 'closed', 'withdrawn'
+    );
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'property_buying_stage') THEN
+    CREATE TYPE property_buying_stage AS ENUM (
+      'initial_research', 'active_search', 'offer_negotiation', 'under_contract', 'closing'
+    );
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'property_action_required') THEN
+    CREATE TYPE property_action_required AS ENUM (
+      'schedule_viewing', 'submit_offer', 'review_documents', 'inspection', 'appraisal', 'final_walkthrough', 'none'
+    );
+  END IF;
+END $$;
 
 -- Create agents table
 CREATE TABLE IF NOT EXISTS agents (
@@ -60,6 +80,33 @@ CREATE TABLE IF NOT EXISTS properties (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Ensure required columns exist even if "properties" table pre-existed with a different shape
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='properties') THEN
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS address TEXT';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS city TEXT';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS state TEXT';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS zip_code TEXT';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS listing_price DECIMAL(12,2)';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS purchase_price DECIMAL(12,2)';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS bedrooms INTEGER';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS bathrooms DECIMAL(3,1)';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS square_feet INTEGER';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS lot_size DECIMAL(10,2)';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS year_built INTEGER';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS property_type TEXT';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS status TEXT';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS buying_stage TEXT';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS action_required TEXT';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS mls_number TEXT';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS listing_url TEXT';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS notes TEXT';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMPTZ';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ';
+  END IF;
+END $$;
+
 -- Create buyer_properties join table
 CREATE TABLE IF NOT EXISTS buyer_properties (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -102,9 +149,33 @@ CREATE TABLE IF NOT EXISTS property_activities (
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_properties_buyer_id ON properties((1)) WHERE false;
-CREATE INDEX IF NOT EXISTS idx_properties_status ON properties(status);
-CREATE INDEX IF NOT EXISTS idx_properties_buying_stage ON properties(buying_stage);
-CREATE INDEX IF NOT EXISTS idx_properties_last_activity ON properties(last_activity_at);
+
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' AND table_name = 'properties' AND column_name = 'status'
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_properties_status ON properties(status);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' AND table_name = 'properties' AND column_name = 'buying_stage'
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_properties_buying_stage ON properties(buying_stage);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' AND table_name = 'properties' AND column_name = 'last_activity_at'
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_properties_last_activity ON properties(last_activity_at);
+  END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS idx_property_photos_property_id ON property_photos(property_id);
 CREATE INDEX IF NOT EXISTS idx_property_photos_order ON property_photos(property_id, "order");
 CREATE INDEX IF NOT EXISTS idx_buyer_properties_buyer_id ON buyer_properties(buyer_id);
@@ -124,18 +195,42 @@ END;
 $$ language 'plpgsql';
 
 -- Create triggers for updated_at
-CREATE TRIGGER update_agents_updated_at 
-  BEFORE UPDATE ON agents
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname = 'update_agents_updated_at'
+  ) THEN
+    CREATE TRIGGER update_agents_updated_at 
+      BEFORE UPDATE ON agents
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
+END $$;
 
-CREATE TRIGGER update_buyers_updated_at 
-  BEFORE UPDATE ON buyers
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname = 'update_buyers_updated_at'
+  ) THEN
+    CREATE TRIGGER update_buyers_updated_at 
+      BEFORE UPDATE ON buyers
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
+END $$;
 
-CREATE TRIGGER update_properties_updated_at 
-  BEFORE UPDATE ON properties
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname = 'update_properties_updated_at'
+  ) THEN
+    CREATE TRIGGER update_properties_updated_at 
+      BEFORE UPDATE ON properties
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
+END $$;
 
-CREATE TRIGGER update_property_photos_updated_at 
-  BEFORE UPDATE ON property_photos
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname = 'update_property_photos_updated_at'
+  ) THEN
+    CREATE TRIGGER update_property_photos_updated_at 
+      BEFORE UPDATE ON property_photos
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
+END $$;

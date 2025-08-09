@@ -5,6 +5,33 @@
 -- Clean up existing test data (if any)
 TRUNCATE TABLE property_activities, property_photos, buyer_properties, properties, buyers, agents CASCADE;
 
+-- Ensure properties table has required columns for seeding regardless of prior shape
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='properties') THEN
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS address TEXT';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS city TEXT';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS state TEXT';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS zip_code TEXT';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS listing_price NUMERIC(12,2)';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS purchase_price NUMERIC(12,2)';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS bedrooms INTEGER';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS bathrooms NUMERIC(3,1)';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS square_feet INTEGER';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS lot_size NUMERIC(10,2)';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS year_built INTEGER';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS property_type TEXT';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS status TEXT';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS buying_stage TEXT';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS action_required TEXT';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS mls_number TEXT';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS listing_url TEXT';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS notes TEXT';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMPTZ';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ';
+    EXECUTE 'ALTER TABLE properties ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ';
+  END IF;
+END $$;
+
 -- Create test auth users first (these will be the foundation for our buyers)
 -- Note: In production, users would sign up through the normal flow
 -- Only insert if users don't already exist

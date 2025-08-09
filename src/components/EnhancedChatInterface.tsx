@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, ArrowLeft, Home, HelpCircle, TrendingUp, Mic } from 'lucide-react';
+import { Send, Bot, ArrowLeft, Home, DollarSign, FileText, Mic, Users, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { answerQuestion } from '@/services/chatbot';
+import { useNotionIntegration } from '@/hooks/useNotionIntegration';
 
 interface Message {
   id: string;
@@ -11,6 +13,7 @@ interface Message {
   sender: 'user' | 'bot';
   timestamp: Date;
   category?: string;
+  sources?: string[];
 }
 
 interface EnhancedChatInterfaceProps {
@@ -18,10 +21,13 @@ interface EnhancedChatInterfaceProps {
 }
 
 const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
+  // Initialize Notion integration hook
+  useNotionIntegration();
+  
   const [messages, setMessages] = useState<Message[]>([
     {
-      id: '1',
-      text: "Hi! I'm Dom AI, your real estate assistant. I can help you with listing searches, home buying questions, or market insights. What would you like to know?",
+      id: 'welcome',
+      text: "Hi! I'm Dom AI, your home buying assistant. I can help you understand the home buying process, from getting pre-approved for a mortgage to closing on your new home. What questions do you have about buying a home?",
       sender: 'bot',
       timestamp: new Date(Date.now() - 600000)
     }
@@ -62,14 +68,12 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
     }
   };
 
-  const triggerAutoResponse = (userInput: string, fromTimeout: boolean = false) => {
+  const triggerAutoResponse = async (userInput: string, fromTimeout: boolean = false) => {
     // Prevent duplicate processing
     if (isProcessing) {
-      console.log('Already processing, skipping duplicate request');
       return;
     }
 
-    console.log('Processing message:', userInput, 'fromTimeout:', fromTimeout);
     setIsProcessing(true);
 
     // Clear any pending timeouts
@@ -97,70 +101,87 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
 
     setIsTyping(true);
 
-    setTimeout(() => {
-      let aiResponse = "I understand your question. Let me help you with that.";
-      
-      const lowerInput = userInput.toLowerCase();
-      
-      if (lowerInput.includes('visit') || lowerInput.includes('looking for') || lowerInput.includes('what should')) {
-        aiResponse = "Look for more than just finishes—notice how the space flows, how much natural light it gets, and any signs of wear or needed repairs. Think about practical details too: parking, storage, noise levels, and whether the layout works for your day-to-day.";
-      } else if (lowerInput.includes('price') || lowerInput.includes('fairly') || lowerInput.includes('cost')) {
-        aiResponse = "A good starting point is looking at recent sales of similar homes in the area—called comps. Days on market can also be a clue. If you want, I can pull some recent comps for a specific address so you can compare.";
-      } else if (lowerInput.includes('neighborhood') || lowerInput.includes('value') || lowerInput.includes('investment')) {
-        aiResponse = "That's a great question—and a tricky one. I can't predict future market trends, but your agent might have insights based on development plans, school ratings, or recent demand shifts in the area. Want me to flag this for them to follow up?";
-      } else if (lowerInput.includes('yes') || lowerInput.includes('sure') || lowerInput.includes('ok')) {
-        aiResponse = "Great, Kelsey's been messaged!";
-      } else if (selectedCategory === 'listing') {
-        aiResponse = "I found 12 properties matching your criteria. Here are the top 3 matches with the highest fit scores. Would you like me to show you these properties in your main feed?";
-      } else if (selectedCategory === 'process') {
-        aiResponse = "The home buying process typically involves: 1) Getting pre-approved for a mortgage, 2) Finding a real estate agent, 3) House hunting, 4) Making an offer, 5) Home inspection, 6) Finalizing financing, and 7) Closing. Each step is important for a successful purchase.";
-      } else if (selectedCategory === 'market') {
-        aiResponse = "Based on current market data for San Francisco: Average home price is $1.4M (up 2.3% from last quarter), average interest rates are at 7.2%, and inventory is at a 3-month supply. It's a competitive but stable market for qualified buyers.";
+    try {
+      // 1) Retrieve local context (buyer-only) for grounding
+      const { retrieveContext } = await import('@/services/chatbot');
+      const context = await retrieveContext(userInput, { maxDocs: 3 });
+
+      // 2) Try calling server (ChatGPT) with strict scope
+      let serverAnswer: string | null = null;
+      try {
+        const resp = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: userInput, context }),
+        });
+        if (resp.ok) {
+          const json = await resp.json();
+          serverAnswer = json.answer || null;
+        }
+      } catch {}
+
+      let finalAnswer = serverAnswer;
+      let sources: string[] = context.map(c => c.title);
+
+      // 3) Fallback to local retrieval-only answer if server failed
+      if (!finalAnswer) {
+        const result = await answerQuestion(userInput);
+        finalAnswer = result.answer;
+        if (result.sources?.length) sources = result.sources;
       }
 
       const aiMessage: Message = {
         id: botMessageId,
-        text: aiResponse,
+        text: finalAnswer ?? "I'm not sure based on the available information. Could you rephrase or ask your agent for help?",
         sender: 'bot',
-        timestamp: new Date()
+        timestamp: new Date(),
+        sources
       };
 
       setMessages(prev => [...prev, aiMessage]);
+    } catch (error) {
+      const errorMessage: Message = {
+        id: botMessageId,
+        text: "I'm sorry, I encountered an error while processing your question. Please try again or rephrase your question.",
+        sender: 'bot',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsTyping(false);
       setIsProcessing(false);
-      console.log('Response completed');
-    }, 1500);
+    }
   };
 
   const questionCategories = {
-    listing: {
+    getting_started: {
+      icon: DollarSign,
+      title: "Getting Started & Finances",
+      questions: [
+        "How do I get pre-approved for a mortgage?",
+        "What's the difference between pre-qualification and pre-approval?",
+        "How much should I save for a down payment?",
+        "What are closing costs and how much should I expect?"
+      ]
+    },
+    home_search: {
       icon: Home,
-      title: "Listing Questions",
+      title: "Finding Your Home",
       questions: [
-        "Show me listings in zipcode 94107",
-        "Show me listings on the market for over 30 days",
-        "Find homes with private backyards",
-        "Properties near CalTrain stations"
+        "How do I find the right real estate agent?",
+        "What should I look for during property viewings?",
+        "How do I evaluate different neighborhoods?",
+        "What are red flags to watch for when viewing homes?"
       ]
     },
-    process: {
-      icon: HelpCircle,
-      title: "Home Buying Process",
+    offers_closing: {
+      icon: FileText,
+      title: "Offers & Closing Process",
       questions: [
-        "What is the home buying process?",
-        "Who are the key stakeholders?",
-        "What roles do title company vs lender play?",
-        "Should I even buy right now?"
-      ]
-    },
-    market: {
-      icon: TrendingUp,
-      title: "Market Insights",
-      questions: [
-        "Recent market trends in San Francisco",
-        "What is the average interest rate?",
-        "Average price of homes in Palo Alto",
-        "Best time to buy in current market?"
+        "How do I make a competitive offer?",
+        "What happens during a home inspection?",
+        "What is the appraisal process?",
+        "What should I expect at closing?"
       ]
     }
   };
@@ -178,8 +199,15 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 z-10">
-          <h1 className="text-xl font-semibold text-gray-900">Chat Assistant</h1>
-          <p className="text-sm text-gray-600">Ask me anything about real estate</p>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={onBack} className="p-2">
+              <ArrowLeft size={18} />
+            </Button>
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900">Dom AI Assistant</h1>
+              <p className="text-sm text-gray-600">Your home buying guide and advisor</p>
+            </div>
+          </div>
         </div>
 
         {/* Content */}
@@ -275,7 +303,19 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
                         {questionCategories[message.category].title}
                       </Badge>
                     )}
-                    <p className="text-sm leading-relaxed">{message.text}</p>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.text}</p>
+                    {message.sources && message.sources.length > 0 && (
+                      <div className="mt-3 pt-2 border-t border-gray-100">
+                        <p className="text-xs text-gray-500 mb-1">Sources:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {message.sources.map((source, index) => (
+                            <Badge key={index} variant="outline" className="text-xs">
+                              {source}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <p className="text-xs text-gray-400 mt-1 px-1">
                     {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -319,7 +359,7 @@ const EnhancedChatInterface = ({ onBack }: EnhancedChatInterfaceProps) => {
               <Input
                 value={inputText}
                 onChange={handleInputChange}
-                placeholder="Type your message..."
+                placeholder="Ask about home buying, mortgages, inspections, offers..."
                 className="flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-gray-700 placeholder:text-gray-500"
                 onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
               />
