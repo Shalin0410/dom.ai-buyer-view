@@ -46,7 +46,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signInWithEmail = async (email: string) => {
     try {
-      const redirectTo = `${window.location.origin}/auth/callback`;
+      const siteUrl = (import.meta as any)?.env?.VITE_SITE_URL || window.location.origin;
+      const redirectTo = `${siteUrl}/auth/callback`;
       const response = await authService.signInWithMagicLink(email, redirectTo);
       
       if (!response.success) {

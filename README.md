@@ -62,7 +62,14 @@ This project is built with:
 
 ## How can I deploy this project?
 
-Simply open [Lovable](https://lovable.dev/projects/089bcf2c-3b68-4512-b90a-a059029cbb58) and click on Share -> Publish.
+For Vercel deployment, set these env vars and import the repo:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_SITE_URL` (e.g., https://your-app.vercel.app)
+- `OPENAI_API_KEY`
+
+Then deploy. The serverless API is at `/api/chat`.
 
 ## Can I connect a custom domain to my Lovable project?
 
