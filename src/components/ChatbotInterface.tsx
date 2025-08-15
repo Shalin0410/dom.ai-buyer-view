@@ -3,7 +3,6 @@ import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, Plus, MessageSquare, Trash2, Archive, Edit3, X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useChatbot } from '@/hooks/useChatbot';
 import { useNotionIntegration } from '@/hooks/useNotionIntegration';
@@ -11,13 +10,9 @@ import { formatDistanceToNow } from 'date-fns';
 import { QuestionSelection, QuestionCategory } from './QuestionSelection';
 import { CategoryQuestions } from './CategoryQuestions';
 
-interface ChatbotInterfaceProps {
-  onBack: () => void;
-}
-
 type ViewMode = 'questions' | 'category' | 'chat';
 
-const ChatbotInterface = ({ onBack }: ChatbotInterfaceProps) => {
+const ChatbotInterface = () => {
   // Initialize Notion integration hook
   useNotionIntegration();
   
@@ -33,8 +28,7 @@ const ChatbotInterface = ({ onBack }: ChatbotInterfaceProps) => {
     createNewConversation,
     updateTitle,
     archiveConversation,
-    deleteConversation,
-    refreshConversations
+    deleteConversation
   } = useChatbot();
 
   const [inputText, setInputText] = useState('');
@@ -55,34 +49,13 @@ const ChatbotInterface = ({ onBack }: ChatbotInterfaceProps) => {
 
   // Handle state management for conversations and view modes
   useEffect(() => {
-    console.log('[ChatbotInterface] State change:', { 
-      hasConversation: !!currentConversation, 
-      viewMode, 
-      conversationId: currentConversation?.conversation.id 
-    });
-    
     if (currentConversation) {
-      // When a conversation is loaded, ensure we're in chat mode
       setViewMode('chat');
       setSelectedCategory(null);
     } else {
-      // If no conversation, show questions interface
       setViewMode('questions');
       setSelectedCategory(null);
     }
-  }, [currentConversation]);
-
-  // Cleanup effect when component unmounts
-  useEffect(() => {
-    return () => {
-      // If we're in a new conversation state but no actual conversation exists,
-      // clear any pending state without saving anything
-      if (!currentConversation) {
-        setInputText('');
-        setViewMode('questions');
-        setSelectedCategory(null);
-      }
-    };
   }, [currentConversation]);
 
   const handleSendMessage = async () => {
@@ -110,10 +83,6 @@ const ChatbotInterface = ({ onBack }: ChatbotInterfaceProps) => {
     setSelectedCategory(null);
   };
 
-  const handleBackToCategories = () => {
-    setViewMode('category');
-  };
-
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -138,7 +107,6 @@ const ChatbotInterface = ({ onBack }: ChatbotInterfaceProps) => {
   };
 
   const handleLoadConversation = async (conversationId: string) => {
-    // Clear any existing state first
     setViewMode('chat');
     setSelectedCategory(null);
     setInputText('');
@@ -180,7 +148,6 @@ const ChatbotInterface = ({ onBack }: ChatbotInterfaceProps) => {
       {/* Sidebar */}
       <div className={`${showSidebar ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-40 w-80 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:shadow-none lg:z-auto`}>
         <div className="flex flex-col h-full">
-          {/* Sidebar Header */}
           <div className="flex items-center justify-between p-4 border-b bg-white sticky top-0 z-10">
             <h2 className="text-lg font-semibold text-gray-900">Conversations</h2>
             <Button
@@ -193,7 +160,6 @@ const ChatbotInterface = ({ onBack }: ChatbotInterfaceProps) => {
             </Button>
           </div>
 
-          {/* Conversations List */}
           <div className="flex-1 overflow-y-auto p-4 space-y-2">
             {isLoading ? (
               <div className="text-center text-gray-500">Loading conversations...</div>
@@ -226,7 +192,6 @@ const ChatbotInterface = ({ onBack }: ChatbotInterfaceProps) => {
                       </p>
                     </div>
                     
-                    {/* Action buttons */}
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
                       <Button
                         size="sm"
@@ -259,7 +224,6 @@ const ChatbotInterface = ({ onBack }: ChatbotInterfaceProps) => {
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
-        {/* Chat Header */}
         <div className="flex items-center justify-between p-4 bg-white border-b sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <Button
@@ -277,7 +241,6 @@ const ChatbotInterface = ({ onBack }: ChatbotInterfaceProps) => {
           </div>
         </div>
 
-        {/* Messages Area */}
         <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4 relative">
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-3">
@@ -286,7 +249,6 @@ const ChatbotInterface = ({ onBack }: ChatbotInterfaceProps) => {
           )}
 
           {!currentConversation && !isLoadingConversation ? (
-            // Show question selection interface when no conversation is active and not loading
             <div className="h-full">
               {viewMode === 'questions' && (
                 <QuestionSelection
@@ -304,7 +266,6 @@ const ChatbotInterface = ({ onBack }: ChatbotInterfaceProps) => {
               )}
             </div>
           ) : isLoadingConversation ? (
-            // Show loading state when loading an existing conversation
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
                 <div className="flex space-x-1 justify-center mb-4">
@@ -317,133 +278,125 @@ const ChatbotInterface = ({ onBack }: ChatbotInterfaceProps) => {
             </div>
           ) : (
             <>
-               {/* Show question selection overlay when in chat mode but viewMode is questions */}
-               {currentConversation && viewMode === 'questions' && (
-                 <div className="absolute inset-0 bg-white z-10 flex flex-col">
-                   {/* Header with close button */}
-                   <div className="flex items-center justify-between p-4 border-b bg-white">
-                     <h2 className="text-lg font-semibold text-gray-900">Quick Questions</h2>
-                     <div className="flex items-center gap-2">
-                       <Button
-                         variant="outline"
-                         size="sm"
-                         onClick={() => setViewMode('chat')}
-                         className="bg-yellow-50 border-yellow-300 text-yellow-800 hover:bg-yellow-100 hover:border-yellow-400"
-                       >
-                         Back to Chat
-                       </Button>
-                       <Button
-                         variant="ghost"
-                         size="sm"
-                         onClick={() => setViewMode('chat')}
-                         className="text-gray-500 hover:text-gray-700"
-                       >
-                         <X size={16} />
-                       </Button>
-                     </div>
-                   </div>
-                   
-                   {/* Question selection content */}
-                   <div className="flex-1 overflow-y-auto p-4">
-                     <QuestionSelection
-                       onQuestionSelect={handleQuestionSelect}
-                       onCategorySelect={handleCategorySelect}
-                     />
-                   </div>
-                 </div>
-               )}
+              {currentConversation && viewMode === 'questions' && (
+                <div className="absolute inset-0 bg-white z-10 flex flex-col">
+                  <div className="flex items-center justify-between p-4 border-b bg-white">
+                    <h2 className="text-lg font-semibold text-gray-900">Quick Questions</h2>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setViewMode('chat')}
+                        className="bg-yellow-50 border-yellow-300 text-yellow-800 hover:bg-yellow-100 hover:border-yellow-400"
+                      >
+                        Back to Chat
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setViewMode('chat')}
+                        className="text-gray-500 hover:text-gray-700"
+                      >
+                        <X size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto p-4">
+                    <QuestionSelection
+                      onQuestionSelect={handleQuestionSelect}
+                      onCategorySelect={handleCategorySelect}
+                    />
+                  </div>
+                </div>
+              )}
 
-               {currentConversation && viewMode === 'category' && selectedCategory && (
-                 <div className="absolute inset-0 bg-white z-10 flex flex-col">
-                   {/* Header with back button */}
-                   <div className="flex items-center justify-between p-4 border-b bg-white">
-                     <h2 className="text-lg font-semibold text-gray-900">{selectedCategory.title}</h2>
-                     <div className="flex items-center gap-2">
-                       <Button
-                         variant="outline"
-                         size="sm"
-                         onClick={() => setViewMode('questions')}
-                         className="bg-yellow-50 border-yellow-300 text-yellow-800 hover:bg-yellow-100 hover:border-yellow-400"
-                       >
-                         Back to Categories
-                       </Button>
-                       <Button
-                         variant="ghost"
-                         size="sm"
-                         onClick={() => setViewMode('chat')}
-                         className="text-gray-500 hover:text-gray-700"
-                       >
-                         <X size={16} />
-                       </Button>
-                     </div>
-                   </div>
-                   
-                   {/* Category questions content */}
-                   <div className="flex-1 overflow-y-auto p-4">
-                     <CategoryQuestions
-                       category={selectedCategory}
-                       onQuestionSelect={handleQuestionSelect}
-                       onBack={() => setViewMode('questions')}
-                     />
-                   </div>
-                 </div>
-               )}
+              {currentConversation && viewMode === 'category' && selectedCategory && (
+                <div className="absolute inset-0 bg-white z-10 flex flex-col">
+                  <div className="flex items-center justify-between p-4 border-b bg-white">
+                    <h2 className="text-lg font-semibold text-gray-900">{selectedCategory.title}</h2>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setViewMode('questions')}
+                        className="bg-yellow-50 border-yellow-300 text-yellow-800 hover:bg-yellow-100 hover:border-yellow-400"
+                      >
+                        Back to Categories
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setViewMode('chat')}
+                        className="text-gray-500 hover:text-gray-700"
+                      >
+                        <X size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto p-4">
+                    <CategoryQuestions
+                      category={selectedCategory}
+                      onQuestionSelect={handleQuestionSelect}
+                      onBack={() => setViewMode('questions')}
+                    />
+                  </div>
+                </div>
+              )}
 
-               {/* Regular chat interface - always show when we have a conversation */}
-               {currentConversation && viewMode === 'chat' && (
-                 <>
-                   {/* Conversation Title - Sticky */}
-                   <div className="sticky top-0 z-20 bg-gray-50 px-4 py-3 border-b border-gray-200 shadow-sm backdrop-blur-sm">
-                     <div className="flex items-center justify-between">
-                       {editingTitle === currentConversation.conversation.id ? (
-                         <div className="flex items-center gap-2 w-full max-w-md">
-                           <Input
-                             value={newTitle}
-                             onChange={(e) => setNewTitle(e.target.value)}
-                             onKeyPress={handleTitleKeyPress}
-                             className="text-lg font-medium bg-white border-yellow-300 focus:border-yellow-500 focus:ring-yellow-500"
-                             autoFocus
-                             placeholder="Enter conversation title..."
-                           />
-                           <Button 
-                             size="sm" 
-                             onClick={handleSaveTitle}
-                             className="bg-green-500 hover:bg-green-600 text-white border-green-500"
-                             title="Save title"
-                           >
-                             <Check size={16} />
-                           </Button>
-                           <Button 
-                             size="sm" 
-                             variant="outline" 
-                             onClick={handleCancelEdit}
-                             className="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
-                             title="Cancel editing"
-                           >
-                             <X size={16} />
-                           </Button>
-                         </div>
-                       ) : (
-                         <>
-                           <h3 className="text-lg font-medium text-gray-900">
-                             {currentConversation.conversation.title}
-                           </h3>
-                           <Button
-                             onClick={() => handleStartEditTitle(currentConversation.conversation.id, currentConversation.conversation.title)}
-                             variant="ghost"
-                             size="sm"
-                             className="text-gray-500 hover:text-gray-700"
-                             title="Edit conversation title"
-                           >
-                             <Edit3 size={16} />
-                           </Button>
-                         </>
-                       )}
-                     </div>
-                   </div>
+              {currentConversation && viewMode === 'chat' && (
+                <>
+                  <div className="sticky top-0 z-20 bg-gray-50 px-4 py-3 border-b border-gray-200 shadow-sm backdrop-blur-sm">
+                    <div className="flex items-center justify-between">
+                      {editingTitle === currentConversation.conversation.id ? (
+                        <div className="flex items-center gap-2 w-full max-w-md">
+                          <Input
+                            value={newTitle}
+                            onChange={(e) => setNewTitle(e.target.value)}
+                            onKeyPress={handleTitleKeyPress}
+                            className="text-lg font-medium bg-white border-yellow-300 focus:border-yellow-500 focus:ring-yellow-500"
+                            autoFocus
+                            placeholder="Enter conversation title..."
+                          />
+                          <Button 
+                            size="sm" 
+                            onClick={handleSaveTitle}
+                            className="bg-green-500 hover:bg-green-600 text-white border-green-500"
+                            title="Save title"
+                          >
+                            <Check size={16} />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={handleCancelEdit}
+                            className="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
+                            title="Cancel editing"
+                          >
+                            <X size={16} />
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <h3 className="text-lg font-medium text-gray-900">
+                            {currentConversation.conversation.title}
+                          </h3>
+                          <Button
+                            onClick={() => handleStartEditTitle(currentConversation.conversation.id, currentConversation.conversation.title)}
+                            variant="ghost"
+                            size="sm"
+                            className="text-gray-500 hover:text-gray-700"
+                            title="Edit conversation title"
+                          >
+                            <Edit3 size={16} />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
 
-                   {/* Messages */}
-                   <div className="space-y-4">
+                  <div className="space-y-4">
                     {currentConversation.messages.map((message) => (
                       <div
                         key={message.id}
@@ -459,7 +412,6 @@ const ChatbotInterface = ({ onBack }: ChatbotInterfaceProps) => {
                           >
                             <p className="whitespace-pre-wrap">{message.content}</p>
                             
-                            {/* Sources */}
                             {message.sources && message.sources.length > 0 && (
                               <div className="mt-2 pt-2 border-t border-gray-200">
                                 <p className="text-xs text-gray-500 mb-1">Sources:</p>
@@ -480,7 +432,6 @@ const ChatbotInterface = ({ onBack }: ChatbotInterfaceProps) => {
                       </div>
                     ))}
 
-                    {/* Typing indicator */}
                     {isSending && (
                       <div className="flex justify-start">
                         <div className="bg-white border border-gray-200 rounded-lg p-3">
@@ -504,7 +455,6 @@ const ChatbotInterface = ({ onBack }: ChatbotInterfaceProps) => {
           )}
         </div>
 
-        {/* Input Area */}
         <div className="p-4 bg-yellow-50 border-t border-yellow-200">
           <div className="flex gap-2">
             {currentConversation && (
