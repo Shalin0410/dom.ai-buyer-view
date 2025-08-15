@@ -1,5 +1,5 @@
 // src/services/chatbot/qa.ts
-import { getAllDocs, Doc, buyerInfo } from '@/knowledge/docs';
+import { getAllDocs, Doc, buyerInfo, addInjectedDoc } from '@/knowledge/docs';
 
 type QAResult = { answer: string; sources: string[] };
 
@@ -182,6 +182,5 @@ function synthesizeAnswer(query: string, snippets: string[]): string {
 
 // Function to inject external knowledge (e.g., from Notion MCP)
 export function injectKnowledge(title: string, content: string): void {
-  const { addInjectedDoc } = require('@/knowledge/docs');
   addInjectedDoc(title, content);
 }

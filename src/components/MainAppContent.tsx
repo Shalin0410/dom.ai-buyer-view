@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import ModernDashboard from '@/components/ModernDashboard';
-import EnhancedChatInterface from '@/components/EnhancedChatInterface';
+import ChatbotInterface from '@/components/ChatbotInterface';
+import ChatbotTest from '@/components/ChatbotTest';
 import PropertySwiping from '@/components/PropertySwiping';
 import ProfilePage from '@/components/ProfilePage';
 import PropertyDetailPage from '@/components/PropertyDetailPage';
@@ -63,7 +64,8 @@ const MainAppContent = ({ activeTab, userData, onTabChange }: MainAppContentProp
           onNavigateToSearch={handleNavigateToSearch}
         />
       )}
-      {activeTab === 'chat' && <EnhancedChatInterface onBack={handleChatBack} />}
+      {activeTab === 'chat' && <ChatbotInterface onBack={handleChatBack} />}
+      {activeTab === 'chat-test' && <ChatbotTest />}
       {activeTab === 'search' && (
         <PropertySwiping 
           userProfile={userData}

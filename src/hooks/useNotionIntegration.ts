@@ -1,34 +1,73 @@
 // src/hooks/useNotionIntegration.ts
 import { useEffect } from 'react';
 import { injectKnowledge } from '@/services/chatbot';
+import { allowlistedNotionPages } from '@/knowledge/notion-allowlist';
 
 // Hook to integrate with Notion MCP for "Make home buying transparent" content
 export const useNotionIntegration = () => {
   useEffect(() => {
-    // This hook can be used to inject Notion content when available
-    // For now, it's a placeholder for external MCP integration
-    
-    // Example usage:
-    // window.injectNotionContent = (title: string, content: string) => {
-    //   if (title.toLowerCase().includes('make home buying transparent')) {
-    //     injectKnowledge(title, content);
-    //   }
-    // };
-
     // Expose the injection function globally for MCP integration
     if (typeof window !== 'undefined') {
+      // Keep a debug buffer of injected docs for inspection in DevTools
+      (window as any).__homeBuyingKnowledgeDocs = (window as any).__homeBuyingKnowledgeDocs || [];
+      // Provide a friendly alias without leading underscores
+      (window as any).homeBuyingKnowledgeDocs = (window as any).__homeBuyingKnowledgeDocs;
+
       (window as any).injectHomeBuyingKnowledge = (title: string, content: string) => {
-        // Only inject content related to home buying education
-        if (title.toLowerCase().includes('make home buying transparent') ||
-            title.toLowerCase().includes('home buying') ||
-            title.toLowerCase().includes('buyer') ||
-            title.toLowerCase().includes('real estate') ||
-            title.toLowerCase().includes('mortgage') ||
-            title.toLowerCase().includes('property')) {
+        const lower = title.toLowerCase();
+        const isAccepted = lower.includes('make home buying transparent') ||
+          lower.includes('home buying') ||
+          lower.includes('buyer') ||
+          lower.includes('real estate') ||
+          lower.includes('mortgage') ||
+          lower.includes('property');
+
+        if (isAccepted) {
           injectKnowledge(title, content);
-          console.log(`Injected home buying knowledge: ${title}`);
+
+          const payload = {
+            title,
+            length: content?.length ?? 0,
+            injectedAt: new Date().toISOString(),
+          };
+          try {
+            (window as any).__homeBuyingKnowledgeDocs.push({ ...payload, content });
+            // Keep alias in sync (same reference already, but ensure it's present)
+            (window as any).homeBuyingKnowledgeDocs = (window as any).__homeBuyingKnowledgeDocs;
+          } catch (e) {
+            console.error('[MCP] Error adding to window array:', e);
+          }
+
+          if ((import.meta as any)?.env?.DEV) {
+            // High-signal console output in dev only
+            console.log('[MCP] Injected home buying knowledge', payload);
+            if (content) {
+              console.debug('[MCP] Content preview:', content.slice(0, 400));
+            }
+          }
+        } else {
+          console.warn('[MCP] Rejected knowledge (filtered out):', title);
         }
       };
+
+      // Initialize MCP integration
+      (async () => {
+        try {
+          console.log('[Notion] Initializing MCP integration...');
+          
+          // Log the allowlisted pages for reference
+          console.log('[Notion] Allowlisted pages for MCP:', allowlistedNotionPages.map(p => p.title));
+          console.log('[Notion] MCP integration ready. Pages will be injected via MCP server.');
+          console.log('[Notion] To inject content, use: window.injectHomeBuyingKnowledge(title, content)');
+          
+          // Note: The actual Notion page fetching should happen via MCP server
+          // The local knowledge base serves as fallback
+          
+        } catch (e) {
+          console.warn('[Notion] MCP initialization warning:', e);
+          // This is expected - MCP integration happens externally
+        }
+      })();
     }
 
     return () => {
@@ -41,14 +80,28 @@ export const useNotionIntegration = () => {
 
   return {
     // Helper function to manually inject knowledge if needed
-    injectKnowledge: (title: string, content: string) => {
-      if (title.toLowerCase().includes('make home buying transparent') ||
-          title.toLowerCase().includes('home buying') ||
-          title.toLowerCase().includes('buyer') ||
-          title.toLowerCase().includes('real estate') ||
-          title.toLowerCase().includes('mortgage') ||
-          title.toLowerCase().includes('property')) {
+    injectKnowledgeManually: (title: string, content: string) => {
+      const lower = title.toLowerCase();
+      const isAccepted = lower.includes('make home buying transparent') ||
+        lower.includes('home buying') ||
+        lower.includes('buyer') ||
+        lower.includes('real estate') ||
+        lower.includes('mortgage') ||
+        lower.includes('property');
+      if (isAccepted) {
         injectKnowledge(title, content);
+        try {
+          (window as any).__homeBuyingKnowledgeDocs = (window as any).__homeBuyingKnowledgeDocs || [];
+          (window as any).__homeBuyingKnowledgeDocs.push({
+            title,
+            length: content?.length ?? 0,
+            injectedAt: new Date().toISOString(),
+            content,
+          });
+        } catch {}
+        if ((import.meta as any)?.env?.DEV) {
+          console.log('[MCP] Manually injected knowledge:', title, `(length: ${content?.length ?? 0})`);
+        }
       }
     }
   };
