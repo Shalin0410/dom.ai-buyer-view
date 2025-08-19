@@ -9,7 +9,7 @@ export interface ChatMessage {
 
 export interface ChatResponse {
   message: string;
-  sources: string[];
+  sources: Array<{ title: string; url?: string; sourceType?: string }>;
   tokensUsed: number;
 }
 
@@ -30,12 +30,13 @@ const SYSTEM_PROMPT = `You are Dom AI, a knowledgeable and friendly home buying 
 
 Key guidelines:
 1. Always be helpful, patient, and professional
-2. Use the provided knowledge base to give accurate, up-to-date information
-3. If you don't have specific information in the knowledge base, acknowledge this and suggest they ask their real estate agent
-4. Keep responses concise but informative
-5. Use a conversational, approachable tone
-6. When referencing information, mention the source when appropriate
-7. If a user asks about their specific situation, remind them that you provide general guidance and they should consult with their real estate agent for personalized advice
+2. Use the provided knowledge base as a foundation to verify and enhance your responses
+3. When providing information, prioritize citing sources that users can access (online sources with URLs)
+4. If you don't have specific information in the knowledge base, acknowledge this and suggest they ask their real estate agent
+5. Keep responses concise but informative
+6. Use a conversational, approachable tone
+7. When referencing information, mention accessible sources when appropriate
+8. If a user asks about their specific situation, remind them that you provide general guidance and they should consult with their real estate agent for personalized advice
 
 Focus areas:
 - Home buying process and timeline
@@ -46,7 +47,7 @@ Focus areas:
 - Working with real estate professionals
 - Common pitfalls and how to avoid them
 
-Remember: You're here to educate and guide, not to replace professional real estate advice.`;
+Remember: You're here to educate and guide, not to replace professional real estate advice. Use your foundation knowledge to verify information, but only cite sources that users can actually access.`;
 
 // Create the conversation context with knowledge base integration
 export async function createConversationContext(
@@ -60,7 +61,7 @@ export async function createConversationContext(
     // Build knowledge context string
     const knowledgeContext = contextResults.length > 0
       ? contextResults.map(result => 
-          `Source: ${result.title}\n${result.snippet}`
+          `Source: ${result.title}${result.url ? ` (${result.url})` : ''}\n${result.snippet}`
         ).join('\n\n')
       : '';
 
@@ -152,12 +153,27 @@ export async function sendChatMessage(
 
     console.log('[Chatbot] OpenAI response received successfully');
 
-    // Extract sources from knowledge context
+    // Extract sources from knowledge context (only accessible ones with URLs)
     const sources = context.knowledgeContext
       ? context.knowledgeContext
           .split('\n\n')
           .filter(block => block.startsWith('Source:'))
-          .map(block => block.split('\n')[0].replace('Source: ', ''))
+          .map(block => {
+            const lines = block.split('\n');
+            const sourceLine = lines[0].replace('Source: ', '');
+            
+            // Check if there's a URL in parentheses
+            const urlMatch = sourceLine.match(/\((https?:\/\/[^)]+)\)/);
+            const url = urlMatch ? urlMatch[1] : undefined;
+            const title = urlMatch ? sourceLine.replace(/\(https?:\/\/[^)]+\)/, '').trim() : sourceLine;
+            
+            return { 
+              title, 
+              url,
+              sourceType: url ? 'online' : 'notion'
+            };
+          })
+          .filter(source => source.url) // Only include sources with URLs (accessible to buyers)
       : [];
 
     return {
