@@ -13,7 +13,7 @@ export const useNotionIntegration = () => {
       // Provide a friendly alias without leading underscores
       (window as any).homeBuyingKnowledgeDocs = (window as any).__homeBuyingKnowledgeDocs;
 
-      (window as any).injectHomeBuyingKnowledge = (title: string, content: string) => {
+      (window as any).injectHomeBuyingKnowledge = (title: string, content: string, url?: string) => {
         const lower = title.toLowerCase();
         const isAccepted = lower.includes('make home buying transparent') ||
           lower.includes('home buying') ||
@@ -23,12 +23,13 @@ export const useNotionIntegration = () => {
           lower.includes('property');
 
         if (isAccepted) {
-          injectKnowledge(title, content);
+          injectKnowledge(title, content, url);
 
           const payload = {
             title,
             length: content?.length ?? 0,
             injectedAt: new Date().toISOString(),
+            url,
           };
           try {
             (window as any).__homeBuyingKnowledgeDocs.push({ ...payload, content });
@@ -80,7 +81,7 @@ export const useNotionIntegration = () => {
 
   return {
     // Helper function to manually inject knowledge if needed
-    injectKnowledgeManually: (title: string, content: string) => {
+    injectKnowledgeManually: (title: string, content: string, url?: string) => {
       const lower = title.toLowerCase();
       const isAccepted = lower.includes('make home buying transparent') ||
         lower.includes('home buying') ||
@@ -89,7 +90,7 @@ export const useNotionIntegration = () => {
         lower.includes('mortgage') ||
         lower.includes('property');
       if (isAccepted) {
-        injectKnowledge(title, content);
+        injectKnowledge(title, content, url);
         try {
           (window as any).__homeBuyingKnowledgeDocs = (window as any).__homeBuyingKnowledgeDocs || [];
           (window as any).__homeBuyingKnowledgeDocs.push({
@@ -97,10 +98,11 @@ export const useNotionIntegration = () => {
             length: content?.length ?? 0,
             injectedAt: new Date().toISOString(),
             content,
+            url,
           });
         } catch {}
         if ((import.meta as any)?.env?.DEV) {
-          console.log('[MCP] Manually injected knowledge:', title, `(length: ${content?.length ?? 0})`);
+          console.log('[MCP] Manually injected knowledge:', title, `(length: ${content?.length ?? 0})`, url ? `(url: ${url})` : '');
         }
       }
     }

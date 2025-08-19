@@ -1,7 +1,10 @@
 // src/services/chatbot/qa.ts
 import { getAllDocs, Doc, buyerInfo, addInjectedDoc } from '@/knowledge/docs';
 
-type QAResult = { answer: string; sources: string[] };
+type QAResult = { 
+  answer: string; 
+  sources: Array<{ title: string; url?: string; sourceType?: string }> 
+};
 
 // Lightweight retrieval-based QA system for project-scoped responses
 // No external LLM; strictly answers from loaded docs and schema info
@@ -12,7 +15,7 @@ export async function answerQuestion(query: string): Promise<QAResult> {
   // Add buyer info as a virtual document
   const allDocs = [
     ...docs,
-    { title: 'Home Buying Process Overview', content: buyerInfo }
+    { title: 'Home Buying Process Overview', content: buyerInfo, sourceType: 'local' as const }
   ];
 
   // Score documents based on keyword overlap
@@ -36,18 +39,36 @@ export async function answerQuestion(query: string): Promise<QAResult> {
     .filter(Boolean) as string[];
 
   if (snippets.length === 0) {
+    // Only return sources that are accessible to buyers (have URLs)
+    const accessibleSources = scoredDocs
+      .map(({ doc }) => ({ 
+        title: doc.title, 
+        url: doc.url, 
+        sourceType: doc.sourceType 
+      }))
+      .filter(source => source.url); // Only include sources with URLs
+
     return {
       answer: "I found some relevant information but couldn't extract specific details. Please try rephrasing your question or ask about specific topics like mortgage pre-approval, home inspections, making offers, or working with real estate agents.",
-      sources: scoredDocs.map(({ doc }) => doc.title),
+      sources: accessibleSources,
     };
   }
 
   // Synthesize answer from snippets
   const answer = synthesizeAnswer(normalizedQuery, snippets);
   
+  // Only return sources that are accessible to buyers (have URLs)
+  const accessibleSources = scoredDocs
+    .map(({ doc }) => ({ 
+      title: doc.title, 
+      url: doc.url, 
+      sourceType: doc.sourceType 
+    }))
+    .filter(source => source.url); // Only include sources with URLs
+  
   return {
     answer,
-    sources: scoredDocs.map(({ doc }) => doc.title),
+    sources: accessibleSources,
   };
 }
 
@@ -55,12 +76,12 @@ export async function answerQuestion(query: string): Promise<QAResult> {
 export async function retrieveContext(
   query: string,
   options?: { maxDocs?: number }
-): Promise<Array<{ title: string; snippet: string }>> {
+): Promise<Array<{ title: string; snippet: string; url?: string; sourceType?: string }>> {
   const normalizedQuery = normalize(query);
   const docs = getAllDocs();
   const allDocs: Doc[] = [
     ...docs,
-    { title: 'Home Buying Process Overview', content: buyerInfo },
+    { title: 'Home Buying Process Overview', content: buyerInfo, sourceType: 'local' as const },
   ];
 
   const maxDocs = options?.maxDocs ?? 3;
@@ -71,11 +92,19 @@ export async function retrieveContext(
     .sort((a, b) => b.score - a.score)
     .slice(0, maxDocs);
 
-  const results: Array<{ title: string; snippet: string }> = [];
+  const results: Array<{ title: string; snippet: string; url?: string; sourceType?: string }> = [];
   for (const { doc } of scoredDocs) {
     const snippet = extractRelevantSnippet(doc, normalizedQuery);
     if (snippet) {
-      results.push({ title: doc.title, snippet });
+      // Only include sources that are accessible to buyers (have URLs)
+      if (doc.url) {
+        results.push({ 
+          title: doc.title, 
+          snippet,
+          url: doc.url,
+          sourceType: doc.sourceType
+        });
+      }
     }
   }
 

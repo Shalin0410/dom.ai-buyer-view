@@ -15,7 +15,7 @@ export interface Message {
   conversation_id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
-  sources: string[];
+  sources: Array<{ title: string; url?: string; sourceType?: string }>;
   tokens_used: number | null;
   created_at: string;
 }
@@ -131,7 +131,7 @@ export async function addMessage(
   conversationId: string,
   role: 'user' | 'assistant' | 'system',
   content: string,
-  sources: string[] = [],
+  sources: Array<{ title: string; url?: string; sourceType?: string }> = [],
   tokensUsed?: number
 ): Promise<string> {
   try {

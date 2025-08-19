@@ -1,12 +1,17 @@
 // src/knowledge/docs.ts
 // Consolidated knowledge base: buyer docs, injected docs (MCP), and sanitized Notion backups
 
-export type Doc = { title: string; content: string };
+export type Doc = { 
+  title: string; 
+  content: string; 
+  url?: string; // Optional URL for online sources
+  sourceType?: 'notion' | 'online' | 'local'; // Type of source
+};
 
 // Runtime-injectable knowledge (e.g., Notion MCP)
 const injectedDocs: Doc[] = [];
 
-export const addInjectedDoc = (title: string, content: string): void => {
+export const addInjectedDoc = (title: string, content: string, url?: string): void => {
   const lower = title.toLowerCase();
   const isAccepted =
     lower.includes('make home buying transparent') ||
@@ -20,9 +25,14 @@ export const addInjectedDoc = (title: string, content: string): void => {
     lower.includes('closing');
 
   if (isAccepted) {
-    injectedDocs.push({ title, content });
+    injectedDocs.push({ 
+      title, 
+      content, 
+      url,
+      sourceType: url ? 'online' : 'notion'
+    });
     if ((import.meta as any)?.env?.DEV) {
-      console.log('[KB] Injected (runtime) doc:', { title, length: content?.length ?? 0 });
+      console.log('[KB] Injected (runtime) doc:', { title, length: content?.length ?? 0, url });
     }
   } else if ((import.meta as any)?.env?.DEV) {
     console.warn('[KB] Rejected injected doc (filtered):', title);
@@ -71,8 +81,48 @@ Core ideas (sanitized)
 - Closing day: funding, recording, keys delivered` }
 ];
 
+// Online sources for up-to-date information
+export const onlineSources: Doc[] = [
+  {
+    title: 'California Home Buying Guide - NerdWallet',
+    content: `California home buying process, mortgage rates, and market insights. Includes information about down payment assistance programs, first-time buyer programs, and current market conditions in California.`,
+    url: 'https://www.nerdwallet.com/mortgages/california-home-buying-guide',
+    sourceType: 'online'
+  },
+  {
+    title: 'Mortgage Rates Today - Bankrate',
+    content: `Current mortgage rates and trends. Updated daily with the latest rates for conventional, FHA, VA, and jumbo loans. Includes rate comparison tools and mortgage calculators.`,
+    url: 'https://www.bankrate.com/mortgages/mortgage-rates/',
+    sourceType: 'online'
+  },
+  {
+    title: 'First-Time Home Buyer Programs - HUD',
+    content: `Federal programs and resources for first-time home buyers. Information about FHA loans, down payment assistance, and home buying education programs.`,
+    url: 'https://www.hud.gov/topics/buying_a_home',
+    sourceType: 'online'
+  },
+  {
+    title: 'California Real Estate Market Trends - Zillow',
+    content: `Current real estate market data for California. Includes median home prices, inventory levels, and market predictions. Updated monthly with the latest market statistics.`,
+    url: 'https://www.zillow.com/ca/home-values/',
+    sourceType: 'online'
+  },
+  {
+    title: 'Home Buying Process - Consumer Financial Protection Bureau',
+    content: `Comprehensive guide to the home buying process. Includes information about mortgages, closing costs, and consumer rights. Official government resource with up-to-date regulations.`,
+    url: 'https://www.consumerfinance.gov/owning-a-home/',
+    sourceType: 'online'
+  },
+  {
+    title: 'Mortgage Calculator - Freddie Mac',
+    content: `Official mortgage calculators and tools. Includes payment calculators, affordability calculators, and refinancing tools. Updated with current rates and guidelines.`,
+    url: 'https://myhome.freddiemac.com/calculators/',
+    sourceType: 'online'
+  }
+];
+
 export const getAllDocs = (): Doc[] => {
-  const combined: Doc[] = [...buyerDocs, ...injectedDocs, ...notionBackups];
+  const combined: Doc[] = [...buyerDocs, ...injectedDocs, ...notionBackups, ...onlineSources];
   const seen = new Set<string>();
   const deduped: Doc[] = [];
   for (const d of combined) {
@@ -84,7 +134,7 @@ export const getAllDocs = (): Doc[] => {
   }
   const overviewTitle = 'Home Buying Process Overview';
   if (!seen.has(overviewTitle.toLowerCase())) {
-    deduped.push({ title: overviewTitle, content: buyerInfo });
+    deduped.push({ title: overviewTitle, content: buyerInfo, sourceType: 'local' });
   }
   return deduped;
 };
