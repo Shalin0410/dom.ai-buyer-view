@@ -5,12 +5,13 @@ import { BaseDataService } from '../api/data';
 import { ApiResponse, Buyer, Agent, Property, PropertyFilter, PropertyActivity, PropertySummary, ActionItem } from '../api/types';
 
 export class SupabaseDataService extends BaseDataService {
-  // Buyer operations
+  // Buyer operations - now using persons table with role = 'buyer'
   async getBuyers(): Promise<ApiResponse<Buyer[]>> {
     try {
       const { data, error } = await supabase
-        .from('buyers')
+        .from('persons')
         .select('*')
+        .eq('role', 'buyer')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -29,9 +30,10 @@ export class SupabaseDataService extends BaseDataService {
   async getBuyerById(id: string): Promise<ApiResponse<Buyer>> {
     try {
       const { data, error } = await supabase
-        .from('buyers')
+        .from('persons')
         .select('*')
         .eq('id', id)
+        .eq('role', 'buyer')
         .single();
 
       if (error) {
@@ -51,9 +53,10 @@ export class SupabaseDataService extends BaseDataService {
     try {
       // First, get the buyer data
       const { data: buyerData, error: buyerError } = await supabase
-        .from('buyers')
+        .from('persons')
         .select('*')
         .eq('email', email)
+        .eq('role', 'buyer')
         .single();
 
       if (buyerError) {
@@ -69,9 +72,10 @@ export class SupabaseDataService extends BaseDataService {
       if (buyerData.agent_id) {
         try {
           const { data: agentData, error: agentError } = await supabase
-            .from('agents')
+            .from('persons')
             .select('*')
             .eq('id', buyerData.agent_id)
+            .eq('role', 'agent')
             .maybeSingle(); // Use maybeSingle instead of single to handle no rows case
 
           if (agentError) {
@@ -101,13 +105,7 @@ export class SupabaseDataService extends BaseDataService {
         }
       }
 
-      // Return buyer data with null agent if no agent_id or agent fetch failed
-      const buyer: Buyer = {
-        ...buyerData,
-        agent: null
-      };
-      
-      return this.createResponse(buyer);
+      return this.createResponse(buyerData);
     } catch (error) {
       console.error('Error in getBuyerByEmail:', error);
       const apiError = this.handleError(error);
@@ -118,8 +116,11 @@ export class SupabaseDataService extends BaseDataService {
   async createBuyer(buyer: Omit<Buyer, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<Buyer>> {
     try {
       const { data, error } = await supabase
-        .from('buyers')
-        .insert(buyer)
+        .from('persons')
+        .insert({
+          ...buyer,
+          role: 'buyer'
+        })
         .select()
         .single();
 
@@ -139,9 +140,10 @@ export class SupabaseDataService extends BaseDataService {
   async updateBuyer(id: string, updates: Partial<Buyer>): Promise<ApiResponse<Buyer>> {
     try {
       const { data, error } = await supabase
-        .from('buyers')
+        .from('persons')
         .update(updates)
         .eq('id', id)
+        .eq('role', 'buyer')
         .select()
         .single();
 
@@ -161,9 +163,10 @@ export class SupabaseDataService extends BaseDataService {
   async deleteBuyer(id: string): Promise<ApiResponse<null>> {
     try {
       const { error } = await supabase
-        .from('buyers')
+        .from('persons')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('role', 'buyer');
 
       if (error) {
         console.error('Error deleting buyer:', error);
@@ -178,74 +181,39 @@ export class SupabaseDataService extends BaseDataService {
     }
   }
 
-  // Agent operations
-  async getAgentById(id: string): Promise<ApiResponse<Agent | null>> {
-    console.log('getAgentById - Fetching agent with ID:', id);
-    
-    if (!id) {
-      console.error('getAgentById - No ID provided');
-      return this.createResponse(null, 'Agent ID is required');
-    }
-
+  // Agent operations - now using persons table with role = 'agent'
+  async getAgentById(id: string): Promise<ApiResponse<Agent>> {
     try {
-      console.log('getAgentById - Executing database function get_agent_by_id...');
-      
-      // Use the database function which enforces RLS
       const { data, error } = await supabase
-        .rpc('get_agent_by_id', { agent_id: id });
-
-      console.log('getAgentById - Database function response:', {
-        data,
-        error,
-        hasData: !!data
-      });
+        .from('persons')
+        .select('*')
+        .eq('id', id)
+        .eq('role', 'agent')
+        .single();
 
       if (error) {
-        console.error('getAgentById - Error from database function:', error);
+        console.error('getAgentById - Error fetching agent:', error);
         return this.createResponse(null, error.message);
-      }
-
-      if (!data) {
-        console.warn('getAgentById - No agent found with ID:', id);
-        return this.createResponse(null, 'Agent not found or not authorized');
-      }
-
-      // If we got here, we have valid agent data
-      console.log('getAgentById - Successfully retrieved agent data:', data);
-      return this.createResponse(data);
-
-      if (error) {
-        console.error('getAgentById - Error fetching agent:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-        return this.createResponse(null, error.message);
-      }
-
-      // If no data is returned, the agent doesn't exist
-      if (!data) {
-        console.warn('getAgentById - No agent found with ID:', id);
-        return this.createResponse(null, 'Agent not found');
       }
 
       console.log('getAgentById - Successfully retrieved agent data:', data);
       return this.createResponse(data);
     } catch (error) {
-      console.error('getAgentById - Unexpected error:', error);
-      // If we get here, it might be because multiple rows were returned
-      // Let's try a different approach
+      console.error('getAgentById - Error in main query:', error);
+      
+      // Fallback: try alternative query
       try {
-        console.log('getAgentById - Trying alternative query with limit 1...');
-        const { data, error } = await supabase
-          .from('agents')
+        const { data, error: retryError } = await supabase
+          .from('persons')
           .select('*')
           .eq('id', id)
-          .limit(1);
+          .eq('role', 'agent');
 
-        if (error) throw error;
-        
+        if (retryError) {
+          console.error('getAgentById - Error in alternative query:', retryError);
+          return this.createResponse(null, retryError.message);
+        }
+
         if (!data || data.length === 0) {
           console.warn('getAgentById - No agent found with ID (alternative query):', id);
           return this.createResponse(null, 'Agent not found');
@@ -264,8 +232,9 @@ export class SupabaseDataService extends BaseDataService {
   async getAgents(): Promise<ApiResponse<Agent[]>> {
     try {
       const { data, error } = await supabase
-        .from('agents')
+        .from('persons')
         .select('*')
+        .eq('role', 'agent')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -284,8 +253,11 @@ export class SupabaseDataService extends BaseDataService {
   async createAgent(agent: Omit<Agent, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<Agent>> {
     try {
       const { data, error } = await supabase
-        .from('agents')
-        .insert(agent)
+        .from('persons')
+        .insert({
+          ...agent,
+          role: 'agent'
+        })
         .select()
         .single();
 
@@ -305,9 +277,10 @@ export class SupabaseDataService extends BaseDataService {
   async updateAgent(id: string, updates: Partial<Agent>): Promise<ApiResponse<Agent>> {
     try {
       const { data, error } = await supabase
-        .from('agents')
+        .from('persons')
         .update(updates)
         .eq('id', id)
+        .eq('role', 'agent')
         .select()
         .single();
 
@@ -327,9 +300,10 @@ export class SupabaseDataService extends BaseDataService {
   async deleteAgent(id: string): Promise<ApiResponse<null>> {
     try {
       const { error } = await supabase
-        .from('agents')
+        .from('persons')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('role', 'agent');
 
       if (error) {
         console.error('Error deleting agent:', error);
@@ -344,14 +318,14 @@ export class SupabaseDataService extends BaseDataService {
     }
   }
 
-  // Relationship operations
+  // Relationship operations - now using persons table with joins
   async getBuyersWithAgents(): Promise<ApiResponse<Buyer[]>> {
     try {
       const { data, error } = await supabase
-        .from('buyers')
+        .from('persons')
         .select(`
           *,
-          agent:agents(
+          agent:persons!agent_id(
             id,
             first_name,
             last_name,
@@ -359,6 +333,7 @@ export class SupabaseDataService extends BaseDataService {
             phone
           )
         `)
+        .eq('role', 'buyer')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -377,10 +352,10 @@ export class SupabaseDataService extends BaseDataService {
   async getBuyersByAgentId(agentId: string): Promise<ApiResponse<Buyer[]>> {
     try {
       const { data, error } = await supabase
-        .from('buyers')
+        .from('persons')
         .select(`
           *,
-          agent:agents(
+          agent:persons!agent_id(
             id,
             first_name,
             last_name,
@@ -388,6 +363,7 @@ export class SupabaseDataService extends BaseDataService {
             phone
           )
         `)
+        .eq('role', 'buyer')
         .eq('agent_id', agentId)
         .order('created_at', { ascending: false });
 

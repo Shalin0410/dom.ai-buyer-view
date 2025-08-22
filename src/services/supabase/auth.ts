@@ -8,9 +8,13 @@ export class SupabaseAuthService extends BaseAuthService {
     try {
       console.log('Checking if buyer exists before sending magic link...');
       
-      // First, check if the buyer exists in our database using the secure function
+      // First, check if the buyer exists in our database using the persons table
       const { data: buyerData, error: buyerError } = await supabase
-        .rpc('get_buyer_by_email', { email_param: email });
+        .from('persons')
+        .select('id, first_name, last_name, email, role, agent_id')
+        .eq('email', email)
+        .eq('role', 'buyer')
+        .single();
 
       if (buyerError) {
         console.error('Error checking buyer:', buyerError);

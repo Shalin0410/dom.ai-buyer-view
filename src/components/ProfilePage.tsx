@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAgent } from '@/hooks/useAgent';
+import { useUserProfile } from '@/hooks/useUserProfile';
 import { UserData } from '@/types/user';
 
 interface ProfilePageProps {
@@ -13,32 +14,52 @@ interface ProfilePageProps {
 const ProfilePage = ({ userData }: ProfilePageProps) => {
   const [editMode, setEditMode] = useState(false);
   
-  // Fetch agent data using the agent_id from userData
-  const { data: agent, isLoading: isLoadingAgent } = useAgent(userData.agent_id || null);
+  // Fetch full user profile data from database
+  const { data: userProfile, isLoading: isLoadingProfile, error: profileError } = useUserProfile(userData.email);
   
-  // Log agent data for debugging
-  useEffect(() => {
+  // Fetch agent data using the agent_id from user profile
+  const { data: agent, isLoading: isLoadingAgent } = useAgent(userProfile?.agent_id || null);
+  
+  // Parse tags into arrays for display
+  const parseTags = (tagString?: string) => {
+    if (!tagString) return [];
+    return tagString.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+  };
 
-  }, [agent, userData.agent_id]);
-
-  // Mock profile data extracted from user preferences
+  // Create profile data from database or use fallback values
   const profileData = {
-    bedrooms: 3,
+    // Basic requirements - derive from user profile data
+    bedrooms: 3, // Could be derived from buyer_needs analysis
     bathrooms: 2,
     minSquareFootage: 1800,
     propertyType: 'Single-family',
-    location: 'San Francisco, CA',
-    priceRange: { min: 400000, max: 650000 },
-    amenities: ['Garage', 'Backyard', 'Near CalTrain'],
-    interiorFeatures: ['Updated Kitchen', 'Hardwood Floors'],
-    exteriorFeatures: ['Private Yard', 'Deck'],
-    schoolDistrict: 'Good schools nearby',
-    commutePreferences: 'Close to CalTrain and freeway',
-    petPreferences: 'Dog-friendly with yard',
-    lifestyle: ['Walkable', 'Near restaurants', 'City living'],
-    mustHaves: ['3+ bedrooms', 'Private backyard', 'Pet-friendly'],
-    niceToHaves: ['Updated kitchen', 'Garage', 'View']
+    location: userProfile?.background?.includes('tech') ? 'San Francisco, CA' : 
+              userProfile?.background?.includes('family') ? 'Suburban area' : 'City area',
+    priceRange: { 
+      min: userProfile?.price_min || 400000, 
+      max: userProfile?.price_max || 650000 
+    },
+    // Lifestyle preferences - parse from buyer_needs
+    lifestyle: userProfile?.buyer_needs?.includes('family') ? ['Family-friendly', 'Good schools', 'Safe neighborhood'] :
+               userProfile?.buyer_needs?.includes('modern') ? ['Modern amenities', 'Move-in ready', 'City living'] :
+               userProfile?.buyer_needs?.includes('investment') ? ['Investment potential', 'Rental income', 'Appreciation'] :
+               ['Low maintenance', 'Accessibility', 'Quiet area'],
+    // Tags from database
+    tags: parseTags(userProfile?.tags),
+    // Budget info
+    budgetApproved: userProfile?.budget_approved || false,
+    preApprovalAmount: userProfile?.pre_approval_amount,
+    preApprovalExpiry: userProfile?.pre_approval_expiry
   };
+
+  if (isLoadingProfile) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <span className="ml-3 text-gray-600">Loading profile...</span>
+      </div>
+    );
+  }
 
 
 
@@ -84,11 +105,11 @@ const ProfilePage = ({ userData }: ProfilePageProps) => {
             <div className="space-y-2 text-sm">
               <div className="flex items-center space-x-2">
                 <Phone size={14} className="text-gray-500" />
-                <span>{userData?.phone || 'No phone number provided'}</span>
+                <span>{userProfile?.phone || userData?.phone || 'No phone number provided'}</span>
               </div>
               <div className="flex items-center space-x-2">
-                <Home size={14} className="text-gray-500" />
-                <span>{userData?.address || 'No address provided'}</span>
+                <Calendar size={14} className="text-gray-500" />
+                <span>Member since {new Date(userProfile?.created_at || Date.now()).toLocaleDateString()}</span>
               </div>
             </div>
           </div>
@@ -102,44 +123,42 @@ const ProfilePage = ({ userData }: ProfilePageProps) => {
               <p className="text-sm text-gray-600">Loading agent information...</p>
             </div>
           ) : agent ? (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-gray-900">Your Agent</h3>
-                <Button variant="ghost" size="sm" className="text-blue-600 hover:bg-blue-50">
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  Message
-                </Button>
-              </div>
-              
-              <div className="flex items-center space-x-4">
-                <div className="flex-shrink-0 h-12 w-12 rounded-full bg-blue-600 flex items-center justify-center">
-                  <span className="text-white font-semibold text-xl">
-                    {agent.first_name?.charAt(0) || 'A'}
-                  </span>
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900">
-                    {agent.first_name || 'Agent'} {agent.last_name || ''}
-                  </p>
-                  <p className="text-sm text-gray-600">Real Estate Agent</p>
-                </div>
-              </div>
-              
-              <div className="space-y-2 text-sm">
-                {agent.email && (
-                  <div className="flex items-center space-x-2">
-                    <Mail size={14} className="text-gray-500 flex-shrink-0" />
-                    <span className="truncate">{agent.email}</span>
-                  </div>
-                )}
-                {agent.phone && (
-                  <div className="flex items-center space-x-2">
-                    <Phone size={14} className="text-gray-500 flex-shrink-0" />
-                    <span>{agent.phone}</span>
-                  </div>
-                )}
-              </div>
-            </div>
+                         <div className="space-y-3">
+               <div className="flex items-center justify-between">
+                 <div className="flex items-center space-x-3">
+                   <div className="flex-shrink-0 h-12 w-12 rounded-full bg-blue-600 flex items-center justify-center">
+                     <span className="text-white font-semibold text-xl">
+                       {agent.first_name?.charAt(0) || 'A'}
+                     </span>
+                   </div>
+                   <div>
+                     <p className="font-semibold text-gray-900">
+                       {agent.first_name || 'Agent'} {agent.last_name || ''}
+                     </p>
+                     <p className="text-sm text-gray-600">Real Estate Agent</p>
+                   </div>
+                 </div>
+                 <Button variant="ghost" size="sm" className="text-blue-600 hover:bg-blue-50">
+                   <MessageSquare className="mr-2 h-4 w-4" />
+                   Message
+                 </Button>
+               </div>
+               
+               <div className="space-y-1.5 text-sm">
+                 {agent.email && (
+                   <div className="flex items-center space-x-2">
+                     <Mail size={14} className="text-gray-500 flex-shrink-0" />
+                     <span className="truncate text-amber-600">{agent.email}</span>
+                   </div>
+                 )}
+                 {agent.phone && (
+                   <div className="flex items-center space-x-2">
+                     <Phone size={14} className="text-gray-500 flex-shrink-0" />
+                     <span className="text-amber-600">{agent.phone}</span>
+                   </div>
+                 )}
+               </div>
+             </div>
           ) : (
             <div className="text-center py-6">
               <UserX className="mx-auto h-10 w-10 text-gray-400" />
@@ -154,49 +173,70 @@ const ProfilePage = ({ userData }: ProfilePageProps) => {
           )}
         </ProfileSection>
 
-        {/* Basic Requirements */}
+        {/* Property Requirements */}
         <ProfileSection title="Property Requirements" icon={Home}>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-4">
             <div>
-              <p className="text-xs text-gray-600">Bedrooms</p>
-              <p className="font-semibold">{profileData.bedrooms}</p>
+              <p className="text-xs text-gray-600 mb-2">Buyer Needs</p>
+              <p className="text-sm text-gray-800 leading-relaxed">
+                {userProfile?.buyer_needs || 'No specific requirements provided'}
+              </p>
             </div>
-            <div>
-              <p className="text-xs text-gray-600">Bathrooms</p>
-              <p className="font-semibold">{profileData.bathrooms}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-600">Min Square Footage</p>
-              <p className="font-semibold">{profileData.minSquareFootage} sq ft</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-600">Property Type</p>
-              <p className="font-semibold">{profileData.propertyType}</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-gray-600">Min Price</p>
+                <p className="font-semibold">${profileData.priceRange.min.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Max Price</p>
+                <p className="font-semibold">${profileData.priceRange.max.toLocaleString()}</p>
+              </div>
             </div>
           </div>
         </ProfileSection>
 
-        {/* Location & Budget */}
-        <ProfileSection title="Location & Budget" icon={MapPin}>
+        {/* Budget & Financing */}
+        <ProfileSection title="Budget & Financing" icon={DollarSign}>
           <div className="space-y-3">
-            <div>
-              <p className="text-xs text-gray-600">Preferred Location</p>
-              <p className="font-semibold">{profileData.location}</p>
-            </div>
             <div>
               <p className="text-xs text-gray-600">Price Range</p>
               <p className="font-semibold">
                 ${profileData.priceRange.min.toLocaleString()} - ${profileData.priceRange.max.toLocaleString()}
               </p>
             </div>
+            <div>
+              <p className="text-xs text-gray-600">Budget Status</p>
+              <div className="flex items-center gap-2">
+                <Badge variant={profileData.budgetApproved ? 'default' : 'secondary'} className="text-xs">
+                  {profileData.budgetApproved ? 'Pre-approved' : 'Not pre-approved'}
+                </Badge>
+                {profileData.budgetApproved && profileData.preApprovalAmount && (
+                  <span className="text-sm text-gray-600">
+                    ${profileData.preApprovalAmount.toLocaleString()}
+                  </span>
+                )}
+              </div>
+            </div>
+            {profileData.budgetApproved && profileData.preApprovalExpiry && (
+              <div>
+                <p className="text-xs text-gray-600">Pre-approval Expires</p>
+                <p className="font-semibold">{new Date(profileData.preApprovalExpiry).toLocaleDateString()}</p>
+              </div>
+            )}
           </div>
         </ProfileSection>
 
-        {/* Lifestyle Preferences */}
-        <ProfileSection title="Lifestyle & Preferences" icon={Star}>
+        {/* Background & Preferences */}
+        <ProfileSection title="Background & Preferences" icon={Star}>
           <div className="space-y-3">
+            {userProfile?.background && (
+              <div>
+                <p className="text-xs text-gray-600 mb-2">Background</p>
+                <p className="text-sm text-gray-800">{userProfile.background}</p>
+              </div>
+            )}
             <div>
-              <p className="text-xs text-gray-600 mb-2">Lifestyle</p>
+              <p className="text-xs text-gray-600 mb-2">Lifestyle Preferences</p>
               <div className="flex flex-wrap gap-1">
                 {profileData.lifestyle.map((item, index) => (
                   <Badge key={index} variant="secondary" className="text-xs bg-blue-50 text-blue-700">
@@ -205,60 +245,61 @@ const ProfilePage = ({ userData }: ProfilePageProps) => {
                 ))}
               </div>
             </div>
-            <div>
-              <p className="text-xs text-gray-600 mb-2">Amenities</p>
-              <div className="flex flex-wrap gap-1">
-                {profileData.amenities.map((item, index) => (
-                  <Badge key={index} variant="outline" className="text-xs">
-                    {item}
-                  </Badge>
-                ))}
+            {profileData.tags.length > 0 && (
+              <div>
+                <p className="text-xs text-gray-600 mb-2">Tags</p>
+                <div className="flex flex-wrap gap-1">
+                  {profileData.tags.map((tag, index) => (
+                    <Badge key={index} variant="outline" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </ProfileSection>
 
-        {/* Must-Haves vs Nice-to-Haves */}
-        <ProfileSection title="Flexibility" icon={Settings}>
+        {/* Activity & Communication */}
+        <ProfileSection title="Activity & Communication" icon={Calendar}>
           <div className="space-y-3">
-            <div>
-              <p className="text-xs text-gray-600 mb-2">Must-Haves</p>
-              <div className="flex flex-wrap gap-1">
-                {profileData.mustHaves.map((item, index) => (
-                  <Badge key={index} className="text-xs bg-red-100 text-red-800 hover:bg-red-100">
-                    {item}
-                  </Badge>
-                ))}
+            {userProfile?.last_contact_date && (
+              <div>
+                <p className="text-xs text-gray-600">Last Contact</p>
+                <p className="font-semibold">{new Date(userProfile.last_contact_date).toLocaleDateString()}</p>
               </div>
-            </div>
-            <div>
-              <p className="text-xs text-gray-600 mb-2">Nice-to-Haves</p>
-              <div className="flex flex-wrap gap-1">
-                {profileData.niceToHaves.map((item, index) => (
-                  <Badge key={index} className="text-xs bg-green-100 text-green-800 hover:bg-green-100">
-                    {item}
-                  </Badge>
-                ))}
+            )}
+            {userProfile?.next_followup_date && (
+              <div>
+                <p className="text-xs text-gray-600">Next Follow-up</p>
+                <p className="font-semibold">{new Date(userProfile.next_followup_date).toLocaleDateString()}</p>
               </div>
-            </div>
+            )}
+            {(!userProfile?.last_contact_date && !userProfile?.next_followup_date) && (
+              <div className="text-center py-4">
+                <p className="text-sm text-gray-500">No recent activity</p>
+              </div>
+            )}
           </div>
         </ProfileSection>
 
-        {/* Additional Details */}
-        <ProfileSection title="Additional Details" icon={DollarSign}>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-600">School District:</span>
-              <span className="font-medium">{profileData.schoolDistrict}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Commute:</span>
-              <span className="font-medium">{profileData.commutePreferences}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Pet Requirements:</span>
-              <span className="font-medium">{profileData.petPreferences}</span>
-            </div>
+        {/* Quick Actions */}
+        <ProfileSection title="Quick Actions" icon={Settings}>
+          <div className="space-y-3">
+            <Button className="w-full" variant="outline">
+              <Edit2 className="h-4 w-4 mr-2" />
+              Update Preferences
+            </Button>
+            <Button className="w-full" variant="outline">
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Contact Agent
+            </Button>
+            {!profileData.budgetApproved && (
+              <Button className="w-full" variant="outline">
+                <DollarSign className="h-4 w-4 mr-2" />
+                Get Pre-approved
+              </Button>
+            )}
           </div>
         </ProfileSection>
 
