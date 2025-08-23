@@ -1,5 +1,5 @@
 // Supabase Data Service Implementation
-import { supabase } from '@/lib/supabaseClient';
+import { supabase, supabaseAdmin } from '@/lib/supabaseClient';
 import { createClient } from '@supabase/supabase-js';
 import { BaseDataService } from '../api/data';
 import { ApiResponse, Buyer, Agent, Property, PropertyFilter, PropertyActivity, PropertySummary, ActionItem } from '../api/types';
@@ -478,7 +478,7 @@ export class SupabaseDataService extends BaseDataService {
           city: property.city,
           state: property.state,
           zip_code: property.zip_code,
-          listing_price: property.listing_price,
+          listing_price: property.listing_price || property.price || 0,
           bedrooms: property.bedrooms,
           bathrooms: property.bathrooms,
           square_feet: property.square_feet,
@@ -559,7 +559,7 @@ export class SupabaseDataService extends BaseDataService {
         city: propertyData.city,
         state: propertyData.state,
         zip_code: propertyData.zip_code,
-        listing_price: propertyData.listing_price,
+        listing_price: propertyData.listing_price || propertyData.price || 0,
         bedrooms: propertyData.bedrooms,
         bathrooms: propertyData.bathrooms,
         square_feet: propertyData.square_feet,
@@ -835,42 +835,19 @@ export class SupabaseDataService extends BaseDataService {
       let query = supabase
         .from('buyer_properties')
         .select(`
+          *,
           property:properties!buyer_properties_property_id_fkey (
             *
           )
         `)
         .eq('buyer_id', buyerId || '');
 
-      // If no buyer ID is provided, fall back to the old behavior (for backward compatibility)
+      // If no buyer ID is provided, fall back to getting all available properties
       if (!buyerId) {
         query = supabase
           .from('properties')
-          .select('*')
-          .eq('status', 'available');
+          .select('*');
       }
-
-      // Apply filters
-      if (filter) {
-        if (filter.price_min) {
-          query = query.gte('listing_price', filter.price_min);
-        }
-        if (filter.price_max) {
-          query = query.lte('listing_price', filter.price_max);
-        }
-        if (filter.bedrooms_min) {
-          query = query.gte('bedrooms', filter.bedrooms_min);
-        }
-        if (filter.bathrooms_min) {
-          query = query.gte('bathrooms', filter.bathrooms_min);
-        }
-        if (filter.property_type && filter.property_type.length > 0) {
-          query = query.in('property_type', filter.property_type);
-        }
-      }
-
-      // Use 'added_at' for buyer_properties and 'created_at' for properties
-      const orderByColumn = buyerId ? 'added_at' : 'created_at';
-      query = query.order(orderByColumn, { ascending: false });
 
       const { data, error } = await query;
 
@@ -880,61 +857,96 @@ export class SupabaseDataService extends BaseDataService {
       }
 
       // Extract properties from the joined result if we're using buyer_properties
-      const properties = buyerId 
-        ? (data || []).map((item: any) => item.property)
+      let properties = buyerId 
+        ? (data || []).map((item: any) => ({ 
+            ...item.property, 
+            buyer_status: item.status, 
+            buyer_stage: item.buying_stage 
+          }))
         : (data || []);
 
-      // Fetch photos for all properties
-      const propertyIds = properties.map((property: any) => property.id);
-      let photos: any[] = [];
-      if (propertyIds.length > 0) {
-        const { data: photosData } = await supabase
-          .from('property_photos')
-          .select('*')
-          .in('property_id', propertyIds)
-          .order('order_index', { ascending: true });
-        photos = photosData || [];
+      // Apply filters after fetching
+      if (filter && properties.length > 0) {
+        properties = properties.filter((property: any) => {
+          let matches = true;
+          
+          if (filter.price_min && (property.listing_price || property.price)) {
+            const price = property.listing_price || property.price;
+            matches = matches && price >= filter.price_min;
+          }
+          if (filter.price_max && (property.listing_price || property.price)) {
+            const price = property.listing_price || property.price;
+            matches = matches && price <= filter.price_max;
+          }
+          if (filter.bedrooms_min && property.bedrooms) {
+            matches = matches && property.bedrooms >= filter.bedrooms_min;
+          }
+          if (filter.bathrooms_min && property.bathrooms) {
+            matches = matches && property.bathrooms >= filter.bathrooms_min;
+          }
+          if (filter.property_type && filter.property_type.length > 0) {
+            matches = matches && filter.property_type.includes(property.property_type);
+          }
+          
+          return matches;
+        });
       }
 
       // Transform to Property interface
       const transformedProperties = properties.map((property: any) => {
-        const propertyPhotos = photos.filter(photo => photo.property_id === property.id);
+        // Handle photos from both JSONB and separate table
+        let photos: any[] = [];
+        if (property.photos && Array.isArray(property.photos) && property.photos.length > 0) {
+          photos = property.photos.map((photo: any, index: number) => ({
+            id: `${property.id}-photo-${index}`,
+            property_id: property.id,
+            url: photo.url || photo,
+            caption: photo.caption || null,
+            is_primary: index === 0 || photo.is_primary || false,
+            order: photo.order || index,
+            created_at: property.created_at,
+            updated_at: property.updated_at
+          }));
+        } else {
+          // Add placeholder photo if none exist
+          photos = [{
+            id: `${property.id}-placeholder`,
+            property_id: property.id,
+            url: '/placeholder.svg',
+            caption: 'Property Image',
+            is_primary: true,
+            order: 0,
+            created_at: property.created_at,
+            updated_at: property.updated_at
+          }];
+        }
         
         return {
-        id: property.id,
-        buyer_id: '', // No buyer relationship yet
-        address: property.address,
-        city: property.city,
-        state: property.state,
-        zip_code: property.zip_code || '',
-        listing_price: property.listing_price,
-        purchase_price: undefined,
-        bedrooms: property.bedrooms,
-        bathrooms: property.bathrooms,
-        square_feet: property.square_feet,
-        lot_size: property.lot_size,
-        year_built: property.year_built,
-        property_type: property.property_type || 'single_family',
-        status: 'researching' as const,
-        buying_stage: 'initial_research' as const,
-        action_required: 'none' as const,
-        mls_number: property.mls_number,
-        listing_url: property.listing_url,
-        notes: undefined,
-        last_activity_at: property.updated_at || property.created_at,
-        created_at: property.created_at,
-        updated_at: property.updated_at || property.created_at,
-        photos: propertyPhotos.map(photo => ({
-          id: photo.id,
-          property_id: photo.property_id,
-          url: photo.url,
-          caption: photo.caption,
-          is_primary: photo.is_primary,
-          order: photo.order_index,
-          created_at: photo.created_at,
-          updated_at: photo.updated_at
-        }))
-        }
+          id: property.id,
+          buyer_id: buyerId || '',
+          address: property.address,
+          city: property.city,
+          state: property.state,
+          zip_code: property.zip_code || '',
+          listing_price: property.listing_price || property.price || 0,
+          purchase_price: undefined,
+          bedrooms: property.bedrooms || 0,
+          bathrooms: property.bathrooms || 0,
+          square_feet: property.square_feet || 0,
+          lot_size: property.lot_size,
+          year_built: property.year_built,
+          property_type: property.property_type || 'single_family',
+          status: property.buyer_status || 'researching',
+          buying_stage: property.buyer_stage || 'initial_research',
+          action_required: 'none',
+          mls_number: property.mls_number,
+          listing_url: property.listing_url,
+          notes: undefined,
+          last_activity_at: property.updated_at || property.created_at,
+          created_at: property.created_at,
+          updated_at: property.updated_at || property.created_at,
+          photos: photos
+        } as Property;
       });
 
       return this.createResponse(transformedProperties);

@@ -6,12 +6,14 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { useActionItems } from '@/hooks/useActionItems';
+import { useBuyer } from '@/hooks/useBuyer';
 import { useAuth } from '@/contexts/AuthContext';
 
 const ActionItems = () => {
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
   const { user } = useAuth();
-  const { actionItems, loading, error } = useActionItems(user?.id);
+  const { data: buyer } = useBuyer(user?.email || '');
+  const { actionItems, loading, error } = useActionItems(buyer?.id);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
