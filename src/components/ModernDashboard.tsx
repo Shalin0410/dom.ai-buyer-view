@@ -77,7 +77,7 @@ const ModernDashboard = ({ userData, onPropertyClick, onNavigateToSearch }: Mode
         beds: property.bedrooms,
         baths: property.bathrooms,
         sqft: property.square_feet || 0,
-        image: primaryPhoto?.url || '/lovable-uploads/473b81b4-4a7f-4522-9fc2-56e9031541f0.png',
+        image: primaryPhoto?.url || '/placeholder.svg',
         status: getDashboardStatus(property.status),
         currentStage: getCurrentStage(property.buying_stage),
         actionNeeded: getActionNeeded(property.action_required),

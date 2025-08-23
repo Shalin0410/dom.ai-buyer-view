@@ -16,3 +16,14 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true
   }
 });
+
+// Service role client for admin operations (bypasses RLS)
+// Note: In production, this should be on the server side only
+const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhc2ViamlvYnRkZWduYWN0eHB6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NDI2MDYxOSwiZXhwIjoyMDY5ODM2NjE5fQ.yzAPLkWZHMmouYNCfl0ZeQoKep9P2oMb4RrYsPMSzA4';
+
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});

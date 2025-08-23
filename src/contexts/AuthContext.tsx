@@ -46,12 +46,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signInWithEmail = async (email: string) => {
     try {
-      const siteUrl = (import.meta as any)?.env?.VITE_SITE_URL || window.location.origin;
-      const redirectTo = `${siteUrl}/auth/callback`;
-      const response = await authService.signInWithMagicLink(email, redirectTo);
+      const response = await authService.signInWithMagicLink(email);
       
       if (!response.success) {
-        throw new Error(response.error || 'Failed to send magic link');
+        throw new Error(response.error || 'Failed to sign in');
+      }
+
+      // For mock authentication, immediately get the user and set state
+      const userResponse = await authService.getCurrentUser();
+      if (userResponse.success && userResponse.data) {
+        setUser(userResponse.data);
       }
     } catch (error) {
       console.error('Error in signInWithEmail:', error);

@@ -1,16 +1,17 @@
 // Supabase Data Service Implementation
-import { supabase } from '@/lib/supabaseClient';
+import { supabase, supabaseAdmin } from '@/lib/supabaseClient';
 import { createClient } from '@supabase/supabase-js';
 import { BaseDataService } from '../api/data';
 import { ApiResponse, Buyer, Agent, Property, PropertyFilter, PropertyActivity, PropertySummary, ActionItem } from '../api/types';
 
 export class SupabaseDataService extends BaseDataService {
-  // Buyer operations
+  // Buyer operations - now using persons table with role = 'buyer'
   async getBuyers(): Promise<ApiResponse<Buyer[]>> {
     try {
       const { data, error } = await supabase
-        .from('buyers')
+        .from('persons')
         .select('*')
+        .eq('role', 'buyer')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -29,9 +30,10 @@ export class SupabaseDataService extends BaseDataService {
   async getBuyerById(id: string): Promise<ApiResponse<Buyer>> {
     try {
       const { data, error } = await supabase
-        .from('buyers')
+        .from('persons')
         .select('*')
         .eq('id', id)
+        .eq('role', 'buyer')
         .single();
 
       if (error) {
@@ -51,9 +53,10 @@ export class SupabaseDataService extends BaseDataService {
     try {
       // First, get the buyer data
       const { data: buyerData, error: buyerError } = await supabase
-        .from('buyers')
+        .from('persons')
         .select('*')
         .eq('email', email)
+        .eq('role', 'buyer')
         .single();
 
       if (buyerError) {
@@ -69,9 +72,10 @@ export class SupabaseDataService extends BaseDataService {
       if (buyerData.agent_id) {
         try {
           const { data: agentData, error: agentError } = await supabase
-            .from('agents')
+            .from('persons')
             .select('*')
             .eq('id', buyerData.agent_id)
+            .eq('role', 'agent')
             .maybeSingle(); // Use maybeSingle instead of single to handle no rows case
 
           if (agentError) {
@@ -101,13 +105,7 @@ export class SupabaseDataService extends BaseDataService {
         }
       }
 
-      // Return buyer data with null agent if no agent_id or agent fetch failed
-      const buyer: Buyer = {
-        ...buyerData,
-        agent: null
-      };
-      
-      return this.createResponse(buyer);
+      return this.createResponse(buyerData);
     } catch (error) {
       console.error('Error in getBuyerByEmail:', error);
       const apiError = this.handleError(error);
@@ -118,8 +116,11 @@ export class SupabaseDataService extends BaseDataService {
   async createBuyer(buyer: Omit<Buyer, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<Buyer>> {
     try {
       const { data, error } = await supabase
-        .from('buyers')
-        .insert(buyer)
+        .from('persons')
+        .insert({
+          ...buyer,
+          role: 'buyer'
+        })
         .select()
         .single();
 
@@ -139,9 +140,10 @@ export class SupabaseDataService extends BaseDataService {
   async updateBuyer(id: string, updates: Partial<Buyer>): Promise<ApiResponse<Buyer>> {
     try {
       const { data, error } = await supabase
-        .from('buyers')
+        .from('persons')
         .update(updates)
         .eq('id', id)
+        .eq('role', 'buyer')
         .select()
         .single();
 
@@ -161,9 +163,10 @@ export class SupabaseDataService extends BaseDataService {
   async deleteBuyer(id: string): Promise<ApiResponse<null>> {
     try {
       const { error } = await supabase
-        .from('buyers')
+        .from('persons')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('role', 'buyer');
 
       if (error) {
         console.error('Error deleting buyer:', error);
@@ -178,74 +181,39 @@ export class SupabaseDataService extends BaseDataService {
     }
   }
 
-  // Agent operations
-  async getAgentById(id: string): Promise<ApiResponse<Agent | null>> {
-    console.log('getAgentById - Fetching agent with ID:', id);
-    
-    if (!id) {
-      console.error('getAgentById - No ID provided');
-      return this.createResponse(null, 'Agent ID is required');
-    }
-
+  // Agent operations - now using persons table with role = 'agent'
+  async getAgentById(id: string): Promise<ApiResponse<Agent>> {
     try {
-      console.log('getAgentById - Executing database function get_agent_by_id...');
-      
-      // Use the database function which enforces RLS
       const { data, error } = await supabase
-        .rpc('get_agent_by_id', { agent_id: id });
-
-      console.log('getAgentById - Database function response:', {
-        data,
-        error,
-        hasData: !!data
-      });
+        .from('persons')
+        .select('*')
+        .eq('id', id)
+        .eq('role', 'agent')
+        .single();
 
       if (error) {
-        console.error('getAgentById - Error from database function:', error);
+        console.error('getAgentById - Error fetching agent:', error);
         return this.createResponse(null, error.message);
-      }
-
-      if (!data) {
-        console.warn('getAgentById - No agent found with ID:', id);
-        return this.createResponse(null, 'Agent not found or not authorized');
-      }
-
-      // If we got here, we have valid agent data
-      console.log('getAgentById - Successfully retrieved agent data:', data);
-      return this.createResponse(data);
-
-      if (error) {
-        console.error('getAgentById - Error fetching agent:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-        return this.createResponse(null, error.message);
-      }
-
-      // If no data is returned, the agent doesn't exist
-      if (!data) {
-        console.warn('getAgentById - No agent found with ID:', id);
-        return this.createResponse(null, 'Agent not found');
       }
 
       console.log('getAgentById - Successfully retrieved agent data:', data);
       return this.createResponse(data);
     } catch (error) {
-      console.error('getAgentById - Unexpected error:', error);
-      // If we get here, it might be because multiple rows were returned
-      // Let's try a different approach
+      console.error('getAgentById - Error in main query:', error);
+      
+      // Fallback: try alternative query
       try {
-        console.log('getAgentById - Trying alternative query with limit 1...');
-        const { data, error } = await supabase
-          .from('agents')
+        const { data, error: retryError } = await supabase
+          .from('persons')
           .select('*')
           .eq('id', id)
-          .limit(1);
+          .eq('role', 'agent');
 
-        if (error) throw error;
-        
+        if (retryError) {
+          console.error('getAgentById - Error in alternative query:', retryError);
+          return this.createResponse(null, retryError.message);
+        }
+
         if (!data || data.length === 0) {
           console.warn('getAgentById - No agent found with ID (alternative query):', id);
           return this.createResponse(null, 'Agent not found');
@@ -264,8 +232,9 @@ export class SupabaseDataService extends BaseDataService {
   async getAgents(): Promise<ApiResponse<Agent[]>> {
     try {
       const { data, error } = await supabase
-        .from('agents')
+        .from('persons')
         .select('*')
+        .eq('role', 'agent')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -284,8 +253,11 @@ export class SupabaseDataService extends BaseDataService {
   async createAgent(agent: Omit<Agent, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<Agent>> {
     try {
       const { data, error } = await supabase
-        .from('agents')
-        .insert(agent)
+        .from('persons')
+        .insert({
+          ...agent,
+          role: 'agent'
+        })
         .select()
         .single();
 
@@ -305,9 +277,10 @@ export class SupabaseDataService extends BaseDataService {
   async updateAgent(id: string, updates: Partial<Agent>): Promise<ApiResponse<Agent>> {
     try {
       const { data, error } = await supabase
-        .from('agents')
+        .from('persons')
         .update(updates)
         .eq('id', id)
+        .eq('role', 'agent')
         .select()
         .single();
 
@@ -327,9 +300,10 @@ export class SupabaseDataService extends BaseDataService {
   async deleteAgent(id: string): Promise<ApiResponse<null>> {
     try {
       const { error } = await supabase
-        .from('agents')
+        .from('persons')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('role', 'agent');
 
       if (error) {
         console.error('Error deleting agent:', error);
@@ -344,14 +318,14 @@ export class SupabaseDataService extends BaseDataService {
     }
   }
 
-  // Relationship operations
+  // Relationship operations - now using persons table with joins
   async getBuyersWithAgents(): Promise<ApiResponse<Buyer[]>> {
     try {
       const { data, error } = await supabase
-        .from('buyers')
+        .from('persons')
         .select(`
           *,
-          agent:agents(
+          agent:persons!agent_id(
             id,
             first_name,
             last_name,
@@ -359,6 +333,7 @@ export class SupabaseDataService extends BaseDataService {
             phone
           )
         `)
+        .eq('role', 'buyer')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -377,10 +352,10 @@ export class SupabaseDataService extends BaseDataService {
   async getBuyersByAgentId(agentId: string): Promise<ApiResponse<Buyer[]>> {
     try {
       const { data, error } = await supabase
-        .from('buyers')
+        .from('persons')
         .select(`
           *,
-          agent:agents(
+          agent:persons!agent_id(
             id,
             first_name,
             last_name,
@@ -388,6 +363,7 @@ export class SupabaseDataService extends BaseDataService {
             phone
           )
         `)
+        .eq('role', 'buyer')
         .eq('agent_id', agentId)
         .order('created_at', { ascending: false });
 
@@ -411,7 +387,7 @@ export class SupabaseDataService extends BaseDataService {
         .from('buyer_properties')
         .select(`
           *,
-          property:properties(
+          property:properties!buyer_properties_property_id_fkey(
             id,
             address,
             city,
@@ -465,11 +441,11 @@ export class SupabaseDataService extends BaseDataService {
         if (filter.last_activity_days) {
           const cutoffDate = new Date();
           cutoffDate.setDate(cutoffDate.getDate() - filter.last_activity_days);
-          query = query.gte('last_activity_at', cutoffDate.toISOString());
+          query = query.gte('updated_at', cutoffDate.toISOString());
         }
       }
 
-      query = query.order('last_activity_at', { ascending: false });
+      query = query.order('updated_at', { ascending: false });
 
       const { data, error } = await query;
 
@@ -486,7 +462,7 @@ export class SupabaseDataService extends BaseDataService {
           .from('property_photos')
           .select('*')
           .in('property_id', propertyIds)
-          .order('order', { ascending: true });
+          .order('order_index', { ascending: true });
         photos = photosData || [];
       }
 
@@ -502,7 +478,7 @@ export class SupabaseDataService extends BaseDataService {
           city: property.city,
           state: property.state,
           zip_code: property.zip_code,
-          listing_price: property.listing_price,
+          listing_price: property.listing_price || property.price || 0,
           bedrooms: property.bedrooms,
           bathrooms: property.bathrooms,
           square_feet: property.square_feet,
@@ -523,7 +499,7 @@ export class SupabaseDataService extends BaseDataService {
           purchase_price: buyerProperty.purchase_price,
           offer_date: buyerProperty.offer_date,
           closing_date: buyerProperty.closing_date,
-          last_activity_at: buyerProperty.last_activity_at,
+          last_activity_at: buyerProperty.updated_at,
           
           // Related data
           photos: propertyPhotos.map(photo => ({
@@ -532,7 +508,7 @@ export class SupabaseDataService extends BaseDataService {
             url: photo.url,
             caption: photo.caption,
             is_primary: photo.is_primary,
-            order: photo.order,
+            order: photo.order_index,
             created_at: photo.created_at,
             updated_at: photo.updated_at
           }))
@@ -573,7 +549,7 @@ export class SupabaseDataService extends BaseDataService {
         .from('property_photos')
         .select('*')
         .eq('property_id', id)
-        .order('order', { ascending: true });
+        .order('order_index', { ascending: true });
 
       // Transform to Property interface
       const property: Property = {
@@ -583,7 +559,7 @@ export class SupabaseDataService extends BaseDataService {
         city: propertyData.city,
         state: propertyData.state,
         zip_code: propertyData.zip_code,
-        listing_price: propertyData.listing_price,
+        listing_price: propertyData.listing_price || propertyData.price || 0,
         bedrooms: propertyData.bedrooms,
         bathrooms: propertyData.bathrooms,
         square_feet: propertyData.square_feet,
@@ -604,7 +580,7 @@ export class SupabaseDataService extends BaseDataService {
         purchase_price: buyerPropertyData?.purchase_price,
         offer_date: buyerPropertyData?.offer_date,
         closing_date: buyerPropertyData?.closing_date,
-        last_activity_at: buyerPropertyData?.last_activity_at || propertyData.created_at,
+        last_activity_at: buyerPropertyData?.updated_at || propertyData.created_at,
         
         // Related data
         photos: (photos || []).map(photo => ({
@@ -613,7 +589,7 @@ export class SupabaseDataService extends BaseDataService {
           url: photo.url,
           caption: photo.caption,
           is_primary: photo.is_primary,
-          order: photo.order,
+          order: photo.order_index,
           created_at: photo.created_at,
           updated_at: photo.updated_at
         }))
@@ -686,7 +662,7 @@ export class SupabaseDataService extends BaseDataService {
         .from('property_photos')
         .select('*')
         .eq('property_id', id)
-        .order('order', { ascending: true });
+        .order('order_index', { ascending: true });
 
       const propertyWithPhotos = {
         ...data,
@@ -859,42 +835,19 @@ export class SupabaseDataService extends BaseDataService {
       let query = supabase
         .from('buyer_properties')
         .select(`
-          property:properties (
+          *,
+          property:properties!buyer_properties_property_id_fkey (
             *
           )
         `)
         .eq('buyer_id', buyerId || '');
 
-      // If no buyer ID is provided, fall back to the old behavior (for backward compatibility)
+      // If no buyer ID is provided, fall back to getting all available properties
       if (!buyerId) {
         query = supabase
           .from('properties')
-          .select('*')
-          .eq('status', 'available');
+          .select('*');
       }
-
-      // Apply filters
-      if (filter) {
-        if (filter.price_min) {
-          query = query.gte('listing_price', filter.price_min);
-        }
-        if (filter.price_max) {
-          query = query.lte('listing_price', filter.price_max);
-        }
-        if (filter.bedrooms_min) {
-          query = query.gte('bedrooms', filter.bedrooms_min);
-        }
-        if (filter.bathrooms_min) {
-          query = query.gte('bathrooms', filter.bathrooms_min);
-        }
-        if (filter.property_type && filter.property_type.length > 0) {
-          query = query.in('property_type', filter.property_type);
-        }
-      }
-
-      // Use 'added_at' for buyer_properties and 'created_at' for properties
-      const orderByColumn = buyerId ? 'added_at' : 'created_at';
-      query = query.order(orderByColumn, { ascending: false });
 
       const { data, error } = await query;
 
@@ -904,61 +857,96 @@ export class SupabaseDataService extends BaseDataService {
       }
 
       // Extract properties from the joined result if we're using buyer_properties
-      const properties = buyerId 
-        ? (data || []).map((item: any) => item.property)
+      let properties = buyerId 
+        ? (data || []).map((item: any) => ({ 
+            ...item.property, 
+            buyer_status: item.status, 
+            buyer_stage: item.buying_stage 
+          }))
         : (data || []);
 
-      // Fetch photos for all properties
-      const propertyIds = properties.map((property: any) => property.id);
-      let photos: any[] = [];
-      if (propertyIds.length > 0) {
-        const { data: photosData } = await supabase
-          .from('property_photos')
-          .select('*')
-          .in('property_id', propertyIds)
-          .order('order', { ascending: true });
-        photos = photosData || [];
+      // Apply filters after fetching
+      if (filter && properties.length > 0) {
+        properties = properties.filter((property: any) => {
+          let matches = true;
+          
+          if (filter.price_min && (property.listing_price || property.price)) {
+            const price = property.listing_price || property.price;
+            matches = matches && price >= filter.price_min;
+          }
+          if (filter.price_max && (property.listing_price || property.price)) {
+            const price = property.listing_price || property.price;
+            matches = matches && price <= filter.price_max;
+          }
+          if (filter.bedrooms_min && property.bedrooms) {
+            matches = matches && property.bedrooms >= filter.bedrooms_min;
+          }
+          if (filter.bathrooms_min && property.bathrooms) {
+            matches = matches && property.bathrooms >= filter.bathrooms_min;
+          }
+          if (filter.property_type && filter.property_type.length > 0) {
+            matches = matches && filter.property_type.includes(property.property_type);
+          }
+          
+          return matches;
+        });
       }
 
       // Transform to Property interface
       const transformedProperties = properties.map((property: any) => {
-        const propertyPhotos = photos.filter(photo => photo.property_id === property.id);
+        // Handle photos from both JSONB and separate table
+        let photos: any[] = [];
+        if (property.photos && Array.isArray(property.photos) && property.photos.length > 0) {
+          photos = property.photos.map((photo: any, index: number) => ({
+            id: `${property.id}-photo-${index}`,
+            property_id: property.id,
+            url: photo.url || photo,
+            caption: photo.caption || null,
+            is_primary: index === 0 || photo.is_primary || false,
+            order: photo.order || index,
+            created_at: property.created_at,
+            updated_at: property.updated_at
+          }));
+        } else {
+          // Add placeholder photo if none exist
+          photos = [{
+            id: `${property.id}-placeholder`,
+            property_id: property.id,
+            url: '/placeholder.svg',
+            caption: 'Property Image',
+            is_primary: true,
+            order: 0,
+            created_at: property.created_at,
+            updated_at: property.updated_at
+          }];
+        }
         
         return {
-        id: property.id,
-        buyer_id: '', // No buyer relationship yet
-        address: property.address,
-        city: property.city,
-        state: property.state,
-        zip_code: property.zip_code || '',
-        listing_price: property.listing_price,
-        purchase_price: undefined,
-        bedrooms: property.bedrooms,
-        bathrooms: property.bathrooms,
-        square_feet: property.square_feet,
-        lot_size: property.lot_size,
-        year_built: property.year_built,
-        property_type: property.property_type || 'single_family',
-        status: 'researching' as const,
-        buying_stage: 'initial_research' as const,
-        action_required: 'none' as const,
-        mls_number: property.mls_number,
-        listing_url: property.listing_url,
-        notes: undefined,
-        last_activity_at: property.created_at,
-        created_at: property.created_at,
-        updated_at: property.updated_at || property.created_at,
-        photos: propertyPhotos.map(photo => ({
-          id: photo.id,
-          property_id: photo.property_id,
-          url: photo.url,
-          caption: photo.caption,
-          is_primary: photo.is_primary,
-          order: photo.order,
-          created_at: photo.created_at,
-          updated_at: photo.updated_at
-        }))
-        }
+          id: property.id,
+          buyer_id: buyerId || '',
+          address: property.address,
+          city: property.city,
+          state: property.state,
+          zip_code: property.zip_code || '',
+          listing_price: property.listing_price || property.price || 0,
+          purchase_price: undefined,
+          bedrooms: property.bedrooms || 0,
+          bathrooms: property.bathrooms || 0,
+          square_feet: property.square_feet || 0,
+          lot_size: property.lot_size,
+          year_built: property.year_built,
+          property_type: property.property_type || 'single_family',
+          status: property.buyer_status || 'researching',
+          buying_stage: property.buyer_stage || 'initial_research',
+          action_required: 'none',
+          mls_number: property.mls_number,
+          listing_url: property.listing_url,
+          notes: undefined,
+          last_activity_at: property.updated_at || property.created_at,
+          created_at: property.created_at,
+          updated_at: property.updated_at || property.created_at,
+          photos: photos
+        } as Property;
       });
 
       return this.createResponse(transformedProperties);
@@ -1152,8 +1140,8 @@ export class SupabaseDataService extends BaseDataService {
           notes,
           offer_date,
           closing_date,
-          last_activity_at,
-          property:properties(
+                     updated_at,
+          property:properties!buyer_properties_property_id_fkey(
             id,
             address,
             city,
@@ -1162,7 +1150,7 @@ export class SupabaseDataService extends BaseDataService {
         `)
         .eq('buyer_id', buyerId)
         .neq('action_required', 'none')
-        .order('last_activity_at', { ascending: false });
+                 .order('updated_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching action items:', error);
@@ -1298,7 +1286,7 @@ export class SupabaseDataService extends BaseDataService {
           buying_stage: item.buying_stage,
           priority: getPriority(item.buying_stage, item.status, item.offer_date, item.closing_date),
           due_date: getDueDate(item.action_required, item.status, item.offer_date, item.closing_date),
-          last_activity_at: item.last_activity_at,
+                     last_activity_at: item.updated_at,
           offer_date: item.offer_date,
           closing_date: item.closing_date
         };

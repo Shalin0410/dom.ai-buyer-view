@@ -38,7 +38,7 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
   // Fetch available properties
   const { properties: availableProperties, loading, error } = useProperties(
     buyerId,
-    { status: ['researching'] as PropertyStatus[] },
+    {}, // Remove status filter to show all properties for this buyer
     'available'
   );
 
@@ -73,9 +73,13 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
   // Transform properties when availableProperties changes
   useEffect(() => {
     if (availableProperties && availableProperties.length > 0) {
+      console.log('Available properties:', availableProperties);
       const transformed = availableProperties.map(property => {
+        console.log('Property photos:', property.photos);
         const primaryPhoto = property.photos?.find(p => p.is_primary) || property.photos?.[0];
-        const imageUrl = primaryPhoto?.url || '/placeholder-property.jpg';
+        console.log('Primary photo:', primaryPhoto);
+        const imageUrl = primaryPhoto?.url || '/placeholder.svg';
+        console.log('Image URL:', imageUrl);
         const formattedAddress = [property.address, property.city, property.state, property.zip_code]
           .filter(Boolean).join(', ');
         return {
@@ -88,13 +92,13 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
           sqft: property.square_feet || 0,
           address: formattedAddress,
           features: [
-            property.bedrooms ? `${property.bedrooms} Bed` : '',
-            property.bathrooms ? `${property.bathrooms} Bath` : '',
+            property.bedrooms ? `${property.bedrooms} Bed${property.bedrooms > 1 ? 's' : ''}` : '',
+            property.bathrooms ? `${property.bathrooms} Bath${property.bathrooms > 1 ? 's' : ''}` : '',
             property.square_feet ? `${property.square_feet.toLocaleString()} sqft` : '',
-            property.property_type ? property.property_type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : ''
+            property.property_type ? property.property_type.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : ''
           ].filter(Boolean) as string[],
           neighborhood: property.city || 'Unknown',
-          daysOnMarket: Math.floor(Math.random() * 30) + 1
+          daysOnMarket: property.days_on_market || Math.floor(Math.random() * 30) + 1
         } as SwipeProperty;
       });
       

@@ -1,42 +1,81 @@
 
 import { useState } from 'react';
-import { MapPin, DollarSign, Home, Calendar, Sliders, Star } from 'lucide-react';
+import { MapPin, DollarSign, Home, Calendar, Sliders, Star, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
+import { useProperties } from '@/hooks/useProperties';
+import { useAuth } from '@/hooks/useAuth';
 
 const PropertyMatch = () => {
+  const { user } = useAuth();
   const [priceRange, setPriceRange] = useState([300000, 600000]);
   const [bedrooms, setBedrooms] = useState(3);
-  const [location, setLocation] = useState('Austin, TX');
+  const [location, setLocation] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [searchExecuted, setSearchExecuted] = useState(false);
 
-  const matchedProperties = [
+  // Get available properties based on current filters
+  const { properties, loading } = useProperties(
+    user?.id,
     {
-      id: 1,
-      address: "789 Cedar Lane, Austin, TX 78745",
-      price: 465000,
-      beds: 3,
-      baths: 2,
-      sqft: 1920,
-      fitScore: 95,
-      image: "/placeholder.svg",
-      highlights: ["Great Schools", "Low Crime", "Commute Friendly"]
+      price_min: priceRange[0],
+      price_max: priceRange[1],
+      bedrooms_min: bedrooms
     },
-    {
-      id: 2,
-      address: "321 Pine Street, Austin, TX 78704",
-      price: 510000,
-      beds: 4,
-      baths: 2.5,
-      sqft: 2050,
-      fitScore: 88,
-      image: "/placeholder.svg",
-      highlights: ["Modern Kitchen", "Large Yard", "Recently Updated"]
+    'browse'
+  );
+
+  // Calculate match scores based on user preferences (mock scoring for now)
+  const matchedProperties = properties.map(property => {
+    // Calculate a simple match score based on price range and bedrooms
+    let score = 70; // Base score
+    
+    // Price match scoring
+    if (property.listing_price >= priceRange[0] && property.listing_price <= priceRange[1]) {
+      score += 20;
+    } else if (Math.abs(property.listing_price - ((priceRange[0] + priceRange[1]) / 2)) < 50000) {
+      score += 10;
     }
-  ];
+    
+    // Bedroom match scoring
+    if (property.bedrooms === bedrooms) {
+      score += 15;
+    } else if (Math.abs(property.bedrooms - bedrooms) <= 1) {
+      score += 8;
+    }
+    
+    // Ensure score doesn't exceed 100
+    score = Math.min(score, 100);
+    
+    // Generate highlights based on property features
+    const highlights = [];
+    if (property.year_built && property.year_built > 2010) highlights.push('Recently Built');
+    if (property.square_feet && property.square_feet > 2000) highlights.push('Spacious');
+    if (property.property_type === 'Single Family') highlights.push('Single Family');
+    if (property.neighborhood_info?.walkability_score > 70) highlights.push('Walkable');
+    if (highlights.length === 0) highlights.push('Great Location', 'Well Maintained');
+    
+    const primaryPhoto = property.photos?.find(p => p.is_primary) || property.photos?.[0];
+    
+    return {
+      id: property.id,
+      address: `${property.address}, ${property.city}, ${property.state} ${property.zip_code}`,
+      price: property.listing_price,
+      beds: property.bedrooms,
+      baths: property.bathrooms,
+      sqft: property.square_feet,
+      fitScore: Math.round(score),
+      image: primaryPhoto?.url || '/placeholder-property.jpg',
+      highlights: highlights.slice(0, 3)
+    };
+  }).filter(property => searchExecuted).sort((a, b) => b.fitScore - a.fitScore);
+
+  const handleSearch = () => {
+    setSearchExecuted(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -98,9 +137,17 @@ const PropertyMatch = () => {
           </div>
 
           <div className="flex space-x-2">
-            <Button className="flex-1 bg-blue-600 hover:bg-blue-700">
-              <Home size={16} className="mr-2" />
-              Search Homes
+            <Button 
+              className="flex-1 bg-blue-600 hover:bg-blue-700" 
+              onClick={handleSearch}
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 size={16} className="mr-2 animate-spin" />
+              ) : (
+                <Home size={16} className="mr-2" />
+              )}
+              {loading ? 'Searching...' : 'Search Homes'}
             </Button>
             <Button 
               variant="outline" 
@@ -113,22 +160,38 @@ const PropertyMatch = () => {
       </Card>
 
       {/* Results Summary */}
-      <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-        <div className="flex items-center space-x-2">
-          <Star className="text-green-600" size={20} />
-          <div>
-            <p className="font-medium text-green-800">Great match!</p>
-            <p className="text-sm text-green-700">
-              Found {matchedProperties.length} properties that fit your criteria perfectly
-            </p>
+      {searchExecuted && (
+        <div className={`rounded-lg p-4 border ${
+          matchedProperties.length > 0 
+            ? 'bg-green-50 border-green-200' 
+            : 'bg-yellow-50 border-yellow-200'
+        }`}>
+          <div className="flex items-center space-x-2">
+            <Star className={matchedProperties.length > 0 ? 'text-green-600' : 'text-yellow-600'} size={20} />
+            <div>
+              <p className={`font-medium ${
+                matchedProperties.length > 0 ? 'text-green-800' : 'text-yellow-800'
+              }`}>
+                {matchedProperties.length > 0 ? 'Great matches found!' : 'No exact matches'}
+              </p>
+              <p className={`text-sm ${
+                matchedProperties.length > 0 ? 'text-green-700' : 'text-yellow-700'
+              }`}>
+                {matchedProperties.length > 0 
+                  ? `Found ${matchedProperties.length} properties that fit your criteria`
+                  : 'Try adjusting your search criteria to find more properties'
+                }
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Matched Properties */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900">Top Matches</h3>
-        {matchedProperties.map((property) => (
+      {searchExecuted && matchedProperties.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-900">Top Matches</h3>
+          {matchedProperties.map((property) => (
           <Card key={property.id} className="overflow-hidden">
             <div className="aspect-[16/9] bg-gray-200 relative">
               <img 
@@ -177,8 +240,9 @@ const PropertyMatch = () => {
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
