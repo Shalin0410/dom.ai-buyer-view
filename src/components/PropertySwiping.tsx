@@ -73,9 +73,13 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
   // Transform properties when availableProperties changes
   useEffect(() => {
     if (availableProperties && availableProperties.length > 0) {
+      console.log('Available properties:', availableProperties);
       const transformed = availableProperties.map(property => {
+        console.log('Property photos:', property.photos);
         const primaryPhoto = property.photos?.find(p => p.is_primary) || property.photos?.[0];
-        const imageUrl = primaryPhoto?.url || '/placeholder-property.jpg';
+        console.log('Primary photo:', primaryPhoto);
+        const imageUrl = primaryPhoto?.url || '/placeholder.svg';
+        console.log('Image URL:', imageUrl);
         const formattedAddress = [property.address, property.city, property.state, property.zip_code]
           .filter(Boolean).join(', ');
         return {

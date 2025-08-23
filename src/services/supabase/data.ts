@@ -387,7 +387,7 @@ export class SupabaseDataService extends BaseDataService {
         .from('buyer_properties')
         .select(`
           *,
-          property:properties(
+          property:properties!buyer_properties_property_id_fkey(
             id,
             address,
             city,
@@ -441,11 +441,11 @@ export class SupabaseDataService extends BaseDataService {
         if (filter.last_activity_days) {
           const cutoffDate = new Date();
           cutoffDate.setDate(cutoffDate.getDate() - filter.last_activity_days);
-          query = query.gte('last_activity_at', cutoffDate.toISOString());
+          query = query.gte('updated_at', cutoffDate.toISOString());
         }
       }
 
-      query = query.order('last_activity_at', { ascending: false });
+      query = query.order('updated_at', { ascending: false });
 
       const { data, error } = await query;
 
@@ -462,7 +462,7 @@ export class SupabaseDataService extends BaseDataService {
           .from('property_photos')
           .select('*')
           .in('property_id', propertyIds)
-          .order('order', { ascending: true });
+          .order('order_index', { ascending: true });
         photos = photosData || [];
       }
 
@@ -499,7 +499,7 @@ export class SupabaseDataService extends BaseDataService {
           purchase_price: buyerProperty.purchase_price,
           offer_date: buyerProperty.offer_date,
           closing_date: buyerProperty.closing_date,
-          last_activity_at: buyerProperty.last_activity_at,
+          last_activity_at: buyerProperty.updated_at,
           
           // Related data
           photos: propertyPhotos.map(photo => ({
@@ -508,7 +508,7 @@ export class SupabaseDataService extends BaseDataService {
             url: photo.url,
             caption: photo.caption,
             is_primary: photo.is_primary,
-            order: photo.order,
+            order: photo.order_index,
             created_at: photo.created_at,
             updated_at: photo.updated_at
           }))
@@ -549,7 +549,7 @@ export class SupabaseDataService extends BaseDataService {
         .from('property_photos')
         .select('*')
         .eq('property_id', id)
-        .order('order', { ascending: true });
+        .order('order_index', { ascending: true });
 
       // Transform to Property interface
       const property: Property = {
@@ -580,7 +580,7 @@ export class SupabaseDataService extends BaseDataService {
         purchase_price: buyerPropertyData?.purchase_price,
         offer_date: buyerPropertyData?.offer_date,
         closing_date: buyerPropertyData?.closing_date,
-        last_activity_at: buyerPropertyData?.last_activity_at || propertyData.created_at,
+        last_activity_at: buyerPropertyData?.updated_at || propertyData.created_at,
         
         // Related data
         photos: (photos || []).map(photo => ({
@@ -589,7 +589,7 @@ export class SupabaseDataService extends BaseDataService {
           url: photo.url,
           caption: photo.caption,
           is_primary: photo.is_primary,
-          order: photo.order,
+          order: photo.order_index,
           created_at: photo.created_at,
           updated_at: photo.updated_at
         }))
@@ -662,7 +662,7 @@ export class SupabaseDataService extends BaseDataService {
         .from('property_photos')
         .select('*')
         .eq('property_id', id)
-        .order('order', { ascending: true });
+        .order('order_index', { ascending: true });
 
       const propertyWithPhotos = {
         ...data,
@@ -835,7 +835,7 @@ export class SupabaseDataService extends BaseDataService {
       let query = supabase
         .from('buyer_properties')
         .select(`
-          property:properties (
+          property:properties!buyer_properties_property_id_fkey (
             *
           )
         `)
@@ -892,7 +892,7 @@ export class SupabaseDataService extends BaseDataService {
           .from('property_photos')
           .select('*')
           .in('property_id', propertyIds)
-          .order('order', { ascending: true });
+          .order('order_index', { ascending: true });
         photos = photosData || [];
       }
 
@@ -921,7 +921,7 @@ export class SupabaseDataService extends BaseDataService {
         mls_number: property.mls_number,
         listing_url: property.listing_url,
         notes: undefined,
-        last_activity_at: property.created_at,
+        last_activity_at: property.updated_at || property.created_at,
         created_at: property.created_at,
         updated_at: property.updated_at || property.created_at,
         photos: propertyPhotos.map(photo => ({
@@ -930,7 +930,7 @@ export class SupabaseDataService extends BaseDataService {
           url: photo.url,
           caption: photo.caption,
           is_primary: photo.is_primary,
-          order: photo.order,
+          order: photo.order_index,
           created_at: photo.created_at,
           updated_at: photo.updated_at
         }))
@@ -1128,8 +1128,8 @@ export class SupabaseDataService extends BaseDataService {
           notes,
           offer_date,
           closing_date,
-          last_activity_at,
-          property:properties(
+                     updated_at,
+          property:properties!buyer_properties_property_id_fkey(
             id,
             address,
             city,
@@ -1138,7 +1138,7 @@ export class SupabaseDataService extends BaseDataService {
         `)
         .eq('buyer_id', buyerId)
         .neq('action_required', 'none')
-        .order('last_activity_at', { ascending: false });
+                 .order('updated_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching action items:', error);
@@ -1274,7 +1274,7 @@ export class SupabaseDataService extends BaseDataService {
           buying_stage: item.buying_stage,
           priority: getPriority(item.buying_stage, item.status, item.offer_date, item.closing_date),
           due_date: getDueDate(item.action_required, item.status, item.offer_date, item.closing_date),
-          last_activity_at: item.last_activity_at,
+                     last_activity_at: item.updated_at,
           offer_date: item.offer_date,
           closing_date: item.closing_date
         };
