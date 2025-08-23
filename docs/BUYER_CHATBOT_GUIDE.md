@@ -4,7 +4,7 @@
 
 The AI chatbot has been redesigned specifically for home buyers, providing educational content and guidance throughout the home buying process. It focuses solely on buyer education and does not expose any technical implementation details or backend information.
 
-## What the Chatbot Covers
+## What the Chatbot Cover
 
 ### 🏠 **Home Buying Process**
 - Complete step-by-step guidance from preparation to closing
