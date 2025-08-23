@@ -5,7 +5,7 @@
 Your ChatGPT-powered chatbot is now ready for testing! Here's what's been implemented:
 
 ### **🎯 What's Working**
-- ✅ **Development Server**: Running on `http://localhost:8082`
+- ✅ **Development Server**: Running on `http://localhost:8080`
 - ✅ **Chatbot Interface**: Integrated into main app navigation
 - ✅ **Knowledge Base**: Consolidated with Notion MCP + local fallbacks
 - ✅ **Conversation Management**: Database schema ready (needs migration)
@@ -14,7 +14,7 @@ Your ChatGPT-powered chatbot is now ready for testing! Here's what's been implem
 
 ### **🚀 Quick Test Steps**
 
-1. **Open Browser**: Go to `http://localhost:8082`
+1. **Open Browser**: Go to `http://localhost:8080`
 2. **Login**: Use your existing authentication
 3. **Navigate**: Click the "Chat" tab
 4. **Test**: Ask questions about home buying
