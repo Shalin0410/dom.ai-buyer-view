@@ -93,6 +93,33 @@ export const PropertyList: React.FC<PropertyListProps> = ({
   }
 
   if (error) {
+    // Check if this is a "no properties" message (informational) vs actual error
+    const isNoPropertiesMessage = error.includes('No properties') || error.includes('No properties available');
+    
+    if (isNoPropertiesMessage) {
+      return (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-blue-100 flex items-center justify-center">
+                <Home className="h-6 w-6 text-blue-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-blue-900 mb-2">
+                {mode === 'tracked' ? 'No Properties Found' : 'No Properties Available'}
+              </h3>
+              <p className="text-blue-700 mb-4">{error}</p>
+              {mode === 'tracked' && (
+                <Button onClick={onAddProperty} className="bg-blue-600 hover:bg-blue-700 text-white">
+                  Add Your First Property
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+    
+    // Actual error - show red error card
     return (
       <Card className="border-red-200 bg-red-50">
         <CardContent className="pt-6">

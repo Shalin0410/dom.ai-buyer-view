@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ModernDashboard from '@/components/ModernDashboard';
 import ChatbotInterface from '@/components/ChatbotInterface';
 import ChatbotTest from '@/components/ChatbotTest';
@@ -43,8 +43,15 @@ const MainAppContent = ({ activeTab, userData, onTabChange }: MainAppContentProp
     }
   };
 
-  // Show property detail page if a property is selected
-  if (selectedPropertyId) {
+  // Reset selected property when tab changes away from dashboard
+  useEffect(() => {
+    if (selectedPropertyId && activeTab !== 'dashboard') {
+      setSelectedPropertyId(null);
+    }
+  }, [activeTab, selectedPropertyId]);
+
+  // Show property detail page if a property is selected AND we're on dashboard
+  if (selectedPropertyId && activeTab === 'dashboard') {
     return (
       <div className="w-full">
         <PropertyDetailPage 

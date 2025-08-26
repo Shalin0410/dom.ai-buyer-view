@@ -17,17 +17,24 @@ export const useProperties = (buyerId?: string, initialFilter?: PropertyFilter, 
       if (mode === 'available') {
         // Pass both the filter and buyerId to getAvailableProperties
         response = await dataService.getAvailableProperties(filter, buyerId);
-        
-        // If no properties found for the buyer, show a message
-        if (response.success && response.data?.length === 0 && buyerId) {
-          setError('No properties found for this buyer. Please check back later or contact your agent.');
-        }
       } else {
         response = await dataService.getProperties(buyerId, filter);
       }
       
-      if (response.success && response.data) {
-        setProperties(response.data);
+      if (response.success) {
+        // Set properties (empty array is valid)
+        setProperties(response.data || []);
+        // Clear any previous errors
+        setError(null);
+        
+        // Show appropriate message for no properties
+        if (response.data?.length === 0) {
+          if (mode === 'available') {
+            setError('No properties available for browsing at this time. Please check back later or contact your agent.');
+          } else {
+            setError('No properties found. Start by adding properties to your list.');
+          }
+        }
       } else {
         setError(response.error || 'Failed to fetch properties');
         setProperties([]);

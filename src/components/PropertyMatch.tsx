@@ -164,18 +164,18 @@ const PropertyMatch = () => {
         <div className={`rounded-lg p-4 border ${
           matchedProperties.length > 0 
             ? 'bg-green-50 border-green-200' 
-            : 'bg-yellow-50 border-yellow-200'
+            : 'bg-blue-50 border-blue-200'
         }`}>
           <div className="flex items-center space-x-2">
-            <Star className={matchedProperties.length > 0 ? 'text-green-600' : 'text-yellow-600'} size={20} />
+            <Star className={matchedProperties.length > 0 ? 'text-green-600' : 'text-blue-600'} size={20} />
             <div>
               <p className={`font-medium ${
-                matchedProperties.length > 0 ? 'text-green-800' : 'text-yellow-800'
+                matchedProperties.length > 0 ? 'text-green-800' : 'text-blue-800'
               }`}>
                 {matchedProperties.length > 0 ? 'Great matches found!' : 'No exact matches'}
               </p>
               <p className={`text-sm ${
-                matchedProperties.length > 0 ? 'text-green-700' : 'text-yellow-700'
+                matchedProperties.length > 0 ? 'text-green-700' : 'text-blue-700'
               }`}>
                 {matchedProperties.length > 0 
                   ? `Found ${matchedProperties.length} properties that fit your criteria`

@@ -13,12 +13,43 @@ import { formatDistanceToNow } from 'date-fns';
 // type ViewMode = 'questions' | 'category' | 'chat';
 type ViewMode = 'chat';
 
-// Function to parse markdown formatting
+// Function to parse markdown formatting with link support
 const parseMarkdown = (text: string) => {
+  // First, extract links and replace them with placeholders
+  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  const links: Array<{ text: string; url: string }> = [];
+  let linkIndex = 0;
+  
+  const textWithPlaceholders = text.replace(linkRegex, (match, linkText, linkUrl) => {
+    links.push({ text: linkText, url: linkUrl });
+    return `__LINK_${linkIndex++}__`;
+  });
+  
   // Split text into parts (text and markdown elements)
-  const parts = text.split(/(\*\*.*?\*\*)/g);
+  const parts = textWithPlaceholders.split(/(\*\*.*?\*\*)/g);
   
   return parts.map((part, index) => {
+    // Check if this part is a link placeholder
+    const linkMatch = part.match(/__LINK_(\d+)__/);
+    if (linkMatch) {
+      const linkIndex = parseInt(linkMatch[1]);
+      const link = links[linkIndex];
+      return (
+        <a
+          key={index}
+          href={link.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 hover:text-blue-800 underline inline-flex items-center gap-1"
+        >
+          {link.text}
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+        </a>
+      );
+    }
+    
     // Check if this part is bold text (wrapped in **)
     if (part.startsWith('**') && part.endsWith('**')) {
       const boldText = part.slice(2, -2); // Remove ** markers
@@ -211,9 +242,9 @@ const ChatbotInterface = () => {
   return (
     <div className="flex h-screen bg-white">
       {/* Sidebar */}
-      <div className={`${showSidebar ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-40 w-80 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:shadow-none lg:z-auto`}>
+      <div className={`${showSidebar ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-40 w-80 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:shadow-none lg:z-auto border-r border-gray-200`}>
         <div className="flex flex-col h-full">
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white sticky top-0 z-10">
+          <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200 bg-white sticky top-0 z-10 h-[73px]">
             <h2 className="text-lg font-semibold text-gray-900">Conversations</h2>
             <Button
               onClick={handleNewConversation}
@@ -291,16 +322,16 @@ const ChatbotInterface = () => {
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col bg-white">
-        <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="flex items-center justify-between px-4 py-4 bg-white border-b border-gray-200 sticky top-0 z-10 h-[73px]">
           <div className="flex items-center gap-3">
-                         <Button
-               onClick={() => setShowSidebar(!showSidebar)}
-               variant="ghost"
-               size="sm"
-               className="lg:hidden text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-             >
-               <MessageSquare size={20} />
-             </Button>
+            <Button
+              onClick={() => setShowSidebar(!showSidebar)}
+              variant="ghost"
+              size="sm"
+              className="lg:hidden text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+            >
+              <MessageSquare size={20} />
+            </Button>
             <div className="flex items-center gap-2">
               <Bot size={20} className="text-gray-600" />
               <h1 className="text-lg font-semibold text-gray-900">Chat Assistant</h1>
@@ -316,14 +347,18 @@ const ChatbotInterface = () => {
           )}
 
           {!currentConversation && !isLoadingConversation ? (
-            <div className="h-full flex items-center justify-center">
-              <div className="text-center">
-                <Bot size={64} className="mx-auto mb-4 text-gray-300" />
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">Welcome to Chat Assistant</h2>
-                <p className="text-gray-600 mb-4">Ask me anything about real estate</p>
-                <Button onClick={handleNewConversation} className="bg-blue-500 hover:bg-blue-600 text-white">
-                  Start New Conversation
-                </Button>
+            <div className="space-y-4 pt-4">
+              <div className="flex justify-start">
+                <div className="max-w-[80%]">
+                  <div className="bg-gray-100 border border-gray-200 text-gray-900 rounded-lg p-3">
+                    <div className="whitespace-pre-wrap">
+                      Hi! I'm Dom AI, your real estate assistant. I can help you with listing searches, home buying questions, or market insights. What would you like to know?
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Just now
+                  </p>
+                </div>
               </div>
             </div>
           ) : isLoadingConversation ? (
@@ -459,9 +494,13 @@ const ChatbotInterface = () => {
                   </div>
 
                   <div className="space-y-4">
-                    {currentConversation.messages.map((message) => (
+                    {currentConversation.messages
+                      .filter((message, index, array) => 
+                        array.findIndex(m => m.id === message.id) === index
+                      )
+                      .map((message) => (
                       <div
-                        key={message.id}
+                        key={`message-${message.id}-${message.created_at}`}
                         className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                       >
                         <div className={`max-w-[80%] ${message.role === 'user' ? 'order-2' : 'order-1'}`}>
@@ -477,19 +516,22 @@ const ChatbotInterface = () => {
                             </div>
                             
                             {message.sources && message.sources.length > 0 && message.sources.some(source => source.url) && (
-                              <div className="mt-2 pt-2 border-t border-gray-200">
-                                <p className="text-xs text-gray-500 mb-1">Sources:</p>
-                                <div className="flex flex-wrap gap-1">
+                              <div className="mt-3 pt-3 border-t border-gray-200">
+                                <p className="text-xs font-medium text-gray-700 mb-2">Sources:</p>
+                                <div className="space-y-1">
                                   {message.sources.filter(source => source.url).map((source, index) => (
-                                    <div key={index} className="flex items-center gap-1">
+                                    <div key={`${message.id}-source-${index}`} className="flex items-start gap-2">
+                                      <span className="text-xs font-semibold text-gray-600 min-w-[16px] mt-0.5">
+                                        {index + 1}.
+                                      </span>
                                       <a
                                         href={source.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-md hover:bg-blue-200 transition-colors"
+                                        className="text-xs text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1 flex-1"
                                       >
-                                        <span>{source.title}</span>
-                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <span className="truncate">{source.title}</span>
+                                        <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                         </svg>
                                       </a>
@@ -508,15 +550,20 @@ const ChatbotInterface = () => {
 
                     {isSending && (
                       <div className="flex justify-start">
-                        <div className="bg-gray-100 border border-gray-200 rounded-lg p-3">
-                          <div className="flex items-center gap-2">
-                            <div className="flex space-x-1">
-                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                        <div className="max-w-[80%]">
+                          <div className="bg-gray-100 border border-gray-200 text-gray-900 rounded-lg p-3">
+                            <div className="flex items-center gap-3">
+                              <div className="flex space-x-1">
+                                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
+                                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                              </div>
+                              <span className="text-sm text-gray-600 italic">Dom AI is typing...</span>
                             </div>
-                            <span className="text-sm text-gray-500">Dom AI is typing...</span>
                           </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Just now
+                          </p>
                         </div>
                       </div>
                     )}

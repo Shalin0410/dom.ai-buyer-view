@@ -1,11 +1,11 @@
 
-import { useState } from 'react';
+
 import { useProperties } from '@/hooks/useProperties';
 import { Property } from '@/services/api/types';
 import ActionItems from './ActionItems';
 import DashboardHeader from './DashboardHeader';
 import ContinueSearchCard from './ContinueSearchCard';
-import SearchAndFilters from './SearchAndFilters';
+
 import PropertyGrid from './PropertyGrid';
 
 interface ModernDashboardProps {
@@ -15,9 +15,6 @@ interface ModernDashboardProps {
 }
 
 const ModernDashboard = ({ userData, onPropertyClick, onNavigateToSearch }: ModernDashboardProps) => {
-  const [selectedStages, setSelectedStages] = useState(['tour_scheduled', 'disclosure_review']);
-  const [selectedActions, setSelectedActions] = useState(['tour_scheduled']);
-  const [selectedActivities, setSelectedActivities] = useState(['recently_updated']);
 
   // Fetch real properties from Supabase using userData.id
   const { properties, loading, error } = useProperties(userData?.id, {}, 'tracked');
@@ -89,14 +86,6 @@ const ModernDashboard = ({ userData, onPropertyClick, onNavigateToSearch }: Mode
   // Convert database properties to dashboard format
   const dashboardProperties = mapPropertiesToDashboardFormat(properties);
 
-  // Filter properties based on selected filters
-  const filteredProperties = dashboardProperties.filter(property => {
-    if (selectedStages.length > 0 && !selectedStages.includes(property.currentStage)) return false;
-    if (selectedActions.length > 0 && !selectedActions.includes(property.actionNeeded)) return false;
-    if (selectedActivities.length > 0 && !selectedActivities.includes(property.lastActivity)) return false;
-    return true;
-  });
-
   const handleNavigateToSearch = () => {
     if (onNavigateToSearch) {
       onNavigateToSearch();
@@ -151,17 +140,8 @@ const ModernDashboard = ({ userData, onPropertyClick, onNavigateToSearch }: Mode
           <div className="lg:col-span-3 space-y-8">
             <ContinueSearchCard onNavigateToSearch={handleNavigateToSearch} />
 
-            <SearchAndFilters
-              selectedStages={selectedStages}
-              selectedActions={selectedActions}
-              selectedActivities={selectedActivities}
-              onStagesChange={setSelectedStages}
-              onActionsChange={setSelectedActions}
-              onActivitiesChange={setSelectedActivities}
-            />
-
             <PropertyGrid 
-              properties={filteredProperties}
+              properties={dashboardProperties}
               onPropertyClick={onPropertyClick}
             />
           </div>

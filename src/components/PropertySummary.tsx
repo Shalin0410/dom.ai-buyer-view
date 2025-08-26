@@ -31,7 +31,7 @@ export const PropertySummary: React.FC<PropertySummaryProps> = ({ buyerId }) => 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'researching': return 'bg-blue-100 text-blue-800';
-      case 'viewing': return 'bg-yellow-100 text-yellow-800';
+      case 'viewing': return 'bg-blue-100 text-blue-800';
       case 'offer_submitted': return 'bg-orange-100 text-orange-800';
       case 'under_contract': return 'bg-purple-100 text-purple-800';
       case 'in_escrow': return 'bg-indigo-100 text-indigo-800';
@@ -44,7 +44,7 @@ export const PropertySummary: React.FC<PropertySummaryProps> = ({ buyerId }) => 
   const getStageColor = (stage: string) => {
     switch (stage) {
       case 'initial_research': return 'bg-blue-50 text-blue-700';
-      case 'active_search': return 'bg-yellow-50 text-yellow-700';
+      case 'active_search': return 'bg-blue-50 text-blue-700';
       case 'offer_negotiation': return 'bg-orange-50 text-orange-700';
       case 'under_contract': return 'bg-purple-50 text-purple-700';
       case 'closing': return 'bg-green-50 text-green-700';

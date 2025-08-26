@@ -85,7 +85,6 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
     { id: 'process', label: 'Process' },
     { id: 'action-items', label: 'Action Items' },
     { id: 'financials', label: 'Net Sheet' },
-    { id: 'ai-review', label: 'AI Review' },
     { id: 'communication', label: 'Communication' }
   ];
 
@@ -93,7 +92,7 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
     switch (priority) {
       case 'urgent': return 'bg-red-500';
       case 'high': return 'bg-orange-500';
-      case 'medium': return 'bg-yellow-500';
+      case 'medium': return 'bg-blue-500';
       case 'low': return 'bg-blue-500';
       default: return 'bg-gray-500';
     }
@@ -269,7 +268,7 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
                         <Badge className={`text-xs px-2 py-1 ${
                           item.priority === 'urgent' ? 'bg-red-100 text-red-800' :
                           item.priority === 'high' ? 'bg-orange-100 text-orange-800' :
-                          item.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                          item.priority === 'medium' ? 'bg-blue-100 text-blue-800' :
                           'bg-gray-100 text-gray-600'
                         }`}>
                           {item.priority}
@@ -345,47 +344,7 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
             </Card>
           </section>
 
-          {/* AI Review Section */}
-          <section id="ai-review" className="space-y-6">
-            <h2 className="text-xl font-bold text-gray-900">AI Review</h2>
-            
-            <Card className="border border-gray-200 shadow-lg bg-white/80 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2 text-gray-900 text-lg">
-                  <Bot size={20} />
-                  <span>Disclosure Analysis</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="border border-green-200 rounded-lg p-4 shadow-sm">
-                  <h4 className="font-semibold text-gray-900 mb-2 text-sm">Overall Assessment: Good</h4>
-                  <p className="text-gray-700 text-xs">
-                    This property shows well-maintained condition with standard disclosures. No major red flags identified.
-                  </p>
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="border-l-4 border-red-400 pl-4">
-                    <h5 className="font-semibold text-gray-900 mb-2 text-sm">Points to Discuss</h5>
-                    <ul className="text-gray-700 space-y-1 text-xs">
-                      <li>• HVAC system is 8 years old - consider inspection timeline</li>
-                      <li>• Minor foundation settling noted - typical for area</li>
-                      <li>• Roof replaced 3 years ago - good condition</li>
-                    </ul>
-                  </div>
-                  
-                  <div className="border-l-4 border-green-400 pl-4">
-                    <h5 className="font-semibold text-gray-900 mb-2 text-sm">Positive Highlights</h5>
-                    <ul className="text-gray-700 space-y-1 text-xs">
-                      <li>• Recently updated electrical system</li>
-                      <li>• No history of major repairs</li>
-                      <li>• Energy-efficient windows installed</li>
-                    </ul>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </section>
+
 
           {/* Communication Section */}
           <section id="communication" className="space-y-6">
