@@ -23,8 +23,8 @@
     --muted: 232 236 242;
     --muted-foreground: 46 46 46; /* #2E2E2E */
 
-    --accent: 244 124 109; /* #F47C6D */
-    --accent-foreground: 232 236 242; /* #E8ECF2 */
+    --accent: 59 130 246; /* #3B82F6 - Blue 500 */
+    --accent-foreground: 255 255 255; /* #FFFFFF */
 
     --destructive: 244 124 109;
     --destructive-foreground: 232 236 242; /* #E8ECF2 */
@@ -58,8 +58,8 @@
     --secondary-foreground: 232 236 242;
     --muted: 87 198 168;
     --muted-foreground: 232 236 242;
-    --accent: 244 124 109;
-    --accent-foreground: 232 236 242;
+    --accent: 59 130 246; /* #3B82F6 - Blue 500 */
+    --accent-foreground: 255 255 255; /* #FFFFFF */
     --destructive: 244 124 109;
     --destructive-foreground: 232 236 242;
     --border: 87 198 168;
@@ -82,7 +82,7 @@
   }
 
   body {
-    @apply bg-gradient-to-br from-[#E8ECF2] via-white to-[#F47C6D]/10 text-[#2E2E2E];
+    @apply bg-gradient-to-br from-[#E8ECF2] via-white to-blue-500/10 text-[#2E2E2E];
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   }
 }
@@ -93,7 +93,7 @@
   }
   
   .button-primary {
-    @apply bg-gradient-to-r from-[#F47C6D] to-[#F47C6D]/80 text-[#E8ECF2] rounded-xl px-6 py-3 font-medium shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105;
+    @apply bg-gradient-to-r from-blue-600 to-blue-600/80 text-white rounded-xl px-6 py-3 font-medium shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105;
   }
   
   .button-secondary {
@@ -115,7 +115,7 @@
   }
   
   .gradient-accent {
-    background: linear-gradient(135deg, #F47C6D 0%, #57C6A8 100%);
+    background: linear-gradient(135deg, #3B82F6 0%, #57C6A8 100%);
   }
   
   .text-shadow {

@@ -78,7 +78,7 @@ export function QuestionSelection({ onQuestionSelect, onCategorySelect }: Questi
         {questionCategories.map((category) => (
           <Card 
             key={category.id}
-            className="cursor-pointer hover:shadow-lg transition-shadow bg-yellow-50 border-yellow-200"
+            className="cursor-pointer hover:shadow-lg transition-shadow bg-blue-50 border-blue-200"
             onClick={() => onCategorySelect(category)}
           >
             <CardContent className="p-6">

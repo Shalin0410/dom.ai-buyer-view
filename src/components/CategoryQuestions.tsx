@@ -19,7 +19,7 @@ export function CategoryQuestions({ category, onQuestionSelect, onBack }: Catego
           <Button
             key={index}
             variant="outline"
-            className="w-full justify-start text-left h-auto p-4 bg-yellow-50 border-yellow-200 hover:bg-yellow-100 hover:border-yellow-300"
+            className="w-full justify-start text-left h-auto p-4 bg-blue-50 border-blue-200 hover:bg-blue-100 hover:border-blue-300"
             onClick={() => onQuestionSelect(question)}
           >
             <span className="text-gray-800 font-medium">{question}</span>

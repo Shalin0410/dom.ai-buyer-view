@@ -32,6 +32,8 @@ export interface DataService {
   addPropertyActivity(activity: Omit<PropertyActivity, 'id' | 'created_at'>): Promise<ApiResponse<PropertyActivity>>;
   getPropertySummary(buyerId: string): Promise<ApiResponse<PropertySummary>>;
   getActionItems(buyerId: string): Promise<ApiResponse<ActionItem[]>>;
+  createActionItem(actionItem: Omit<ActionItem, 'id' | 'last_activity_at'>): Promise<ApiResponse<ActionItem>>;
+  updateActionItem(actionItemId: string, updates: Partial<ActionItem>): Promise<ApiResponse<ActionItem>>;
   
   // Buyer-Property relationship operations
   addPropertyToBuyer(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;
@@ -69,6 +71,9 @@ export abstract class BaseDataService implements DataService {
   abstract getPropertyActivities(propertyId: string): Promise<ApiResponse<PropertyActivity[]>>;
   abstract addPropertyActivity(activity: Omit<PropertyActivity, 'id' | 'created_at'>): Promise<ApiResponse<PropertyActivity>>;
   abstract getPropertySummary(buyerId: string): Promise<ApiResponse<PropertySummary>>;
+  abstract getActionItems(buyerId: string): Promise<ApiResponse<ActionItem[]>>;
+  abstract createActionItem(actionItem: Omit<ActionItem, 'id' | 'last_activity_at'>): Promise<ApiResponse<ActionItem>>;
+  abstract updateActionItem(actionItemId: string, updates: Partial<ActionItem>): Promise<ApiResponse<ActionItem>>;
   
   // Buyer-Property relationship operations
   abstract addPropertyToBuyer(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;

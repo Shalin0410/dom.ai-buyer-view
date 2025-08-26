@@ -8,12 +8,15 @@ import { Button } from '@/components/ui/button';
 import { useActionItems } from '@/hooks/useActionItems';
 import { useBuyer } from '@/hooks/useBuyer';
 import { useAuth } from '@/contexts/AuthContext';
+import AddTaskDialog from './AddTaskDialog';
+import { dataService } from '@/services';
 
 const ActionItems = () => {
   const [checkedItems, setCheckedItems] = useState<string[]>([]);
+  const [updatingItems, setUpdatingItems] = useState<string[]>([]);
   const { user } = useAuth();
   const { data: buyer } = useBuyer(user?.email || '');
-  const { actionItems, loading, error } = useActionItems(buyer?.id);
+  const { actionItems, loading, error, refreshActionItems } = useActionItems(buyer?.id);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -22,7 +25,7 @@ const ActionItems = () => {
       case 'high':
         return 'bg-orange-100 text-orange-700 border-orange-200';
       case 'medium':
-        return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+        return 'bg-blue-100 text-blue-700 border-blue-200';
       default:
         return 'bg-gray-100 text-gray-700 border-gray-200';
     }
@@ -41,11 +44,45 @@ const ActionItems = () => {
     }
   };
 
-  const handleCheckChange = (itemId: string, checked: boolean) => {
+  const handleCheckChange = async (itemId: string, checked: boolean) => {
+    // Optimistically update UI
     if (checked) {
       setCheckedItems([...checkedItems, itemId]);
     } else {
       setCheckedItems(checkedItems.filter(id => id !== itemId));
+    }
+
+    // Update in database
+    setUpdatingItems([...updatingItems, itemId]);
+    try {
+      const response = await dataService.updateActionItem(itemId, {
+        is_completed: checked,
+        completed_date: checked ? new Date().toISOString().split('T')[0] : '',
+        status: checked ? 'completed' : 'pending'
+      });
+
+      if (response.success) {
+        // Refresh the action items to get the latest data
+        refreshActionItems();
+      } else {
+        // Revert optimistic update if failed
+        if (checked) {
+          setCheckedItems(checkedItems.filter(id => id !== itemId));
+        } else {
+          setCheckedItems([...checkedItems, itemId]);
+        }
+        console.error('Error updating action item:', response.error);
+      }
+    } catch (error) {
+      // Revert optimistic update if failed
+      if (checked) {
+        setCheckedItems(checkedItems.filter(id => id !== itemId));
+      } else {
+        setCheckedItems([...checkedItems, itemId]);
+      }
+      console.error('Error updating action item:', error);
+    } finally {
+      setUpdatingItems(updatingItems.filter(id => id !== itemId));
     }
   };
 
@@ -188,14 +225,8 @@ const ActionItems = () => {
         )}
 
         {/* Add new task button */}
-        <div className="pt-4 border-t">
-          <Button 
-            variant="ghost" 
-            className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-10"
-          >
-            <Plus size={16} className="mr-2" />
-            Add new task
-          </Button>
+        <div className="pt-6 border-t border-gray-100">
+          <AddTaskDialog onTaskAdded={refreshActionItems} />
         </div>
 
         {pendingItems.length === 0 && (

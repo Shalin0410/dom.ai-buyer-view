@@ -1,5 +1,5 @@
 // src/hooks/useChatbot.ts
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   sendChatMessage, 
@@ -51,33 +51,46 @@ export function useChatbot(): ChatbotState & ChatbotActions {
     error: null
   });
 
-  // Load user's conversations on mount
-  useEffect(() => {
-    if (user) {
-      refreshConversations();
-    }
-  }, [user]);
+  const isFirstLoadRef = useRef(true);
+  const isLoadingConversationsRef = useRef(false);
 
   const refreshConversations = useCallback(async () => {
-    if (!user) return;
+    if (!user || isLoadingConversationsRef.current) return;
 
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
+    isLoadingConversationsRef.current = true;
+
+    // Only show loading on first load to prevent flickering
+    if (isFirstLoadRef.current) {
+      setState(prev => ({ ...prev, isLoading: true, error: null }));
+    } else {
+      setState(prev => ({ ...prev, error: null }));
+    }
     
     try {
-      const conversations = await getUserConversations();
+      const conversations = await getUserConversations(user.id);
       setState(prev => ({ 
         ...prev, 
         conversations, 
         isLoading: false 
       }));
+      isFirstLoadRef.current = false;
     } catch (error) {
       setState(prev => ({ 
         ...prev, 
         error: error instanceof Error ? error.message : 'Failed to load conversations',
         isLoading: false 
       }));
+    } finally {
+      isLoadingConversationsRef.current = false;
     }
   }, [user]);
+
+  // Load user's conversations on mount and when user changes
+  useEffect(() => {
+    if (user) {
+      refreshConversations();
+    }
+  }, [user?.id]); // Only depend on user.id, not the entire user object
 
   const loadConversation = useCallback(async (conversationId: string) => {
     if (!user) return;
@@ -122,43 +135,95 @@ export function useChatbot(): ChatbotState & ChatbotActions {
     try {
       let conversationId: string;
       let conversationHistory: ChatMessage[] = [];
+      
+      // Create temporary user message ID for immediate display
+      const tempUserMessageId = 'temp-user-' + Date.now();
 
       // If no current conversation, create one now that user is actually sending a message
       if (!state.currentConversation) {
         console.log('[Chatbot] Creating actual database conversation for first message');
-        conversationId = await createConversation();
+        conversationId = await createConversation(undefined, user.id);
         const newConversation = await getConversation(conversationId);
+        
+        // Add the user message immediately to the UI
+        const userMessage = {
+          id: tempUserMessageId,
+          conversation_id: conversationId,
+          role: 'user' as const,
+          content: content,
+          sources: [],
+          tokens_used: null,
+          created_at: new Date().toISOString()
+        };
+        
         setState(prev => ({ 
           ...prev, 
-          currentConversation: newConversation,
-          conversations: [newConversation!.conversation, ...prev.conversations]
+          currentConversation: newConversation ? {
+            ...newConversation,
+            messages: [...newConversation.messages, userMessage]
+          } : null,
+          conversations: newConversation ? [newConversation.conversation, ...prev.conversations] : prev.conversations
         }));
       } else {
         conversationId = state.currentConversation.conversation.id;
         conversationHistory = convertMessagesToChatFormat(state.currentConversation.messages);
+        
+        // Add the user message immediately to the UI
+        const userMessage = {
+          id: tempUserMessageId,
+          conversation_id: conversationId,
+          role: 'user' as const,
+          content: content,
+          sources: [],
+          tokens_used: null,
+          created_at: new Date().toISOString()
+        };
+        
+        setState(prev => ({ 
+          ...prev, 
+          currentConversation: prev.currentConversation ? {
+            ...prev.currentConversation,
+            messages: [...prev.currentConversation.messages, userMessage]
+          } : null
+        }));
       }
 
       // Check if we should start a new conversation due to length
       if (shouldStartNewConversation(conversationHistory)) {
         console.log('Conversation getting long, starting new one...');
-        conversationId = await createConversation();
+        conversationId = await createConversation(undefined, user.id);
         conversationHistory = [];
         const newConversation = await getConversation(conversationId);
+        
+        // Add user message to new conversation
+        const userMessage = {
+          id: tempUserMessageId,
+          conversation_id: conversationId,
+          role: 'user' as const,
+          content: content,
+          sources: [],
+          tokens_used: null,
+          created_at: new Date().toISOString()
+        };
+        
         setState(prev => ({ 
           ...prev, 
-          currentConversation: newConversation,
-          conversations: [newConversation!.conversation, ...prev.conversations]
+          currentConversation: newConversation ? {
+            ...newConversation,
+            messages: [...newConversation.messages, userMessage]
+          } : null,
+          conversations: newConversation ? [newConversation.conversation, ...prev.conversations] : prev.conversations
         }));
       }
 
-      // Add user message to database
-      await addMessage(conversationId, 'user', content);
+      // Add user message to database (in background)
+      const userMessageId = await addMessage(conversationId, 'user', content);
 
       // Get AI response
       const response = await sendChatMessage(content, conversationHistory);
 
       // Add AI response to database
-      await addMessage(
+      const assistantMessageId = await addMessage(
         conversationId, 
         'assistant', 
         response.message, 
@@ -166,25 +231,62 @@ export function useChatbot(): ChatbotState & ChatbotActions {
         response.tokensUsed
       );
 
-      // Reload conversation to get updated messages
-      const updatedConversation = await getConversation(conversationId);
-      
-      // Update conversation title if it's still the default
-      if (updatedConversation && updatedConversation.conversation.title === 'New Conversation') {
-        const summary = getConversationSummary(updatedConversation.messages);
-        await updateConversationTitle(conversationId, summary);
-        updatedConversation.conversation.title = summary;
+      // Create the assistant message for immediate display
+      const assistantMessage = {
+        id: assistantMessageId,
+        conversation_id: conversationId,
+        role: 'assistant' as const,
+        content: response.message,
+        sources: response.sources || [],
+        tokens_used: response.tokensUsed,
+        created_at: new Date().toISOString()
+      };
+
+      // Update the conversation title if it's still the default
+      let finalTitle = state.currentConversation?.conversation.title || 'New Conversation';
+      if (finalTitle === 'New Conversation') {
+        const currentMessages = state.currentConversation?.messages || [];
+        const allMessages = [...currentMessages, assistantMessage];
+        finalTitle = getConversationSummary(allMessages);
+        await updateConversationTitle(conversationId, finalTitle);
       }
 
+      // Update state with the real assistant response and replace temp user message
       setState(prev => ({ 
         ...prev, 
-        currentConversation: updatedConversation,
+        currentConversation: prev.currentConversation ? {
+          conversation: {
+            ...prev.currentConversation.conversation,
+            title: finalTitle,
+            updated_at: new Date().toISOString()
+          },
+          messages: [
+            ...prev.currentConversation.messages
+              .filter(msg => msg.id !== tempUserMessageId) // Remove temp user message
+              .map(msg => msg.id === tempUserMessageId ? { ...msg, id: userMessageId } : msg), // Replace with real ID if needed
+            {
+              id: userMessageId,
+              conversation_id: conversationId,
+              role: 'user' as const,
+              content: content,
+              sources: [],
+              tokens_used: null,
+              created_at: new Date().toISOString()
+            },
+            assistantMessage
+          ]
+        } : null,
         isSending: false 
       }));
 
     } catch (error) {
+      // Remove the temporary user message on error and show error state
       setState(prev => ({ 
-        ...prev, 
+        ...prev,
+        currentConversation: prev.currentConversation ? {
+          ...prev.currentConversation,
+          messages: prev.currentConversation.messages.filter(msg => msg.id !== tempUserMessageId)
+        } : null,
         error: error instanceof Error ? error.message : 'Failed to send message',
         isSending: false 
       }));

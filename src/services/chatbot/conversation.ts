@@ -26,28 +26,31 @@ export interface ConversationWithMessages {
 }
 
 // Get all conversations for the current user
-export async function getUserConversations(): Promise<Conversation[]> {
+export async function getUserConversations(userId?: string): Promise<Conversation[]> {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('conversations')
-      .select('*')
+      .select('id, title, status, created_at, updated_at')
       .eq('status', 'active')
       .order('updated_at', { ascending: false });
 
+    // If userId is provided, filter by it, otherwise get conversations with null user_id
+    if (userId) {
+      query = query.eq('user_id', userId);
+    } else {
+      query = query.is('user_id', null);
+    }
+
+    const { data, error } = await query;
+
     if (error) {
       console.error('Error fetching conversations:', error);
-      // If the table doesn't exist (migration not applied), return empty array
-      if (error.code === '42P01') { // Table doesn't exist
-        console.warn('Conversations table not found. Please run the database migration.');
-        return [];
-      }
-      throw new Error('Failed to fetch conversations');
+      return [];
     }
 
     return data || [];
   } catch (error) {
     console.error('Error in getUserConversations:', error);
-    // Return empty array if database is not available
     return [];
   }
 }
@@ -55,44 +58,52 @@ export async function getUserConversations(): Promise<Conversation[]> {
 // Get a specific conversation with all its messages
 export async function getConversation(conversationId: string): Promise<ConversationWithMessages | null> {
   try {
-    const { data, error } = await supabase
-      .rpc('get_conversation_with_messages', { conv_id: conversationId });
+    // Get conversation details
+    const { data: conversationData, error: conversationError } = await supabase
+      .from('conversations')
+      .select('id, title, status, created_at, updated_at')
+      .eq('id', conversationId)
+      .single();
 
-    if (error) {
-      console.error('Error fetching conversation:', error);
-      // If the function doesn't exist (migration not applied), return null
-      if (error.code === '42883') { // Function doesn't exist
-        console.warn('Database functions not found. Please run the database migration.');
-        return null;
-      }
-      throw new Error('Failed to fetch conversation');
-    }
-
-    if (!data || data.length === 0) {
+    if (conversationError || !conversationData) {
+      console.error('Error fetching conversation:', conversationError);
       return null;
     }
 
-    // Transform the flat data into structured format
-    const firstRow = data[0];
+    // Get messages for this conversation
+    const { data: messagesData, error: messagesError } = await supabase
+      .from('messages')
+      .select('id, conversation_id, role, content, sources, tokens_used, created_at')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true });
+
+    if (messagesError) {
+      console.error('Error fetching messages:', messagesError);
+      return null;
+    }
+
     const conversation: Conversation = {
-      id: firstRow.conversation_id,
-      title: firstRow.conversation_title,
-      status: firstRow.conversation_status,
-      created_at: firstRow.conversation_created_at,
-      updated_at: firstRow.conversation_created_at // We'll update this
+      id: conversationData.id,
+      title: conversationData.title || 'New Conversation',
+      status: conversationData.status,
+      created_at: conversationData.created_at,
+      updated_at: conversationData.updated_at
     };
 
-    const messages: Message[] = data
-      .filter(row => row.message_id) // Filter out null messages
-      .map(row => ({
-        id: row.message_id,
-        conversation_id: row.conversation_id,
-        role: row.message_role,
-        content: row.message_content,
-        sources: row.message_sources || [],
-        tokens_used: row.message_tokens_used,
-        created_at: row.message_created_at
-      }));
+    const messages: Message[] = (messagesData || [])
+      .map(msg => ({
+        id: msg.id,
+        conversation_id: msg.conversation_id,
+        role: msg.role as 'user' | 'assistant' | 'system',
+        content: msg.content,
+        sources: msg.sources || [],
+        tokens_used: msg.tokens_used,
+        created_at: msg.created_at
+      }))
+      // Remove any potential duplicates based on message ID
+      .filter((message, index, array) => 
+        array.findIndex(m => m.id === message.id) === index
+      );
 
     return { conversation, messages };
   } catch (error) {
@@ -102,26 +113,26 @@ export async function getConversation(conversationId: string): Promise<Conversat
 }
 
 // Create a new conversation
-export async function createConversation(title?: string): Promise<string> {
+export async function createConversation(title?: string, userId?: string): Promise<string> {
   try {
     const { data, error } = await supabase
-      .rpc('create_conversation', { conv_title: title });
+      .from('conversations')
+      .insert({
+        user_id: userId || null,
+        title: title || 'New Conversation',
+        status: 'active'
+      })
+      .select('id')
+      .single();
 
     if (error) {
       console.error('Error creating conversation:', error);
-      // If the function doesn't exist (migration not applied), create a mock conversation
-      if (error.code === '42883') { // Function doesn't exist
-        console.warn('Database functions not found. Creating mock conversation.');
-        const mockId = 'mock-' + Date.now();
-        return mockId;
-      }
       throw new Error('Failed to create conversation');
     }
 
-    return data;
+    return data.id;
   } catch (error) {
     console.error('Error in createConversation:', error);
-    // Return a mock ID if database is not available
     return 'mock-' + Date.now();
   }
 }
@@ -135,29 +146,37 @@ export async function addMessage(
   tokensUsed?: number
 ): Promise<string> {
   try {
+    // Insert message directly into the messages table
     const { data, error } = await supabase
-      .rpc('add_message', {
-        conv_id: conversationId,
-        msg_role: role,
-        msg_content: content,
-        msg_sources: sources,
-        msg_tokens_used: tokensUsed
-      });
+      .from('messages')
+      .insert({
+        conversation_id: conversationId,
+        role: role,
+        content: content,
+        sources: sources,
+        tokens_used: tokensUsed
+      })
+      .select('id')
+      .single();
 
     if (error) {
       console.error('Error adding message:', error);
-      // If the function doesn't exist (migration not applied), return a mock ID
-      if (error.code === '42883') { // Function doesn't exist
-        console.warn('Database functions not found. Message not saved.');
-        return 'mock-msg-' + Date.now();
-      }
       throw new Error('Failed to add message');
     }
 
-    return data;
+    // Update conversation timestamp
+    const { error: updateError } = await supabase
+      .from('conversations')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', conversationId);
+      
+    if (updateError) {
+      console.warn('Failed to update conversation timestamp:', updateError);
+    }
+
+    return data.id;
   } catch (error) {
     console.error('Error in addMessage:', error);
-    // Return a mock ID if database is not available
     return 'mock-msg-' + Date.now();
   }
 }
@@ -167,21 +186,15 @@ export async function updateConversationTitle(conversationId: string, title: str
   try {
     const { error } = await supabase
       .from('conversations')
-      .update({ title })
+      .update({ title, updated_at: new Date().toISOString() })
       .eq('id', conversationId);
 
     if (error) {
       console.error('Error updating conversation title:', error);
-      // If the table doesn't exist (migration not applied), just log and continue
-      if (error.code === '42P01') { // Table doesn't exist
-        console.warn('Conversations table not found. Title not updated.');
-        return;
-      }
       throw new Error('Failed to update conversation title');
     }
   } catch (error) {
     console.error('Error in updateConversationTitle:', error);
-    // Continue without updating if database is not available
   }
 }
 
@@ -190,21 +203,15 @@ export async function archiveConversation(conversationId: string): Promise<void>
   try {
     const { error } = await supabase
       .from('conversations')
-      .update({ status: 'archived' })
+      .update({ status: 'archived', updated_at: new Date().toISOString() })
       .eq('id', conversationId);
 
     if (error) {
       console.error('Error archiving conversation:', error);
-      // If the table doesn't exist (migration not applied), just log and continue
-      if (error.code === '42P01') { // Table doesn't exist
-        console.warn('Conversations table not found. Conversation not archived.');
-        return;
-      }
       throw new Error('Failed to archive conversation');
     }
   } catch (error) {
     console.error('Error in archiveConversation:', error);
-    // Continue without archiving if database is not available
   }
 }
 
@@ -213,21 +220,15 @@ export async function deleteConversation(conversationId: string): Promise<void> 
   try {
     const { error } = await supabase
       .from('conversations')
-      .update({ status: 'deleted' })
+      .update({ status: 'deleted', updated_at: new Date().toISOString() })
       .eq('id', conversationId);
 
     if (error) {
       console.error('Error deleting conversation:', error);
-      // If the table doesn't exist (migration not applied), just log and continue
-      if (error.code === '42P01') { // Table doesn't exist
-        console.warn('Conversations table not found. Conversation not deleted.');
-        return;
-      }
       throw new Error('Failed to delete conversation');
     }
   } catch (error) {
     console.error('Error in deleteConversation:', error);
-    // Continue without deleting if database is not available
   }
 }
 
