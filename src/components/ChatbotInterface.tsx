@@ -14,7 +14,7 @@ import { formatDistanceToNow } from 'date-fns';
 type ViewMode = 'chat';
 
 // Function to parse markdown formatting with link support
-const parseMarkdown = (text: string) => {
+const parseMarkdown = (text: string, linkCitations: Array<{ text: string; url: string }> = []) => {
   // First, extract links and replace them with placeholders
   const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
   const links: Array<{ text: string; url: string }> = [];
@@ -29,24 +29,32 @@ const parseMarkdown = (text: string) => {
   const parts = textWithPlaceholders.split(/(\*\*.*?\*\*)/g);
   
   return parts.map((part, index) => {
-    // Check if this part is a link placeholder
+    // Check if this part is a link placeholder - replace with numbered citation
     const linkMatch = part.match(/__LINK_(\d+)__/);
     if (linkMatch) {
       const linkIndex = parseInt(linkMatch[1]);
       const link = links[linkIndex];
+      
+      // Find the citation number for this link
+      const citationIndex = linkCitations.findIndex(citation => 
+        citation.url === link.url || citation.text === link.text
+      );
+      
+             if (citationIndex !== -1) {
+         return (
+           <span key={index} className="inline-flex items-center">
+             <span className="text-xs text-gray-600 align-sub">
+               [{citationIndex + 1}]
+             </span>
+           </span>
+         );
+       }
+      
+      // Fallback if citation not found
       return (
-        <a
-          key={index}
-          href={link.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-blue-600 hover:text-blue-800 underline inline-flex items-center gap-1"
-        >
+        <span key={index} className="font-medium text-gray-700">
           {link.text}
-          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-          </svg>
-        </a>
+        </span>
       );
     }
     
@@ -511,35 +519,114 @@ const ChatbotInterface = () => {
                                 : 'bg-gray-100 border border-gray-200 text-gray-900'
                             }`}
                           >
-                            <div className="whitespace-pre-wrap">
-                              {message.role === 'user' ? message.content : parseMarkdown(message.content)}
-                            </div>
+                                                         <div className="whitespace-pre-wrap">
+                               {message.role === 'user' ? message.content : (() => {
+                                 // Extract links from the message content for citations
+                                 const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+                                 const textLinks: Array<{ text: string; url: string }> = [];
+                                 let match;
+                                 
+                                 while ((match = linkRegex.exec(message.content)) !== null) {
+                                   textLinks.push({
+                                     text: match[1],
+                                     url: match[2]
+                                   });
+                                 }
+                                 
+                                 // Combine sources from API and links from text, removing duplicates
+                                 const allSources: Array<{ title: string; url?: string; sourceType?: string }> = [...(message.sources || [])];
+                                 
+                                 textLinks.forEach(textLink => {
+                                   // Check if this link is already in sources (by URL)
+                                   const isDuplicate = allSources.some(source => 
+                                     source.url === textLink.url || 
+                                     source.title === textLink.title
+                                   );
+                                   
+                                   if (!isDuplicate) {
+                                     allSources.push({
+                                       title: textLink.title,
+                                       url: textLink.url,
+                                       sourceType: 'online'
+                                     });
+                                   }
+                                 });
+                                 
+                                 // Create citation array for parseMarkdown
+                                 const linkCitations = allSources
+                                   .filter(source => source.url)
+                                   .map(source => ({
+                                     text: source.title || '',
+                                     url: source.url || ''
+                                   }));
+                                 
+                                 return parseMarkdown(message.content, linkCitations);
+                               })()}
+                             </div>
                             
-                            {message.sources && message.sources.length > 0 && message.sources.some(source => source.url) && (
-                              <div className="mt-3 pt-3 border-t border-gray-200">
-                                <p className="text-xs font-medium text-gray-700 mb-2">Sources:</p>
-                                <div className="space-y-1">
-                                  {message.sources.filter(source => source.url).map((source, index) => (
-                                    <div key={`${message.id}-source-${index}`} className="flex items-start gap-2">
-                                      <span className="text-xs font-semibold text-gray-600 min-w-[16px] mt-0.5">
-                                        {index + 1}.
-                                      </span>
-                                      <a
-                                        href={source.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-xs text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1 flex-1"
-                                      >
-                                        <span className="truncate">{source.title}</span>
-                                        <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                        </svg>
-                                      </a>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
+                                                         {(() => {
+                               // Extract links from the message content
+                               const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+                               const textLinks: Array<{ title: string; url: string }> = [];
+                               let match;
+                               
+                               while ((match = linkRegex.exec(message.content)) !== null) {
+                                 textLinks.push({
+                                   title: match[1],
+                                   url: match[2]
+                                 });
+                               }
+                               
+                               // Combine sources from API and links from text, removing duplicates
+                               const allSources: Array<{ title: string; url?: string; sourceType?: string }> = [...(message.sources || [])];
+                               
+                               textLinks.forEach(textLink => {
+                                 // Check if this link is already in sources (by URL)
+                                 const isDuplicate = allSources.some(source => 
+                                   source.url === textLink.url || 
+                                   source.title === textLink.title
+                                 );
+                                 
+                                 if (!isDuplicate) {
+                                   allSources.push({
+                                     title: textLink.title,
+                                     url: textLink.url,
+                                     sourceType: 'online'
+                                   });
+                                 }
+                               });
+                               
+                               // Only show sources section if there are sources with URLs
+                               if (allSources.length > 0 && allSources.some(source => source.url)) {
+                                 return (
+                                   <div className="mt-3 pt-3 border-t border-gray-200">
+                                     <p className="text-xs font-medium text-gray-700 mb-2">Sources:</p>
+                                     <div className="space-y-1">
+                                       {allSources.filter(source => source.url).map((source, index) => (
+                                         <div key={`${message.id}-source-${index}`} className="flex items-start gap-2">
+                                           <span className="text-xs font-semibold text-gray-600 min-w-[16px] mt-0.5">
+                                             {index + 1}.
+                                           </span>
+                                           <a
+                                             href={source.url}
+                                             target="_blank"
+                                             rel="noopener noreferrer"
+                                             className="text-xs text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1 flex-1"
+                                           >
+                                             <span className="truncate">{source.title}</span>
+                                             <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                             </svg>
+                                           </a>
+                                         </div>
+                                       ))}
+                                     </div>
+                                   </div>
+                                 );
+                               }
+                               
+                               return null;
+                             })()}
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
                             {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
