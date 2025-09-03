@@ -57,7 +57,7 @@ export const PropertyFilters: React.FC<PropertyFiltersProps> = ({
       const actionRequired = [
         { value: 'schedule_viewing' as ActionRequired, label: 'Schedule Viewing' },
         { value: 'submit_offer' as ActionRequired, label: 'Submit Offer' },
-        { value: 'review_documents' as ActionRequired, label: 'Review Documents' },
+        { value: 'review_disclosures_reports' as ActionRequired, label: 'Review Disclosures & Reports' },
         { value: 'inspection' as ActionRequired, label: 'Inspection' },
         { value: 'appraisal' as ActionRequired, label: 'Appraisal' },
         { value: 'final_walkthrough' as ActionRequired, label: 'Final Walkthrough' },

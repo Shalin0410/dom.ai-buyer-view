@@ -68,7 +68,7 @@ const PropertyMatch = () => {
       baths: property.bathrooms,
       sqft: property.square_feet,
       fitScore: Math.round(score),
-      image: primaryPhoto?.url || '/placeholder-property.jpg',
+      image: primaryPhoto?.url || '/lovable-uploads/473b81b4-4a7f-4522-9fc2-56e9031541f0.png',
       highlights: highlights.slice(0, 3)
     };
   }).filter(property => searchExecuted).sort((a, b) => b.fitScore - a.fitScore);
@@ -196,8 +196,14 @@ const PropertyMatch = () => {
             <div className="aspect-[16/9] bg-gray-200 relative">
               <img 
                 src={property.image} 
-                alt={property.address}
+                alt={`${property.address} property image`}
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  if (target.src !== '/lovable-uploads/473b81b4-4a7f-4522-9fc2-56e9031541f0.png') {
+                    target.src = '/lovable-uploads/473b81b4-4a7f-4522-9fc2-56e9031541f0.png';
+                  }
+                }}
               />
               <div className="absolute top-3 right-3">
                 <Badge className="bg-green-600 hover:bg-green-600">

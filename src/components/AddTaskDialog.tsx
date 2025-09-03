@@ -46,7 +46,7 @@ const AddTaskDialog = ({ onTaskAdded }: AddTaskDialogProps) => {
         property_id: formData.property_id === 'none' ? '' : formData.property_id,
         title: formData.title.trim(),
         description: formData.description.trim(),
-        action_required: 'review_documents', // Default action type for custom tasks
+        action_required: 'review_disclosures_reports', // Default action type for custom tasks
         status: 'researching' as const,
         buying_stage: 'initial_research' as const,
         priority: formData.priority as 'low' | 'medium' | 'high' | 'urgent',

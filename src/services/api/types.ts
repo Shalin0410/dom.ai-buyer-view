@@ -40,7 +40,7 @@ export type BuyingStage =
 export type ActionRequired = 
   | 'schedule_viewing'
   | 'submit_offer'
-  | 'review_documents'
+  | 'review_disclosures_reports'
   | 'inspection'
   | 'appraisal'
   | 'final_walkthrough'

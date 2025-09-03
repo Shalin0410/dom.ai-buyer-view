@@ -84,11 +84,11 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({ property, onClick, m
         icon: DollarSign,
         label: 'Submit Offer'
       },
-      'review_documents': {
+      'review_disclosures_reports': {
         bg: 'bg-orange-50 border-orange-200',
         text: 'text-orange-700',
         icon: FileText,
-        label: 'Review Documents'
+        label: 'Review Disclosures & Reports'
       },
       'inspection': {
         bg: 'bg-purple-50 border-purple-200',

@@ -155,8 +155,14 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
                 <div className="aspect-video bg-gray-100 relative">
                   <img 
                     src={property.photos?.[0]?.url || '/lovable-uploads/473b81b4-4a7f-4522-9fc2-56e9031541f0.png'} 
-                    alt="Property" 
+                    alt={`${property.address} property main image`} 
                     className="w-full h-full object-cover" 
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      if (target.src !== '/lovable-uploads/473b81b4-4a7f-4522-9fc2-56e9031541f0.png') {
+                        target.src = '/lovable-uploads/473b81b4-4a7f-4522-9fc2-56e9031541f0.png';
+                      }
+                    }}
                   />
                   <div className="absolute top-4 left-4">
                     <Badge className="bg-gray-900 text-white text-xs px-2 py-1 shadow-md">
@@ -203,30 +209,6 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
                   </CardContent>
                 </Card>
 
-                {/* Why Suitable Section */}
-                <Card className="border border-gray-200 shadow-lg bg-white/80 backdrop-blur-sm">
-                  <CardContent className="p-6 space-y-4">
-                    <div>
-                      <div className="flex items-start space-x-2 mb-3">
-                        <Target size={16} className="text-blue-500 mt-0.5 flex-shrink-0" />
-                        <h4 className="text-sm font-semibold text-gray-900">Why this home suits you</h4>
-                      </div>
-                      <p className="text-xs text-gray-700 leading-relaxed mb-4">
-                        {property.whySuitable}
-                      </p>
-                    </div>
-
-                    <div>
-                      <div className="flex items-start space-x-2 mb-3">
-                        <TrendingUp size={16} className="text-green-500 mt-0.5 flex-shrink-0" />
-                        <h4 className="text-sm font-semibold text-gray-900">Value Potential</h4>
-                      </div>
-                      <p className="text-xs text-gray-700 leading-relaxed">
-                        {property.upsellValue}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
             </div>
           </section>
@@ -234,7 +216,7 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
           {/* Process Section */}
           <section id="process" className="space-y-6">
             <h2 className="text-xl font-bold text-gray-900">Buying Process</h2>
-            <ProgressTracker showDetailed={true} />
+            <ProgressTracker showDetailed={true} property={property} />
           </section>
 
           {/* Action Items Section */}

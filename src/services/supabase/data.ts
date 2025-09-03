@@ -1349,7 +1349,7 @@ export class SupabaseDataService extends BaseDataService {
           status: actionItem.status || 'pending',
           priority: actionItem.priority || 'medium',
           due_date: actionItem.due_date,
-          phase: actionItem.buying_stage === 'initial_research' || actionItem.buying_stage === 'active_search' ? 'pre_escrow' : 'escrow',
+          phase: actionItem.buying_stage === 'initial_research' || actionItem.buying_stage === 'active_search' ? 'pre-escrow' : 'escrow',
           item_order: 999, // Custom items go to the end
           custom_task: actionItem.title, // Mark as custom task
           organization_id: buyerData.organization_id,
