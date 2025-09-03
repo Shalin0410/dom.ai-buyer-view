@@ -207,7 +207,10 @@ const ProfilePage = ({ userData }: ProfilePageProps) => {
             <div>
               <p className="text-xs text-gray-600">Budget Status</p>
               <div className="flex items-center gap-2">
-                <Badge variant={profileData.budgetApproved ? 'default' : 'secondary'} className="text-xs">
+                <Badge 
+                  variant={profileData.budgetApproved ? 'outline' : 'secondary'} 
+                  className={`text-xs ${profileData.budgetApproved ? 'bg-green-50 text-green-700 border-green-200' : ''}`}
+                >
                   {profileData.budgetApproved ? 'Pre-approved' : 'Not pre-approved'}
                 </Badge>
                 {profileData.budgetApproved && profileData.preApprovalAmount && (

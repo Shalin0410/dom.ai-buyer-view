@@ -138,7 +138,7 @@ export type Database = {
           property_type: 'single_family' | 'condo' | 'townhouse' | 'multi_family' | 'other';
           status: 'researching' | 'viewing' | 'offer_submitted' | 'under_contract' | 'in_escrow' | 'closed' | 'withdrawn';
           buying_stage: 'initial_research' | 'active_search' | 'offer_negotiation' | 'under_contract' | 'closing';
-          action_required: 'schedule_viewing' | 'submit_offer' | 'review_documents' | 'inspection' | 'appraisal' | 'final_walkthrough' | 'none';
+          action_required: 'schedule_viewing' | 'submit_offer' | 'review_disclosures_reports' | 'inspection' | 'appraisal' | 'final_walkthrough' | 'none';
           mls_number: string | null;
           listing_url: string | null;
           notes: string | null;
@@ -162,7 +162,7 @@ export type Database = {
           property_type: 'single_family' | 'condo' | 'townhouse' | 'multi_family' | 'other';
           status: 'researching' | 'viewing' | 'offer_submitted' | 'under_contract' | 'in_escrow' | 'closed' | 'withdrawn';
           buying_stage: 'initial_research' | 'active_search' | 'offer_negotiation' | 'under_contract' | 'closing';
-          action_required: 'schedule_viewing' | 'submit_offer' | 'review_documents' | 'inspection' | 'appraisal' | 'final_walkthrough' | 'none';
+          action_required: 'schedule_viewing' | 'submit_offer' | 'review_disclosures_reports' | 'inspection' | 'appraisal' | 'final_walkthrough' | 'none';
           mls_number?: string | null;
           listing_url?: string | null;
           notes?: string | null;
@@ -186,7 +186,7 @@ export type Database = {
           property_type?: 'single_family' | 'condo' | 'townhouse' | 'multi_family' | 'other';
           status?: 'researching' | 'viewing' | 'offer_submitted' | 'under_contract' | 'in_escrow' | 'closed' | 'withdrawn';
           buying_stage?: 'initial_research' | 'active_search' | 'offer_negotiation' | 'under_contract' | 'closing';
-          action_required?: 'schedule_viewing' | 'submit_offer' | 'review_documents' | 'inspection' | 'appraisal' | 'final_walkthrough' | 'none';
+          action_required?: 'schedule_viewing' | 'submit_offer' | 'review_disclosures_reports' | 'inspection' | 'appraisal' | 'final_walkthrough' | 'none';
           mls_number?: string | null;
           listing_url?: string | null;
           notes?: string | null;
@@ -202,7 +202,7 @@ export type Database = {
           property_id: string;
           status: 'researching' | 'viewing' | 'offer_submitted' | 'under_contract' | 'in_escrow' | 'closed' | 'withdrawn';
           buying_stage: 'initial_research' | 'active_search' | 'offer_negotiation' | 'under_contract' | 'closing';
-          action_required: 'schedule_viewing' | 'submit_offer' | 'review_documents' | 'inspection' | 'appraisal' | 'final_walkthrough' | 'none';
+          action_required: 'schedule_viewing' | 'submit_offer' | 'review_disclosures_reports' | 'inspection' | 'appraisal' | 'final_walkthrough' | 'none';
           notes: string | null;
           purchase_price: number | null;
           offer_date: string | null;
@@ -216,7 +216,7 @@ export type Database = {
           property_id: string;
           status?: 'researching' | 'viewing' | 'offer_submitted' | 'under_contract' | 'in_escrow' | 'closed' | 'withdrawn';
           buying_stage?: 'initial_research' | 'active_search' | 'offer_negotiation' | 'under_contract' | 'closing';
-          action_required?: 'schedule_viewing' | 'submit_offer' | 'review_documents' | 'inspection' | 'appraisal' | 'final_walkthrough' | 'none';
+          action_required?: 'schedule_viewing' | 'submit_offer' | 'review_disclosures_reports' | 'inspection' | 'appraisal' | 'final_walkthrough' | 'none';
           notes?: string | null;
           purchase_price?: number | null;
           offer_date?: string | null;
@@ -230,7 +230,7 @@ export type Database = {
           property_id?: string;
           status?: 'researching' | 'viewing' | 'offer_submitted' | 'under_contract' | 'in_escrow' | 'closed' | 'withdrawn';
           buying_stage?: 'initial_research' | 'active_search' | 'offer_negotiation' | 'under_contract' | 'closing';
-          action_required?: 'schedule_viewing' | 'submit_offer' | 'review_documents' | 'inspection' | 'appraisal' | 'final_walkthrough' | 'none';
+          action_required?: 'schedule_viewing' | 'submit_offer' | 'review_disclosures_reports' | 'inspection' | 'appraisal' | 'final_walkthrough' | 'none';
           notes?: string | null;
           purchase_price?: number | null;
           offer_date?: string | null;
@@ -311,7 +311,7 @@ export type Database = {
       person_role: "buyer" | "agent" | "other";
       property_status: "researching" | "viewing" | "offer_submitted" | "under_contract" | "in_escrow" | "closed" | "withdrawn";
       property_buying_stage: "initial_research" | "active_search" | "offer_negotiation" | "under_contract" | "closing";
-      property_action_required: "schedule_viewing" | "submit_offer" | "review_documents" | "inspection" | "appraisal" | "final_walkthrough" | "none";
+      property_action_required: "schedule_viewing" | "submit_offer" | "review_disclosures_reports" | "inspection" | "appraisal" | "final_walkthrough" | "none";
       property_type: "single_family" | "condo" | "townhouse" | "multi_family" | "other";
     };
   };

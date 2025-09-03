@@ -51,7 +51,7 @@ const ModernDashboard = ({ userData, onPropertyClick, onNavigateToSearch }: Mode
       const getActionNeeded = (actionRequired: string) => {
         switch (actionRequired) {
           case 'schedule_viewing': return 'tour_scheduled';
-          case 'review_documents': return 'disclosure_review';
+          case 'review_disclosures_reports': return 'disclosure_review';
           case 'submit_offer': return 'offer_deadline';
           case 'final_walkthrough': return 'final_review';
           default: return 'tour_scheduled';
@@ -74,7 +74,7 @@ const ModernDashboard = ({ userData, onPropertyClick, onNavigateToSearch }: Mode
         beds: property.bedrooms,
         baths: property.bathrooms,
         sqft: property.square_feet || 0,
-        image: primaryPhoto?.url || '/placeholder.svg',
+        image: primaryPhoto?.url || '/lovable-uploads/473b81b4-4a7f-4522-9fc2-56e9031541f0.png',
         status: getDashboardStatus(property.status),
         currentStage: getCurrentStage(property.buying_stage),
         actionNeeded: getActionNeeded(property.action_required),

@@ -147,7 +147,7 @@ export const PropertyDetail: React.FC<PropertyDetailProps> = ({ propertyId, onBa
     const configs = {
       'schedule_viewing': { icon: Eye, color: 'text-blue-700', bg: 'bg-blue-50', label: 'Schedule Viewing' },
       'submit_offer': { icon: DollarSign, color: 'text-green-700', bg: 'bg-green-50', label: 'Submit Offer' },
-      'review_documents': { icon: FileText, color: 'text-orange-700', bg: 'bg-orange-50', label: 'Review Documents' },
+      'review_disclosures_reports': { icon: FileText, color: 'text-orange-700', bg: 'bg-orange-50', label: 'Review Disclosures & Reports' },
       'inspection': { icon: Home, color: 'text-purple-700', bg: 'bg-purple-50', label: 'Inspection' },
       'appraisal': { icon: TrendingUp, color: 'text-indigo-700', bg: 'bg-indigo-50', label: 'Appraisal' },
       'final_walkthrough': { icon: Eye, color: 'text-amber-700', bg: 'bg-amber-50', label: 'Final Walkthrough' }

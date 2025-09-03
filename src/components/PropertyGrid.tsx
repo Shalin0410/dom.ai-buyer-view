@@ -70,8 +70,14 @@ const PropertyGrid = ({ properties, onPropertyClick }: PropertyGridProps) => {
                 <div className="relative w-full h-56 bg-gray-200 overflow-hidden">
                   <img 
                     src={property.image} 
-                    alt="Property"
+                    alt={`${property.address} property image`}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      if (target.src !== '/lovable-uploads/473b81b4-4a7f-4522-9fc2-56e9031541f0.png') {
+                        target.src = '/lovable-uploads/473b81b4-4a7f-4522-9fc2-56e9031541f0.png';
+                      }
+                    }}
                   />
                   <div className="absolute top-3 right-3">
                     <Badge className={getStatusColor(property.status)}>
