@@ -134,19 +134,29 @@ CREATE TYPE message_role AS ENUM (
   'system'              -- System-generated message
 );
 
+-- Person roles
+CREATE TYPE person_role AS ENUM (
+  'agent',               -- Agent role
+  'buyer',               -- Buyer role
+  'admin',               -- Admin role
+  'manager',             -- User role
+  'assistant',           -- Assistant role
+  'other'                -- Other role
+);
+
 -- =============================================================================
 -- CORE ORGANIZATION & USER MANAGEMENT
 -- =============================================================================
 
 -- Multi-tenant organization structure
 CREATE TABLE organizations (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   organization_type TEXT,
   
   -- FUB Integration Settings
-  fub_api_key TEXT,
-  fub_account_id TEXT,
+  fub_api_key TEXT NOT NULL,
+  fub_account_id TEXT NOT NULL,
   
   -- Business Information
   business_address JSONB DEFAULT '{}',
@@ -168,7 +178,7 @@ CREATE INDEX idx_organizations_is_active ON organizations(is_active);
 
 -- Unified person table supporting multiple roles
 CREATE TABLE persons (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   fub_person_id INTEGER UNIQUE,
   
@@ -180,8 +190,8 @@ CREATE TABLE persons (
   phone TEXT,
   
   -- Role Management
-  roles TEXT[] NOT NULL,
-  primary_role TEXT NOT NULL,
+  roles person_role[] NOT NULL DEFAULT '{}',
+  primary_role person_role NOT NULL,
   
   -- Agent-specific fields
   license_number TEXT,
@@ -214,7 +224,7 @@ CREATE INDEX idx_persons_agent_buyers ON persons(assigned_agent_id, primary_role
 
 -- Separate buyer profile information
 CREATE TABLE buyer_profiles (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   person_id UUID NOT NULL UNIQUE REFERENCES persons(id) ON DELETE CASCADE,
   
   -- Financial Information
@@ -227,10 +237,10 @@ CREATE TABLE buyer_profiles (
   
   -- Preferences
   buyer_needs TEXT,
-  preferred_areas TEXT[],
-  property_type_preferences TEXT[],
-  must_have_features TEXT[],
-  nice_to_have_features TEXT[],
+  preferred_areas TEXT[] DEFAULT '{}',
+  property_type_preferences TEXT[] DEFAULT '{}',
+  must_have_features TEXT[] DEFAULT '{}',
+  nice_to_have_features TEXT[] DEFAULT '{}',
   
   -- Timeline preferences
   ideal_move_in_date DATE,
@@ -251,7 +261,7 @@ CREATE INDEX idx_buyer_profiles_pre_approval_expiry ON buyer_profiles(pre_approv
 
 -- Templates for creating flexible step definitions
 CREATE TABLE step_templates (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   
   -- Step Definition
@@ -287,7 +297,7 @@ CREATE INDEX idx_step_templates_is_active ON step_templates(is_active);
 
 -- Properties table
 CREATE TABLE properties (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   listing_agent_id UUID REFERENCES persons(id),
   
@@ -342,7 +352,7 @@ CREATE INDEX idx_properties_last_activity_at ON properties(last_activity_at);
 
 -- Property photos
 CREATE TABLE property_photos (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   property_id UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
   
   url TEXT NOT NULL,
@@ -355,7 +365,7 @@ CREATE TABLE property_photos (
 
 -- Create indexes for property_photos
 CREATE INDEX idx_property_photos_property_id ON property_photos(property_id);
-CREATE INDEX idx_property_photos_property_order ON property_photos(property_id, display_order);
+CREATE INDEX idx_property_photos_display_order ON property_photos(property_id, display_order);
 
 -- =============================================================================
 -- BUYER-PROPERTY RELATIONSHIPS & TIMELINES
@@ -363,7 +373,7 @@ CREATE INDEX idx_property_photos_property_order ON property_photos(property_id, 
 
 -- Junction table linking buyers to properties
 CREATE TABLE buyer_properties (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   buyer_id UUID NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
   property_id UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
@@ -397,11 +407,11 @@ CREATE TABLE buyer_properties (
 CREATE INDEX idx_buyer_properties_organization_id ON buyer_properties(organization_id);
 CREATE INDEX idx_buyer_properties_buyer_id ON buyer_properties(buyer_id);
 CREATE INDEX idx_buyer_properties_property_id ON buyer_properties(property_id);
-CREATE INDEX idx_buyer_properties_buyer_active ON buyer_properties(buyer_id, is_active);
+CREATE INDEX idx_buyer_properties_active ON buyer_properties(buyer_id, is_active);
 
 -- Timeline tracking for each buyer-property relationship
 CREATE TABLE timelines (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   buyer_property_id UUID NOT NULL UNIQUE REFERENCES buyer_properties(id) ON DELETE CASCADE,
   
   -- Current Status
@@ -432,7 +442,7 @@ CREATE INDEX idx_timelines_stage_last_updated ON timelines(stage_last_updated);
 
 -- Individual steps within each timeline
 CREATE TABLE timeline_steps (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   timeline_id UUID NOT NULL REFERENCES timelines(id) ON DELETE CASCADE,
   
   -- Step reference
@@ -466,7 +476,7 @@ CREATE INDEX idx_timeline_steps_due_date ON timeline_steps(due_date);
 
 -- Audit trail for timeline changes
 CREATE TABLE timeline_history (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   timeline_id UUID NOT NULL REFERENCES timelines(id) ON DELETE CASCADE,
   
   -- Change details
@@ -494,7 +504,7 @@ CREATE INDEX idx_timeline_history_created_at ON timeline_history(created_at);
 
 -- Comprehensive action item system
 CREATE TABLE action_items (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   
   -- Role-based assignment
@@ -541,7 +551,7 @@ CREATE INDEX idx_action_items_due_date ON action_items(due_date);
 
 -- Gmail OAuth connection per agent
 CREATE TABLE gmail_integrations (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   agent_id UUID NOT NULL UNIQUE REFERENCES persons(id) ON DELETE CASCADE,
   
@@ -569,7 +579,7 @@ CREATE INDEX idx_gmail_integrations_gmail_user_id ON gmail_integrations(gmail_us
 
 -- Email messages synced from Gmail
 CREATE TABLE email_messages (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   buyer_property_id UUID REFERENCES buyer_properties(id),
   
@@ -578,7 +588,7 @@ CREATE TABLE email_messages (
   gmail_thread_id TEXT NOT NULL,
   subject TEXT,
   sender TEXT NOT NULL,
-  recipients TEXT[],
+  recipients TEXT[] DEFAULT '{}',
   
   -- Content
   body_text TEXT,
@@ -612,7 +622,7 @@ CREATE INDEX idx_email_messages_gmail_date ON email_messages(gmail_date);
 
 -- Document storage and management
 CREATE TABLE documents (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   buyer_property_id UUID REFERENCES buyer_properties(id),
   
@@ -656,7 +666,7 @@ CREATE INDEX idx_documents_uploaded_by ON documents(uploaded_by);
 
 -- Property financial calculations and net sheets
 CREATE TABLE net_sheets (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   buyer_property_id UUID NOT NULL REFERENCES buyer_properties(id) ON DELETE CASCADE,
   
   -- Core financials
@@ -703,7 +713,7 @@ CREATE INDEX idx_net_sheets_buyer_property_current ON net_sheets(buyer_property_
 
 -- Chatbot conversations
 CREATE TABLE conversations (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
   
@@ -725,7 +735,7 @@ CREATE INDEX idx_conversations_created_at ON conversations(created_at);
 
 -- Individual messages within conversations
 CREATE TABLE messages (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
   
   role message_role NOT NULL,
@@ -750,7 +760,7 @@ CREATE INDEX idx_messages_created_at ON messages(created_at);
 
 -- System configuration
 CREATE TABLE system_settings (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   
   -- Setting definition
@@ -771,10 +781,12 @@ CREATE TABLE system_settings (
 
 -- Create indexes for system_settings
 CREATE INDEX idx_system_settings_organization_id ON system_settings(organization_id);
+CREATE INDEX idx_system_settings_key ON system_settings(organization_id, setting_key);
+
 
 -- FUB sync logging
 CREATE TABLE fub_sync_log (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   
   -- Sync classification
@@ -798,6 +810,8 @@ CREATE INDEX idx_fub_sync_log_organization_id ON fub_sync_log(organization_id);
 CREATE INDEX idx_fub_sync_log_sync_type ON fub_sync_log(sync_type);
 CREATE INDEX idx_fub_sync_log_sync_status ON fub_sync_log(sync_status);
 CREATE INDEX idx_fub_sync_log_created_at ON fub_sync_log(created_at);
+
+-- =====================DONE DONE DONE DONE DONE DONE===========================
 
 -- =============================================================================
 -- TRIGGERS FOR UPDATED_AT TIMESTAMPS
@@ -987,15 +1001,3 @@ CREATE POLICY "Users can view system settings in their organization" ON system_s
 -- FUB sync log: Users can only access sync logs in their organization
 CREATE POLICY "Users can view fub sync logs in their organization" ON fub_sync_log
   FOR ALL USING (organization_id = auth.get_user_organization_id());
-
--- =============================================================================
--- SAMPLE DATA INSERTION (Optional - for testing)
--- =============================================================================
-
--- Insert a sample organization
-INSERT INTO organizations (name, organization_type, business_email, is_active)
-VALUES ('Demo Real Estate Company', 'brokerage', 'admin@demorealty.com', true);
-
--- Get the organization ID for sample data
--- Note: In production, you would handle this differently
--- This is just for demonstration purposes
