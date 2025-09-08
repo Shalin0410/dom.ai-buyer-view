@@ -670,6 +670,10 @@ CREATE TABLE fub_sync_log (
   sync_status text NOT NULL,
   sync_direction text NOT NULL,
   
+  -- Enhanced logging fields for trigger operations
+  error_level text DEFAULT 'info',
+  trigger_name text,
+  
   -- All sync details
   sync_data jsonb DEFAULT '{}',
   
@@ -795,6 +799,8 @@ CREATE INDEX idx_fub_sync_log_organization_id ON fub_sync_log(organization_id);
 CREATE INDEX idx_fub_sync_log_sync_type ON fub_sync_log(sync_type);
 CREATE INDEX idx_fub_sync_log_sync_status ON fub_sync_log(sync_status);
 CREATE INDEX idx_fub_sync_log_created_at ON fub_sync_log(created_at);
+CREATE INDEX idx_fub_sync_log_error_level ON fub_sync_log(error_level);
+CREATE INDEX idx_trigger_operations ON fub_sync_log(sync_type, entity_type, created_at);
 
 -- =============================================================================
 -- STEP 10: CREATE TRIGGERS FOR UPDATED_AT TIMESTAMPS

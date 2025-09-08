@@ -3,7 +3,14 @@
 -- =============================================================================
 -- 
 -- This migration adds seed data and completes the database setup
--- Run after the main schema migration
+-- 
+-- EXECUTION ORDER:
+-- 1. Run 0011_complete_database_schema.sql (creates tables)
+-- 2. Run database-triggers.sql (sets up triggers and logging)
+-- 3. Run this file (inserts seed data with triggers active)
+-- 
+-- BENEFITS: Triggers will validate and log all seed data operations,
+-- auto-create related records, and provide complete audit trail
 -- =============================================================================
 
 -- =============================================================================
