@@ -5,6 +5,7 @@ import ChatbotTest from '@/components/ChatbotTest';
 import PropertySwiping from '@/components/PropertySwiping';
 import ProfilePage from '@/components/ProfilePage';
 import PropertyDetailPage from '@/components/PropertyDetailPage';
+import { dataService } from '@/services';
 import { UserData } from '@/types/user';
 
 interface MainAppContentProps {
@@ -15,6 +16,28 @@ interface MainAppContentProps {
 
 const MainAppContent = ({ activeTab, userData, onTabChange }: MainAppContentProps) => {
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
+  const [agentEmail, setAgentEmail] = useState<string>('agent@example.com');
+
+  // Fetch agent email based on buyer's assigned_agent_id
+  useEffect(() => {
+    const fetchAgentEmail = async () => {
+      if (!userData?.assigned_agent_id) {
+        return; // No agent assigned, keep default
+      }
+
+      try {
+        const response = await dataService.getAgentById(userData.assigned_agent_id);
+        if (response.success && response.data) {
+          setAgentEmail(response.data.email);
+        }
+      } catch (error) {
+        console.error('Error fetching agent email:', error);
+        // Keep default email on error
+      }
+    };
+
+    fetchAgentEmail();
+  }, [userData?.assigned_agent_id]);
 
   const handleChatBack = () => {
     // Navigation handled by header now
@@ -78,6 +101,7 @@ const MainAppContent = ({ activeTab, userData, onTabChange }: MainAppContentProp
           userProfile={userData}
           onPropertyAction={handlePropertyAction}
           onOpenChat={handleOpenChat}
+          agentEmail={agentEmail}
         />
       )}
       {activeTab === 'profile' && <ProfilePage userData={userData} />}

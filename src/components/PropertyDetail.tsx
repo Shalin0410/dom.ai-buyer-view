@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
+import { ViewingScheduleModal } from '@/components/ViewingScheduleModal';
 import { 
   ArrowLeft, 
   MapPin, 
@@ -35,13 +36,25 @@ import {
 interface PropertyDetailProps {
   propertyId: string;
   onBack: () => void;
+  buyerInfo?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  agentEmail?: string;
 }
 
-export const PropertyDetail: React.FC<PropertyDetailProps> = ({ propertyId, onBack }) => {
+export const PropertyDetail: React.FC<PropertyDetailProps> = ({ 
+  propertyId, 
+  onBack, 
+  buyerInfo = { id: '', name: 'Buyer', email: '' },
+  agentEmail = 'agent@example.com'
+}) => {
   const { property, loading, error, updateProperty } = useProperty(propertyId);
   const { activities, addActivity } = usePropertyActivities(propertyId);
   const [isEditing, setIsEditing] = useState(false);
   const [editedProperty, setEditedProperty] = useState<Partial<Property>>({});
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [newActivity, setNewActivity] = useState({
     type: 'note' as const,
     title: '',
@@ -106,6 +119,28 @@ export const PropertyDetail: React.FC<PropertyDetailProps> = ({ propertyId, onBa
       setNewActivity({ type: 'note', title: '', description: '' });
       setShowAddActivity(false);
     }
+  };
+
+  const handleScheduleConfirm = async (schedulingData: {
+    propertyId: string;
+    selectedDates: Date[];
+    additionalInfo: string;
+  }) => {
+    // This would normally update the buyer_properties table through the service layer
+    // For now, we'll just simulate success and add an activity
+    const success = await addActivity({
+      property_id: propertyId,
+      type: 'viewing',
+      title: 'Viewing Scheduled',
+      description: `Viewing scheduled for ${schedulingData.selectedDates.length} preferred dates. ${schedulingData.additionalInfo ? `Additional info: ${schedulingData.additionalInfo}` : ''}`,
+      created_by: buyerInfo.id || ''
+    });
+
+    if (success) {
+      setIsScheduleModalOpen(false);
+      return true;
+    }
+    return false;
   };
 
   const formatPrice = (price: number) => {
@@ -512,7 +547,11 @@ export const PropertyDetail: React.FC<PropertyDetailProps> = ({ propertyId, onBa
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button className="w-full" variant="outline">
+              <Button 
+                className="w-full" 
+                variant="outline"
+                onClick={() => setIsScheduleModalOpen(true)}
+              >
                 <Calendar className="h-4 w-4 mr-2" />
                 Schedule Viewing
               </Button>
@@ -538,6 +577,19 @@ export const PropertyDetail: React.FC<PropertyDetailProps> = ({ propertyId, onBa
           </Card>
         </div>
       </div>
+
+      {/* Viewing Schedule Modal */}
+      {property && (
+        <ViewingScheduleModal
+          isOpen={isScheduleModalOpen}
+          onClose={() => setIsScheduleModalOpen(false)}
+          property={property}
+          buyerName={buyerInfo.name}
+          buyerEmail={buyerInfo.email}
+          agentEmail={agentEmail}
+          onScheduleConfirm={handleScheduleConfirm}
+        />
+      )}
     </div>
   );
 };

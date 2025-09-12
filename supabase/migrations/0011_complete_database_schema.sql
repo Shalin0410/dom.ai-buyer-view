@@ -857,7 +857,7 @@ ALTER TABLE system_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE fub_sync_log ENABLE ROW LEVEL SECURITY;
 
 -- Function to get user's organization ID
-CREATE OR REPLACE FUNCTION auth.get_user_organization_id()
+CREATE OR REPLACE FUNCTION public.get_user_organization_id()
 RETURNS uuid AS $$
 BEGIN
   RETURN (
@@ -870,45 +870,45 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Organizations: Users can only see their own organization
 CREATE POLICY "Users can view own organization" ON organizations
-  FOR ALL USING (id = auth.get_user_organization_id());
+  FOR ALL USING (id = get_user_organization_id());
 
 -- Persons: Users can see people in their organization
 CREATE POLICY "Users can view persons in own organization" ON persons
-  FOR ALL USING (organization_id = auth.get_user_organization_id());
+  FOR ALL USING (organization_id = get_user_organization_id());
 
 -- Buyer profiles: Users can see buyer profiles in their organization
 CREATE POLICY "Users can view buyer profiles in own organization" ON buyer_profiles
   FOR ALL USING (
     person_id IN (
-      SELECT id FROM persons WHERE organization_id = auth.get_user_organization_id()
+      SELECT id FROM persons WHERE organization_id = get_user_organization_id()
     )
   );
 
 -- Step templates: Users can see templates in their organization
 CREATE POLICY "Users can view step templates in own organization" ON step_templates
-  FOR ALL USING (organization_id = auth.get_user_organization_id());
+  FOR ALL USING (organization_id = get_user_organization_id());
 
 -- Properties: Users can see properties in their organization
 CREATE POLICY "Users can view properties in own organization" ON properties
-  FOR ALL USING (organization_id = auth.get_user_organization_id());
+  FOR ALL USING (organization_id = get_user_organization_id());
 
 -- Property photos: Users can see photos for properties in their organization
 CREATE POLICY "Users can view property photos in own organization" ON property_photos
   FOR ALL USING (
     property_id IN (
-      SELECT id FROM properties WHERE organization_id = auth.get_user_organization_id()
+      SELECT id FROM properties WHERE organization_id = get_user_organization_id()
     )
   );
 
 -- Buyer properties: Users can see relationships in their organization
 CREATE POLICY "Users can view buyer properties in own organization" ON buyer_properties
-  FOR ALL USING (organization_id = auth.get_user_organization_id());
+  FOR ALL USING (organization_id = get_user_organization_id());
 
 -- Timelines: Users can see timelines in their organization
 CREATE POLICY "Users can view timelines in own organization" ON timelines
   FOR ALL USING (
     buyer_property_id IN (
-      SELECT id FROM buyer_properties WHERE organization_id = auth.get_user_organization_id()
+      SELECT id FROM buyer_properties WHERE organization_id = get_user_organization_id()
     )
   );
 
@@ -918,7 +918,7 @@ CREATE POLICY "Users can view timeline steps in own organization" ON timeline_st
     timeline_id IN (
       SELECT id FROM timelines 
       WHERE buyer_property_id IN (
-        SELECT id FROM buyer_properties WHERE organization_id = auth.get_user_organization_id()
+        SELECT id FROM buyer_properties WHERE organization_id = get_user_organization_id()
       )
     )
   );
@@ -929,54 +929,54 @@ CREATE POLICY "Users can view timeline history in own organization" ON timeline_
     timeline_id IN (
       SELECT id FROM timelines 
       WHERE buyer_property_id IN (
-        SELECT id FROM buyer_properties WHERE organization_id = auth.get_user_organization_id()
+        SELECT id FROM buyer_properties WHERE organization_id = get_user_organization_id()
       )
     )
   );
 
 -- Action items: Users can see action items in their organization
 CREATE POLICY "Users can view action items in own organization" ON action_items
-  FOR ALL USING (organization_id = auth.get_user_organization_id());
+  FOR ALL USING (organization_id = get_user_organization_id());
 
 -- Gmail integrations: Users can see integrations in their organization
 CREATE POLICY "Users can view Gmail integrations in own organization" ON gmail_integrations
-  FOR ALL USING (organization_id = auth.get_user_organization_id());
+  FOR ALL USING (organization_id = get_user_organization_id());
 
 -- Email messages: Users can see emails in their organization
 CREATE POLICY "Users can view email messages in own organization" ON email_messages
-  FOR ALL USING (organization_id = auth.get_user_organization_id());
+  FOR ALL USING (organization_id = get_user_organization_id());
 
 -- Documents: Users can see documents in their organization
 CREATE POLICY "Users can view documents in own organization" ON documents
-  FOR ALL USING (organization_id = auth.get_user_organization_id());
+  FOR ALL USING (organization_id = get_user_organization_id());
 
 -- Net sheets: Users can see net sheets in their organization
 CREATE POLICY "Users can view net sheets in own organization" ON net_sheets
   FOR ALL USING (
     buyer_property_id IN (
-      SELECT id FROM buyer_properties WHERE organization_id = auth.get_user_organization_id()
+      SELECT id FROM buyer_properties WHERE organization_id = get_user_organization_id()
     )
   );
 
 -- Conversations: Users can see conversations in their organization
 CREATE POLICY "Users can view conversations in own organization" ON conversations
-  FOR ALL USING (organization_id = auth.get_user_organization_id());
+  FOR ALL USING (organization_id = get_user_organization_id());
 
 -- Messages: Users can see messages in their organization
 CREATE POLICY "Users can view messages in own organization" ON messages
   FOR ALL USING (
     conversation_id IN (
-      SELECT id FROM conversations WHERE organization_id = auth.get_user_organization_id()
+      SELECT id FROM conversations WHERE organization_id = get_user_organization_id()
     )
   );
 
 -- System settings: Users can see settings in their organization
 CREATE POLICY "Users can view system settings in own organization" ON system_settings
-  FOR ALL USING (organization_id = auth.get_user_organization_id());
+  FOR ALL USING (organization_id = get_user_organization_id());
 
 -- FUB sync log: Users can see sync logs in their organization
 CREATE POLICY "Users can view FUB sync logs in own organization" ON fub_sync_log
-  FOR ALL USING (organization_id = auth.get_user_organization_id());
+  FOR ALL USING (organization_id = get_user_organization_id());
 
 -- =============================================================================
 -- STEP 12: INSERT DEFAULT SYSTEM DATA

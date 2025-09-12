@@ -5,74 +5,74 @@
 
 @layer base {
   :root {
-    --background: 232 236 242; /* #E8ECF2 */
-    --foreground: 46 46 46; /* #2E2E2E */
+    --background: 248 250 252; /* #F8FAFC - slate-50 */
+    --foreground: 15 23 42; /* #0F172A - slate-900 */
 
     --card: 255 255 255;
-    --card-foreground: 46 46 46;
+    --card-foreground: 15 23 42;
 
     --popover: 255 255 255;
-    --popover-foreground: 46 46 46;
+    --popover-foreground: 15 23 42;
 
-    --primary: 59 74 107; /* #3B4A6B */
-    --primary-foreground: 232 236 242; /* #E8ECF2 */
+    --primary: 59 130 246; /* #3B82F6 - Blue 500 */
+    --primary-foreground: 255 255 255; /* #FFFFFF */
 
-    --secondary: 232 236 242; /* #E8ECF2 */
-    --secondary-foreground: 46 46 46; /* #2E2E2E */
+    --secondary: 241 245 249; /* #F1F5F9 - slate-100 */
+    --secondary-foreground: 15 23 42; /* #0F172A - slate-900 */
 
-    --muted: 232 236 242;
-    --muted-foreground: 46 46 46; /* #2E2E2E */
+    --muted: 241 245 249; /* #F1F5F9 - slate-100 */
+    --muted-foreground: 100 116 139; /* #64748B - slate-500 */
 
     --accent: 59 130 246; /* #3B82F6 - Blue 500 */
     --accent-foreground: 255 255 255; /* #FFFFFF */
 
-    --destructive: 244 124 109;
-    --destructive-foreground: 232 236 242; /* #E8ECF2 */
+    --destructive: 239 68 68; /* #EF4444 - red-500 */
+    --destructive-foreground: 255 255 255; /* #FFFFFF */
 
-    --border: 220 220 220;
+    --border: 226 232 240; /* #E2E8F0 - slate-200 */
     --input: 255 255 255;
-    --ring: 59 74 107;
+    --ring: 59 130 246; /* #3B82F6 - Blue 500 */
 
     --radius: 1rem;
 
     --sidebar-background: 255 255 255;
-    --sidebar-foreground: 46 46 46;
-    --sidebar-primary: 59 74 107;
-    --sidebar-primary-foreground: 232 236 242;
-    --sidebar-accent: 232 236 242;
-    --sidebar-accent-foreground: 46 46 46;
-    --sidebar-border: 220 220 220;
-    --sidebar-ring: 59 74 107;
+    --sidebar-foreground: 15 23 42;
+    --sidebar-primary: 59 130 246;
+    --sidebar-primary-foreground: 255 255 255;
+    --sidebar-accent: 241 245 249;
+    --sidebar-accent-foreground: 15 23 42;
+    --sidebar-border: 226 232 240;
+    --sidebar-ring: 59 130 246;
   }
 
   .dark {
-    --background: 46 46 46;
-    --foreground: 232 236 242;
-    --card: 59 74 107;
-    --card-foreground: 232 236 242;
-    --popover: 59 74 107;
-    --popover-foreground: 232 236 242;
-    --primary: 232 236 242;
-    --primary-foreground: 59 74 107;
-    --secondary: 87 198 168;
-    --secondary-foreground: 232 236 242;
-    --muted: 87 198 168;
-    --muted-foreground: 232 236 242;
+    --background: 15 23 42; /* #0F172A - slate-900 */
+    --foreground: 248 250 252; /* #F8FAFC - slate-50 */
+    --card: 30 41 59; /* #1E293B - slate-800 */
+    --card-foreground: 248 250 252;
+    --popover: 30 41 59;
+    --popover-foreground: 248 250 252;
+    --primary: 59 130 246; /* #3B82F6 - Blue 500 */
+    --primary-foreground: 255 255 255;
+    --secondary: 51 65 85; /* #334155 - slate-700 */
+    --secondary-foreground: 248 250 252;
+    --muted: 51 65 85;
+    --muted-foreground: 148 163 184; /* #94A3B8 - slate-400 */
     --accent: 59 130 246; /* #3B82F6 - Blue 500 */
-    --accent-foreground: 255 255 255; /* #FFFFFF */
-    --destructive: 244 124 109;
-    --destructive-foreground: 232 236 242;
-    --border: 87 198 168;
-    --input: 59 74 107;
-    --ring: 232 236 242;
-    --sidebar-background: 46 46 46;
-    --sidebar-foreground: 232 236 242;
-    --sidebar-primary: 87 198 168;
-    --sidebar-primary-foreground: 46 46 46;
-    --sidebar-accent: 59 74 107;
-    --sidebar-accent-foreground: 232 236 242;
-    --sidebar-border: 87 198 168;
-    --sidebar-ring: 232 236 242;
+    --accent-foreground: 255 255 255;
+    --destructive: 239 68 68; /* #EF4444 - red-500 */
+    --destructive-foreground: 255 255 255;
+    --border: 51 65 85; /* #334155 - slate-700 */
+    --input: 30 41 59;
+    --ring: 59 130 246;
+    --sidebar-background: 15 23 42;
+    --sidebar-foreground: 248 250 252;
+    --sidebar-primary: 59 130 246;
+    --sidebar-primary-foreground: 255 255 255;
+    --sidebar-accent: 51 65 85;
+    --sidebar-accent-foreground: 248 250 252;
+    --sidebar-border: 51 65 85;
+    --sidebar-ring: 59 130 246;
   }
 }
 
@@ -82,7 +82,7 @@
   }
 
   body {
-    @apply bg-gradient-to-br from-[#E8ECF2] via-white to-blue-500/10 text-[#2E2E2E];
+    @apply bg-gradient-to-br from-slate-50 via-white to-blue-500/10 text-slate-900;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   }
 }
@@ -97,11 +97,11 @@
   }
   
   .button-secondary {
-    @apply bg-gradient-to-r from-[#57C6A8] to-[#57C6A8]/80 text-[#E8ECF2] rounded-xl px-6 py-3 font-medium shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105;
+    @apply bg-gradient-to-r from-slate-600 to-slate-600/80 text-white rounded-xl px-6 py-3 font-medium shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105;
   }
   
   .input-modern {
-    @apply bg-white/80 backdrop-blur-sm border border-white/50 rounded-xl px-4 py-3 shadow-sm focus:shadow-lg transition-all duration-300 text-[#2E2E2E];
+    @apply bg-white/80 backdrop-blur-sm border border-white/50 rounded-xl px-4 py-3 shadow-sm focus:shadow-lg transition-all duration-300 text-slate-900;
   }
   
   .glass-card {
@@ -111,11 +111,11 @@
 
 @layer utilities {
   .gradient-primary {
-    background: linear-gradient(135deg, #3B4A6B 0%, #57C6A8 100%);
+    background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%);
   }
   
   .gradient-accent {
-    background: linear-gradient(135deg, #3B82F6 0%, #57C6A8 100%);
+    background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
   }
   
   .text-shadow {
@@ -123,10 +123,10 @@
   }
   
   .shadow-modern {
-    box-shadow: 0 10px 25px -5px rgba(59, 74, 107, 0.1), 0 10px 10px -5px rgba(59, 74, 107, 0.04);
+    box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.1), 0 10px 10px -5px rgba(59, 130, 246, 0.04);
   }
   
   .shadow-floating {
-    box-shadow: 0 20px 25px -5px rgba(59, 74, 107, 0.1), 0 10px 10px -5px rgba(59, 74, 107, 0.04);
+    box-shadow: 0 20px 25px -5px rgba(59, 130, 246, 0.1), 0 10px 10px -5px rgba(59, 130, 246, 0.04);
   }
 }
