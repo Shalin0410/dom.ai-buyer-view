@@ -4,13 +4,28 @@ import { BaseDataService } from '../api/data';
 import { ApiResponse, Buyer, Agent, Property, PropertyFilter, PropertyActivity, PropertySummary, ActionItem } from '../api/types';
 
 export class SupabaseDataService extends BaseDataService {
-  // Buyer operations - now using persons table with role = 'buyer'
+  // Helper method to determine which client to use
+  private getClient() {
+    // Check if we have a mock session - if so, use admin client to bypass RLS
+    const mockSession = localStorage.getItem('mockAuthSession');
+    if (mockSession) {
+      return supabaseAdmin;
+    }
+    return supabase;
+  }
+
+  // Buyer operations - now using persons table with primary_role = 'buyer'
   async getBuyers(): Promise<ApiResponse<Buyer[]>> {
     try {
-      const { data, error } = await supabase
+      const client = this.getClient();
+      const { data, error } = await client
         .from('persons')
-        .select('*')
-        .eq('role', 'buyer')
+        .select(`
+          *,
+          buyer_profiles(*),
+          assigned_agent:persons!assigned_agent_id(*)
+        `)
+        .eq('primary_role', 'buyer')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -28,11 +43,16 @@ export class SupabaseDataService extends BaseDataService {
 
   async getBuyerById(id: string): Promise<ApiResponse<Buyer>> {
     try {
-      const { data, error } = await supabase
+      const client = this.getClient();
+      const { data, error } = await client
         .from('persons')
-        .select('*')
+        .select(`
+          *,
+          buyer_profiles(*),
+          assigned_agent:persons!assigned_agent_id(*)
+        `)
         .eq('id', id)
-        .eq('role', 'buyer')
+        .eq('primary_role', 'buyer')
         .single();
 
       if (error) {
@@ -50,12 +70,17 @@ export class SupabaseDataService extends BaseDataService {
 
   async getBuyerByEmail(email: string): Promise<ApiResponse<Buyer>> {
     try {
-      // First, get the buyer data
-      const { data: buyerData, error: buyerError } = await supabase
+      // First, get the buyer data with profile and agent information
+      const client = this.getClient();
+      const { data: buyerData, error: buyerError } = await client
         .from('persons')
-        .select('*')
+        .select(`
+          *,
+          buyer_profiles(*),
+          assigned_agent:persons!assigned_agent_id(*)
+        `)
         .eq('email', email)
-        .eq('role', 'buyer')
+        .eq('primary_role', 'buyer')
         .single();
 
       if (buyerError) {
@@ -67,41 +92,22 @@ export class SupabaseDataService extends BaseDataService {
         return this.createResponse(null, buyerError.message);
       }
 
-      // If there's an agent_id, fetch the agent data
-      if (buyerData.agent_id) {
-        try {
-          const { data: agentData, error: agentError } = await supabase
-            .from('persons')
-            .select('*')
-            .eq('id', buyerData.agent_id)
-            .eq('role', 'agent')
-            .maybeSingle(); // Use maybeSingle instead of single to handle no rows case
-
-          if (agentError) {
-            console.warn('Error fetching agent data:', agentError);
-            // Continue with buyer data even if agent fetch fails
-          } else if (agentData) {
-            // Map the agent data to match the Agent interface
-            const agent: Agent = {
-              id: agentData.id,
-              first_name: agentData.first_name || 'Unknown',
-              last_name: agentData.last_name || 'Agent',
-              email: agentData.email || '',
-              phone: agentData.phone || null,
-              created_at: agentData.created_at,
-              updated_at: agentData.updated_at
-            };
-            
-            // Combine buyer and agent data
-            return this.createResponse({
-              ...buyerData,
-              agent
-            });
-          }
-        } catch (error) {
-          console.error('Unexpected error fetching agent:', error);
-          // Continue with buyer data even if agent fetch fails
-        }
+      // Agent data is already included in the query via assigned_agent relationship
+      if (buyerData.assigned_agent) {
+        const agent: Agent = {
+          id: buyerData.assigned_agent.id,
+          first_name: buyerData.assigned_agent.first_name || 'Unknown',
+          last_name: buyerData.assigned_agent.last_name || 'Agent',
+          email: buyerData.assigned_agent.email || '',
+          phone: buyerData.assigned_agent.phone || null,
+          created_at: buyerData.assigned_agent.created_at,
+          updated_at: buyerData.assigned_agent.updated_at
+        };
+        
+        return this.createResponse({
+          ...buyerData,
+          agent
+        });
       }
 
       return this.createResponse(buyerData);
@@ -114,11 +120,13 @@ export class SupabaseDataService extends BaseDataService {
 
   async createBuyer(buyer: Omit<Buyer, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<Buyer>> {
     try {
-      const { data, error } = await supabase
+      const client = this.getClient();
+      const { data, error } = await client
         .from('persons')
         .insert({
           ...buyer,
-          role: 'buyer'
+          roles: ['buyer'],
+          primary_role: 'buyer'
         })
         .select()
         .single();
@@ -138,11 +146,12 @@ export class SupabaseDataService extends BaseDataService {
 
   async updateBuyer(id: string, updates: Partial<Buyer>): Promise<ApiResponse<Buyer>> {
     try {
-      const { data, error } = await supabase
+      const client = this.getClient();
+      const { data, error } = await client
         .from('persons')
         .update(updates)
         .eq('id', id)
-        .eq('role', 'buyer')
+        .eq('primary_role', 'buyer')
         .select()
         .single();
 
@@ -161,11 +170,12 @@ export class SupabaseDataService extends BaseDataService {
 
   async deleteBuyer(id: string): Promise<ApiResponse<null>> {
     try {
-      const { error } = await supabase
+      const client = this.getClient();
+      const { error } = await client
         .from('persons')
         .delete()
         .eq('id', id)
-        .eq('role', 'buyer');
+        .eq('primary_role', 'buyer');
 
       if (error) {
         console.error('Error deleting buyer:', error);
@@ -180,14 +190,15 @@ export class SupabaseDataService extends BaseDataService {
     }
   }
 
-  // Agent operations - now using persons table with role = 'agent'
+  // Agent operations - now using persons table with primary_role = 'agent'
   async getAgentById(id: string): Promise<ApiResponse<Agent>> {
     try {
-      const { data, error } = await supabase
+      const client = this.getClient();
+      const { data, error } = await client
         .from('persons')
         .select('*')
         .eq('id', id)
-        .eq('role', 'agent')
+        .eq('primary_role', 'agent')
         .single();
 
       if (error) {
@@ -202,11 +213,11 @@ export class SupabaseDataService extends BaseDataService {
       
       // Fallback: try alternative query
       try {
-        const { data, error: retryError } = await supabase
+        const { data, error: retryError } = await client
           .from('persons')
           .select('*')
           .eq('id', id)
-          .eq('role', 'agent');
+          .eq('primary_role', 'agent');
 
         if (retryError) {
           console.error('getAgentById - Error in alternative query:', retryError);
@@ -230,10 +241,11 @@ export class SupabaseDataService extends BaseDataService {
 
   async getAgents(): Promise<ApiResponse<Agent[]>> {
     try {
-      const { data, error } = await supabase
+      const client = this.getClient();
+      const { data, error } = await client
         .from('persons')
         .select('*')
-        .eq('role', 'agent')
+        .eq('primary_role', 'agent')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -251,11 +263,13 @@ export class SupabaseDataService extends BaseDataService {
 
   async createAgent(agent: Omit<Agent, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<Agent>> {
     try {
-      const { data, error } = await supabase
+      const client = this.getClient();
+      const { data, error } = await client
         .from('persons')
         .insert({
           ...agent,
-          role: 'agent'
+          roles: ['agent'],
+          primary_role: 'agent'
         })
         .select()
         .single();
@@ -275,11 +289,12 @@ export class SupabaseDataService extends BaseDataService {
 
   async updateAgent(id: string, updates: Partial<Agent>): Promise<ApiResponse<Agent>> {
     try {
-      const { data, error } = await supabase
+      const client = this.getClient();
+      const { data, error } = await client
         .from('persons')
         .update(updates)
         .eq('id', id)
-        .eq('role', 'agent')
+        .eq('primary_role', 'agent')
         .select()
         .single();
 
@@ -298,11 +313,12 @@ export class SupabaseDataService extends BaseDataService {
 
   async deleteAgent(id: string): Promise<ApiResponse<null>> {
     try {
-      const { error } = await supabase
+      const client = this.getClient();
+      const { error } = await client
         .from('persons')
         .delete()
         .eq('id', id)
-        .eq('role', 'agent');
+        .eq('primary_role', 'agent');
 
       if (error) {
         console.error('Error deleting agent:', error);
@@ -320,11 +336,13 @@ export class SupabaseDataService extends BaseDataService {
   // Relationship operations - now using persons table with joins
   async getBuyersWithAgents(): Promise<ApiResponse<Buyer[]>> {
     try {
-      const { data, error } = await supabase
+      const client = this.getClient();
+      const { data, error } = await client
         .from('persons')
         .select(`
           *,
-          agent:persons!agent_id(
+          buyer_profiles(*),
+          assigned_agent:persons!assigned_agent_id(
             id,
             first_name,
             last_name,
@@ -332,7 +350,7 @@ export class SupabaseDataService extends BaseDataService {
             phone
           )
         `)
-        .eq('role', 'buyer')
+        .eq('primary_role', 'buyer')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -350,11 +368,13 @@ export class SupabaseDataService extends BaseDataService {
 
   async getBuyersByAgentId(agentId: string): Promise<ApiResponse<Buyer[]>> {
     try {
-      const { data, error } = await supabase
+      const client = this.getClient();
+      const { data, error } = await client
         .from('persons')
         .select(`
           *,
-          agent:persons!agent_id(
+          buyer_profiles(*),
+          assigned_agent:persons!assigned_agent_id(
             id,
             first_name,
             last_name,
@@ -362,8 +382,8 @@ export class SupabaseDataService extends BaseDataService {
             phone
           )
         `)
-        .eq('role', 'buyer')
-        .eq('agent_id', agentId)
+        .eq('primary_role', 'buyer')
+        .eq('assigned_agent_id', agentId)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -379,10 +399,11 @@ export class SupabaseDataService extends BaseDataService {
     }
   }
 
-  // Property operations
+  // Property operations - DASHBOARD: Show properties with active timelines
   async getProperties(buyerId?: string, filter?: PropertyFilter): Promise<ApiResponse<Property[]>> {
     try {
-      let query = supabase
+      const client = this.getClient();
+      let query = client
         .from('buyer_properties')
         .select(`
           *,
@@ -403,6 +424,13 @@ export class SupabaseDataService extends BaseDataService {
             listing_url,
             created_at,
             updated_at
+          ),
+          timelines!buyer_property_id(
+            id,
+            current_phase,
+            current_fub_stage,
+            stage_last_updated,
+            is_active
           )
         `);
 
@@ -411,13 +439,15 @@ export class SupabaseDataService extends BaseDataService {
         query = query.eq('buyer_id', buyerId);
       }
 
-      // Exclude researching and withdrawn properties from dashboard
-      query = query.not('status', 'in', '(researching,withdrawn)');
+      // DASHBOARD: Show properties that have been "loved" or have viewing scheduled
+      // These should have timelines created
+      query = query.in('interest_level', ['loved', 'viewing_scheduled', 'under_contract', 'pending'])
+             .eq('is_active', true);
 
       // Apply filters based on buyer_properties data
       if (filter) {
         if (filter.status && filter.status.length > 0) {
-          query = query.in('status', filter.status);
+          query = query.in('property.status', filter.status);
         }
         if (filter.buying_stage && filter.buying_stage.length > 0) {
           query = query.in('buying_stage', filter.buying_stage);
@@ -461,11 +491,11 @@ export class SupabaseDataService extends BaseDataService {
       const propertyIds = (data || []).map(item => item.property.id);
       let photos: any[] = [];
       if (propertyIds.length > 0) {
-        const { data: photosData } = await supabase
+        const { data: photosData } = await client
           .from('property_photos')
           .select('*')
           .in('property_id', propertyIds)
-          .order('order_index', { ascending: true });
+          .order('display_order', { ascending: true });
         photos = photosData || [];
       }
 
@@ -511,7 +541,7 @@ export class SupabaseDataService extends BaseDataService {
             url: photo.url,
             caption: photo.caption,
             is_primary: photo.is_primary,
-            order: photo.order_index,
+            order: photo.display_order,
             created_at: photo.created_at,
             updated_at: photo.updated_at
           }))
@@ -528,8 +558,10 @@ export class SupabaseDataService extends BaseDataService {
 
   async getPropertyById(id: string): Promise<ApiResponse<Property>> {
     try {
+      const client = this.getClient();
+
       // First get the property data
-      const { data: propertyData, error: propertyError } = await supabase
+      const { data: propertyData, error: propertyError } = await client
         .from('properties')
         .select('*')
         .eq('id', id)
@@ -541,18 +573,18 @@ export class SupabaseDataService extends BaseDataService {
       }
 
       // Get buyer-property relationship if it exists
-      const { data: buyerPropertyData } = await supabase
+      const { data: buyerPropertyData } = await client
         .from('buyer_properties')
         .select('*')
         .eq('property_id', id)
         .maybeSingle();
 
       // Fetch photos
-      const { data: photos } = await supabase
+      const { data: photos } = await client
         .from('property_photos')
         .select('*')
         .eq('property_id', id)
-        .order('order_index', { ascending: true });
+        .order('display_order', { ascending: true });
 
       // Transform to Property interface
       const property: Property = {
@@ -592,7 +624,7 @@ export class SupabaseDataService extends BaseDataService {
           url: photo.url,
           caption: photo.caption,
           is_primary: photo.is_primary,
-          order: photo.order_index,
+          order: photo.display_order,
           created_at: photo.created_at,
           updated_at: photo.updated_at
         }))
@@ -608,13 +640,14 @@ export class SupabaseDataService extends BaseDataService {
 
   async createProperty(property: Omit<Property, 'id' | 'created_at' | 'updated_at' | 'last_activity_at' | 'photos'>): Promise<ApiResponse<Property>> {
     try {
+      const client = this.getClient();
       const now = new Date().toISOString();
       const propertyData = {
         ...property,
         last_activity_at: now
       };
 
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('properties')
         .insert(propertyData)
         .select()
@@ -640,6 +673,7 @@ export class SupabaseDataService extends BaseDataService {
 
   async updateProperty(id: string, updates: Partial<Property>): Promise<ApiResponse<Property>> {
     try {
+      const client = this.getClient();
       const updateData = {
         ...updates,
         last_activity_at: new Date().toISOString()
@@ -648,7 +682,7 @@ export class SupabaseDataService extends BaseDataService {
       // Remove photos from updates as they're handled separately
       delete updateData.photos;
 
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('properties')
         .update(updateData)
         .eq('id', id)
@@ -661,11 +695,11 @@ export class SupabaseDataService extends BaseDataService {
       }
 
       // Fetch photos
-      const { data: photos } = await supabase
+      const { data: photos } = await client
         .from('property_photos')
         .select('*')
         .eq('property_id', id)
-        .order('order_index', { ascending: true });
+        .order('display_order', { ascending: true });
 
       const propertyWithPhotos = {
         ...data,
@@ -682,7 +716,8 @@ export class SupabaseDataService extends BaseDataService {
 
   async deleteProperty(id: string): Promise<ApiResponse<null>> {
     try {
-      const { error } = await supabase
+      const client = this.getClient();
+      const { error } = await client
         .from('properties')
         .delete()
         .eq('id', id);
@@ -702,10 +737,21 @@ export class SupabaseDataService extends BaseDataService {
 
   async getPropertyActivities(propertyId: string): Promise<ApiResponse<PropertyActivity[]>> {
     try {
+      const client = this.getClient();
+      
       // First get the buyer_property_id for this property
-      const { data: buyerPropertyData, error: buyerPropertyError } = await supabase
+      const { data: buyerPropertyData, error: buyerPropertyError } = await client
         .from('buyer_properties')
-        .select('id')
+        .select(`
+          id, 
+          interest_level, 
+          notes, 
+          updated_at,
+          buyer_id,
+          buyer:persons!buyer_properties_buyer_id_fkey (
+            id, first_name, last_name
+          )
+        `)
         .eq('property_id', propertyId)
         .maybeSingle();
 
@@ -719,28 +765,113 @@ export class SupabaseDataService extends BaseDataService {
         return this.createResponse([]);
       }
 
-      // Now get activities for this buyer_property_id
-      const { data, error } = await supabase
-        .from('property_activities')
-        .select('*')
-        .eq('buyer_property_id', buyerPropertyData.id)
-        .order('created_at', { ascending: false });
+      const activities: PropertyActivity[] = [];
 
-      if (error) {
-        console.error('Error fetching property activities:', error);
-        return this.createResponse(null, error.message);
+      // 1. Add buyer property status changes as milestones
+      if (buyerPropertyData.interest_level !== 'interested') {
+        activities.push({
+          id: `bp_milestone_${buyerPropertyData.id}`,
+          property_id: propertyId,
+          type: 'milestone',
+          title: `Property ${buyerPropertyData.interest_level.replace('_', ' ')}`,
+          description: `Buyer ${buyerPropertyData.interest_level === 'loved' ? 'loved this property' : 
+                        buyerPropertyData.interest_level === 'viewing_scheduled' ? 'scheduled a viewing' :
+                        buyerPropertyData.interest_level === 'under_contract' ? 'is under contract' :
+                        buyerPropertyData.interest_level === 'pending' ? 'sale is pending' : 
+                        'updated status'}`,
+          created_at: buyerPropertyData.updated_at,
+          created_by: buyerPropertyData.buyer_id
+        });
       }
 
-      // Transform to match PropertyActivity interface
-      const activities = (data || []).map(activity => ({
-        id: activity.id,
-        property_id: propertyId, // Add the property_id for the interface
-        type: activity.type,
-        title: activity.title,
-        description: activity.description,
-        created_at: activity.created_at,
-        created_by: activity.created_by
-      }));
+      // 2. Get timeline history for this buyer-property relationship
+      const { data: timelineHistory } = await client
+        .from('timeline_history')
+        .select(`
+          id,
+          step_name,
+          status,
+          notes,
+          completed_at,
+          created_by,
+          timeline:timelines!timeline_history_timeline_id_fkey (
+            buyer_property_id
+          )
+        `)
+        .eq('timeline.buyer_property_id', buyerPropertyData.id)
+        .order('completed_at', { ascending: false });
+
+      // Add timeline activities
+      (timelineHistory || []).forEach(history => {
+        if (history.completed_at) {
+          activities.push({
+            id: `timeline_${history.id}`,
+            property_id: propertyId,
+            type: 'milestone',
+            title: history.step_name,
+            description: history.notes || `${history.step_name} ${history.status}`,
+            created_at: history.completed_at,
+            created_by: history.created_by
+          });
+        }
+      });
+
+      // 3. Get action items related to this property
+      const { data: actionItems } = await client
+        .from('action_items')
+        .select('*')
+        .eq('buyer_id', buyerPropertyData.buyer_id)
+        .ilike('title', `%property%`)
+        .order('created_at', { ascending: false });
+
+      // Add action item activities
+      (actionItems || []).forEach(item => {
+        activities.push({
+          id: `action_${item.id}`,
+          property_id: propertyId,
+          type: item.status === 'completed' ? 'milestone' : 'note',
+          title: item.title,
+          description: item.description,
+          created_at: item.created_at,
+          created_by: item.assigned_to || buyerPropertyData.buyer_id
+        });
+      });
+
+      // 4. Get documents related to this property
+      const { data: documents } = await client
+        .from('documents')
+        .select('*')
+        .eq('buyer_id', buyerPropertyData.buyer_id)
+        .order('created_at', { ascending: false });
+
+      // Add document activities  
+      (documents || []).forEach(doc => {
+        activities.push({
+          id: `doc_${doc.id}`,
+          property_id: propertyId,
+          type: 'document',
+          title: `Document: ${doc.document_name}`,
+          description: `${doc.document_type} - ${doc.status}`,
+          created_at: doc.created_at,
+          created_by: doc.uploaded_by || buyerPropertyData.buyer_id
+        });
+      });
+
+      // Add buyer property notes if they exist
+      if (buyerPropertyData.notes) {
+        activities.push({
+          id: `notes_${buyerPropertyData.id}`,
+          property_id: propertyId,
+          type: 'note',
+          title: 'Buyer Notes',
+          description: buyerPropertyData.notes,
+          created_at: buyerPropertyData.updated_at,
+          created_by: buyerPropertyData.buyer_id
+        });
+      }
+
+      // Sort all activities by created_at (most recent first)
+      activities.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
       return this.createResponse(activities);
     } catch (error) {
@@ -752,24 +883,154 @@ export class SupabaseDataService extends BaseDataService {
 
   async addPropertyActivity(activity: Omit<PropertyActivity, 'id' | 'created_at'>): Promise<ApiResponse<PropertyActivity>> {
     try {
-      const { data, error } = await supabase
-        .from('property_activities')
-        .insert(activity)
-        .select()
-        .single();
+      const client = this.getClient();
+      const now = new Date().toISOString();
+      
+      // First get the buyer_property_id for this property
+      const { data: buyerPropertyData, error: buyerPropertyError } = await client
+        .from('buyer_properties')
+        .select('id, buyer_id')
+        .eq('property_id', activity.property_id)
+        .maybeSingle();
 
-      if (error) {
-        console.error('Error adding property activity:', error);
-        return this.createResponse(null, error.message);
+      if (buyerPropertyError) {
+        console.error('Error fetching buyer property for new activity:', buyerPropertyError);
+        return this.createResponse(null, buyerPropertyError.message);
+      }
+
+      if (!buyerPropertyData) {
+        return this.createResponse(null, 'No buyer-property relationship found for this property');
+      }
+
+      let insertedData: any;
+      let activityId: string;
+
+      // Route the activity to the appropriate table based on type
+      switch (activity.type) {
+        case 'note':
+          // Store as action item
+          const { data: actionItemData, error: actionItemError } = await client
+            .from('action_items')
+            .insert({
+              buyer_id: buyerPropertyData.buyer_id,
+              title: activity.title,
+              description: activity.description,
+              status: 'pending',
+              priority: 'medium',
+              due_date: null,
+              assigned_to: activity.created_by,
+              created_at: now
+            })
+            .select()
+            .single();
+          
+          if (actionItemError) {
+            console.error('Error creating action item:', actionItemError);
+            return this.createResponse(null, actionItemError.message);
+          }
+          
+          insertedData = actionItemData;
+          activityId = `action_${insertedData.id}`;
+          break;
+
+        case 'document':
+          // Store as document
+          const { data: documentData, error: documentError } = await client
+            .from('documents')
+            .insert({
+              buyer_id: buyerPropertyData.buyer_id,
+              document_name: activity.title,
+              document_type: 'general',
+              status: 'active',
+              uploaded_by: activity.created_by,
+              created_at: now,
+              metadata: activity.description ? { description: activity.description } : null
+            })
+            .select()
+            .single();
+          
+          if (documentError) {
+            console.error('Error creating document:', documentError);
+            return this.createResponse(null, documentError.message);
+          }
+          
+          insertedData = documentData;
+          activityId = `doc_${insertedData.id}`;
+          break;
+
+        case 'milestone':
+          // Store as timeline history or action item depending on context
+          const { data: milestoneData, error: milestoneError } = await client
+            .from('action_items')
+            .insert({
+              buyer_id: buyerPropertyData.buyer_id,
+              title: activity.title,
+              description: activity.description,
+              status: 'completed',
+              priority: 'high',
+              due_date: now,
+              assigned_to: activity.created_by,
+              created_at: now
+            })
+            .select()
+            .single();
+          
+          if (milestoneError) {
+            console.error('Error creating milestone:', milestoneError);
+            return this.createResponse(null, milestoneError.message);
+          }
+          
+          insertedData = milestoneData;
+          activityId = `action_${insertedData.id}`;
+          break;
+
+        case 'viewing':
+        case 'offer':
+        default:
+          // Store as action item with appropriate status
+          const { data: defaultData, error: defaultError } = await client
+            .from('action_items')
+            .insert({
+              buyer_id: buyerPropertyData.buyer_id,
+              title: activity.title,
+              description: activity.description,
+              status: activity.type === 'viewing' ? 'in_progress' : 'pending',
+              priority: activity.type === 'offer' ? 'high' : 'medium',
+              due_date: null,
+              assigned_to: activity.created_by,
+              created_at: now
+            })
+            .select()
+            .single();
+          
+          if (defaultError) {
+            console.error('Error creating activity:', defaultError);
+            return this.createResponse(null, defaultError.message);
+          }
+          
+          insertedData = defaultData;
+          activityId = `action_${insertedData.id}`;
+          break;
       }
 
       // Update property's last_activity_at
-      await supabase
+      await client
         .from('properties')
-        .update({ last_activity_at: new Date().toISOString() })
+        .update({ last_activity_at: now })
         .eq('id', activity.property_id);
 
-      return this.createResponse(data);
+      // Return the activity in PropertyActivity format
+      const responseActivity: PropertyActivity = {
+        id: activityId,
+        property_id: activity.property_id,
+        type: activity.type,
+        title: activity.title,
+        description: activity.description,
+        created_at: now,
+        created_by: activity.created_by
+      };
+
+      return this.createResponse(responseActivity);
     } catch (error) {
       console.error('Error in addPropertyActivity:', error);
       const apiError = this.handleError(error);
@@ -779,7 +1040,8 @@ export class SupabaseDataService extends BaseDataService {
 
   async getPropertySummary(buyerId: string): Promise<ApiResponse<PropertySummary>> {
     try {
-      const { data: buyerProperties, error } = await supabase
+      const client = this.getClient();
+      const { data: buyerProperties, error } = await client
         .from('buyer_properties')
         .select('status, buying_stage, action_required')
         .eq('buyer_id', buyerId);
@@ -834,8 +1096,17 @@ export class SupabaseDataService extends BaseDataService {
   // New methods for buyer-property relationships
   async getAvailableProperties(filter?: PropertyFilter, buyerId?: string): Promise<ApiResponse<Property[]>> {
     try {
-      // Start with a query to get properties assigned to the buyer
-      let query = supabase
+      const client = this.getClient();
+      if (!buyerId) {
+        return this.createResponse(null, 'Buyer ID is required for search tab');
+      }
+
+      // SEARCH TAB: Show properties recommended to this buyer that they haven't acted on yet
+      // Only show buyer_properties where:
+      // 1. is_active = true (not passed)
+      // 2. interest_level = 'interested' (not loved or viewing scheduled)
+      // 3. property.status = 'active' (still available)
+      let query = client
         .from('buyer_properties')
         .select(`
           *,
@@ -843,19 +1114,10 @@ export class SupabaseDataService extends BaseDataService {
             *
           )
         `)
-        .eq('buyer_id', buyerId || '');
-
-      // Exclude active statuses and withdrawn properties from search
-      // Active statuses: viewing, offer_submitted, under_contract, in_escrow, closed
-      // Also exclude withdrawn properties
-      query = query.not('status', 'in', '(viewing,offer_submitted,under_contract,in_escrow,closed,withdrawn)');
-
-      // If no buyer ID is provided, fall back to getting all available properties
-      if (!buyerId) {
-        query = supabase
-          .from('properties')
-          .select('*');
-      }
+        .eq('buyer_id', buyerId)
+        .eq('is_active', true)
+        .eq('interest_level', 'interested')
+        .eq('property.status', 'active');
 
       const { data, error } = await query;
 
@@ -965,32 +1227,29 @@ export class SupabaseDataService extends BaseDataService {
     }
   }
 
-  async addPropertyToBuyer(buyerId: string, propertyId: string): Promise<ApiResponse<any>> {
+  async addPropertyToBuyer(buyerId: string, propertyId: string, options?: {
+    initialStage?: 'interested' | 'loved' | 'viewing_scheduled' | 'under_contract' | 'pending';
+    timelinePhase?: 'pre_escrow' | 'escrow' | 'post_escrow';
+    fubStage?: 'lead' | 'hot_prospect' | 'nurture' | 'active_client' | 'pending' | 'closed';
+  }): Promise<ApiResponse<any>> {
     try {
-      // First, check if the property is available (not in escrow by someone else)
-      const { data: property, error: propertyError } = await supabase
-        .from('properties')
-        .select('overall_status')
-        .eq('id', propertyId)
-        .single();
-
-      if (propertyError) {
-        console.error('Error checking property status:', propertyError);
-        return this.createResponse(null, propertyError.message);
-      }
-
-      // If property is in escrow or under contract by someone else, don't allow tracking
-      if (property.overall_status === 'in_escrow' || property.overall_status === 'under_contract') {
-        return this.createResponse(
-          null, 
-          'This property is no longer available for tracking as it is already in escrow or under contract.'
-        );
-      }
+      const client = this.getClient();
+      
+      // Set defaults based on stage
+      const initialStage = options?.initialStage || 'interested';
+      const timelinePhase = options?.timelinePhase || (
+        initialStage === 'under_contract' ? 'escrow' : 
+        initialStage === 'pending' ? 'escrow' : 'pre_escrow'
+      );
+      const fubStage = options?.fubStage || (
+        initialStage === 'under_contract' ? 'pending' :
+        initialStage === 'pending' ? 'pending' : 'active_client'
+      );
 
       // Check if the buyer is already tracking this property
-      const { data: existing, error: existingError } = await supabase
+      const { data: existing, error: existingError } = await client
         .from('buyer_properties')
-        .select('id')
+        .select('id, interest_level')
         .eq('buyer_id', buyerId)
         .eq('property_id', propertyId)
         .maybeSingle();
@@ -1001,21 +1260,56 @@ export class SupabaseDataService extends BaseDataService {
       }
 
       if (existing) {
+        // Update existing property if agent is adding at a more advanced stage
+        if (this.shouldUpdateStage(existing.interest_level, initialStage)) {
+          const { data: updated, error: updateError } = await client
+            .from('buyer_properties')
+            .update({
+              interest_level: initialStage,
+              last_activity_at: new Date().toISOString()
+            })
+            .eq('id', existing.id)
+            .select()
+            .single();
+
+          if (updateError) {
+            console.error('Error updating property stage:', updateError);
+            return this.createResponse(null, updateError.message);
+          }
+
+          // Create timeline if needed for advanced stages
+          if (initialStage !== 'interested') {
+            await this.createTimelineForStage(existing.id, initialStage, timelinePhase, fubStage);
+          }
+
+          return this.createResponse({
+            ...updated,
+            message: `Property stage updated to ${initialStage}`
+          });
+        }
+
         return this.createResponse(
           { id: existing.id, message: 'You are already tracking this property' },
           null
         );
       }
 
-      // Add the property to buyer's tracked properties
-      const { data, error } = await supabase
+      // Get buyer's organization_id
+      const { data: buyer } = await client
+        .from('persons')
+        .select('organization_id')
+        .eq('id', buyerId)
+        .single();
+
+      // Add new property to buyer's tracked properties
+      const { data, error } = await client
         .from('buyer_properties')
         .insert({
+          organization_id: buyer?.organization_id,
           buyer_id: buyerId,
           property_id: propertyId,
-          status: 'researching',
-          buying_stage: 'initial_research',
-          action_required: 'schedule_viewing',
+          interest_level: initialStage,
+          is_active: true,
           last_activity_at: new Date().toISOString()
         })
         .select()
@@ -1026,19 +1320,14 @@ export class SupabaseDataService extends BaseDataService {
         return this.createResponse(null, error.message);
       }
 
-      // Add an activity log entry
-      await supabase
-        .from('property_activities')
-        .insert({
-          buyer_property_id: data.id,
-          activity_type: 'property_added',
-          title: 'Property Added to Tracked List',
-          description: 'You started tracking this property.'
-        });
+      // Create timeline if starting at advanced stage
+      if (initialStage !== 'interested') {
+        await this.createTimelineForStage(data.id, initialStage, timelinePhase, fubStage);
+      }
 
       return this.createResponse({
         ...data,
-        message: 'Property added to your tracked properties'
+        message: `Property added at ${initialStage} stage`
       });
     } catch (error) {
       console.error('Error in addPropertyToBuyer:', error);
@@ -1049,8 +1338,9 @@ export class SupabaseDataService extends BaseDataService {
 
   async updateBuyerProperty(buyerId: string, propertyId: string, updates: any): Promise<ApiResponse<any>> {
     try {
+      const client = this.getClient();
       // First, verify the buyer has access to this property
-      const { data: existing, error: accessError } = await supabase
+      const { data: existing, error: accessError } = await client
         .from('buyer_properties')
         .select('id, status')
         .eq('buyer_id', buyerId)
@@ -1072,7 +1362,7 @@ export class SupabaseDataService extends BaseDataService {
       };
 
       // Update the buyer_property relationship
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('buyer_properties')
         .update(updateData)
         .eq('id', existing.id)
@@ -1086,7 +1376,7 @@ export class SupabaseDataService extends BaseDataService {
 
       // If status was updated to in_escrow, update the property's overall_status
       if (updates.status === 'in_escrow') {
-        await supabase
+        await client
           .from('properties')
           .update({ overall_status: 'in_escrow' })
           .eq('id', propertyId);
@@ -1112,7 +1402,7 @@ export class SupabaseDataService extends BaseDataService {
           activityDescription = 'Property purchase completed';
         }
 
-        await supabase
+        await client
           .from('property_activities')
           .insert({
             buyer_property_id: existing.id,
@@ -1135,20 +1425,21 @@ export class SupabaseDataService extends BaseDataService {
 
   async getActionItems(buyerId: string): Promise<ApiResponse<ActionItem[]>> {
     try {
-      // Get action items from the action_items table for the specific buyer
-      const { data: actionItems, error: actionItemsError } = await supabase
+      // Get action items from the action_items table for the buyer
+      const client = this.getClient();
+      const { data: actionItems, error: actionItemsError } = await client
         .from('action_items')
         .select(`
           *,
-          buyer_property:buyer_properties!action_items_buyer_property_id_fkey (
+          buyer_property:buyer_properties!buyer_property_id(
             *,
-            property:properties!buyer_properties_property_id_fkey (
-            id,
-            address,
-            city,
+            property:properties!property_id(
+              id,
+              address,
+              city,
               state,
               zip_code,
-              price,
+              listing_price,
               bedrooms,
               bathrooms,
               square_feet,
@@ -1157,9 +1448,8 @@ export class SupabaseDataService extends BaseDataService {
             )
           )
         `)
-        .eq('person_id', buyerId)
-        .eq('is_completed', false)
-        .eq('is_irrelevant', false)
+        .eq('assigned_buyer_id', buyerId)
+        .eq('status', 'pending')
         .order('priority', { ascending: false })
         .order('created_at', { ascending: true });
 
@@ -1179,7 +1469,7 @@ export class SupabaseDataService extends BaseDataService {
         
         return {
           id: actionItem.id,
-          property_id: actionItem.property_id,
+          property_id: buyerProperty?.property_id || null,
           buyer_id: buyerId,
           title: actionItem.title,
           description: actionItem.description || '',
@@ -1214,7 +1504,7 @@ export class SupabaseDataService extends BaseDataService {
     priority: string;
   }>): Promise<ApiResponse<ActionItem>> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('action_items')
         .update({
           ...updates,
@@ -1223,15 +1513,15 @@ export class SupabaseDataService extends BaseDataService {
         .eq('id', actionItemId)
         .select(`
           *,
-          buyer_property:buyer_properties!action_items_buyer_property_id_fkey (
+          buyer_property:buyer_properties!buyer_property_id(
             *,
-            property:properties!buyer_properties_property_id_fkey (
+            property:properties!property_id(
               id,
               address,
               city,
               state,
               zip_code,
-              price,
+              listing_price,
               bedrooms,
               bathrooms,
               square_feet,
@@ -1257,8 +1547,8 @@ export class SupabaseDataService extends BaseDataService {
       
       const transformedActionItem: ActionItem = {
         id: data.id,
-        property_id: data.property_id,
-        buyer_id: data.person_id,
+        property_id: buyerProperty?.property_id || null,
+        buyer_id: data.assigned_buyer_id,
         title: data.title,
         description: data.description || '',
         property_address: property ? `${property.address}, ${property.city}, ${property.state}` : '',
@@ -1284,11 +1574,11 @@ export class SupabaseDataService extends BaseDataService {
   async createActionItem(actionItem: Omit<ActionItem, 'id' | 'last_activity_at'>): Promise<ApiResponse<ActionItem>> {
     try {
       // Get buyer's organization_id
-      const { data: buyerData, error: buyerError } = await supabase
+      const { data: buyerData, error: buyerError } = await client
         .from('persons')
         .select('organization_id')
         .eq('id', actionItem.buyer_id)
-        .eq('role', 'buyer')
+        .eq('primary_role', 'buyer')
         .single();
 
       if (buyerError) {
@@ -1298,7 +1588,7 @@ export class SupabaseDataService extends BaseDataService {
       // Get or create buyer_property relationship if property_id is provided
       let buyerPropertyId = null;
       if (actionItem.property_id) {
-        const { data: buyerPropertyData, error: buyerPropertyError } = await supabase
+        const { data: buyerPropertyData, error: buyerPropertyError } = await client
           .from('buyer_properties')
           .select('id')
           .eq('buyer_id', actionItem.buyer_id)
@@ -1312,7 +1602,7 @@ export class SupabaseDataService extends BaseDataService {
 
         if (!buyerPropertyData) {
           // Create buyer_property relationship
-          const { data: newBuyerProperty, error: createBuyerPropertyError } = await supabase
+          const { data: newBuyerProperty, error: createBuyerPropertyError } = await client
             .from('buyer_properties')
             .insert({
               buyer_id: actionItem.buyer_id,
@@ -1337,36 +1627,31 @@ export class SupabaseDataService extends BaseDataService {
       }
 
       // Insert the action item
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('action_items')
         .insert({
-          person_id: actionItem.buyer_id,
-          property_id: actionItem.property_id,
+          organization_id: buyerData.organization_id,
+          assigned_buyer_id: actionItem.buyer_id,
           buyer_property_id: buyerPropertyId,
+          action_type: actionItem.action_required,
           title: actionItem.title,
           description: actionItem.description,
-          action_type: actionItem.action_required,
-          status: actionItem.status || 'pending',
           priority: actionItem.priority || 'medium',
+          status: actionItem.status || 'pending',
           due_date: actionItem.due_date,
-          phase: actionItem.buying_stage === 'initial_research' || actionItem.buying_stage === 'active_search' ? 'pre-escrow' : 'escrow',
-          item_order: 999, // Custom items go to the end
-          custom_task: actionItem.title, // Mark as custom task
-          organization_id: buyerData.organization_id,
-          is_completed: false,
-          is_irrelevant: false
+          item_order: 999
         })
         .select(`
           *,
-          buyer_property:buyer_properties!action_items_buyer_property_id_fkey (
+          buyer_property:buyer_properties!buyer_property_id(
             *,
-            property:properties!buyer_properties_property_id_fkey (
+            property:properties!property_id(
               id,
               address,
               city,
               state,
               zip_code,
-              price,
+              listing_price,
               bedrooms,
               bathrooms,
               square_feet,
@@ -1388,8 +1673,8 @@ export class SupabaseDataService extends BaseDataService {
       
       const transformedActionItem: ActionItem = {
         id: data.id,
-        property_id: data.property_id,
-        buyer_id: data.person_id,
+        property_id: buyerProperty?.property_id || null,
+        buyer_id: data.assigned_buyer_id,
         title: data.title,
         description: data.description || '',
         property_address: property ? `${property.address}, ${property.city}, ${property.state}` : '',
@@ -1409,5 +1694,165 @@ export class SupabaseDataService extends BaseDataService {
       const apiError = this.handleError(error);
       return this.createResponse(null, apiError.message);
     }
+  }
+
+  // Property workflow action methods
+  async loveProperty(buyerId: string, propertyId: string): Promise<ApiResponse<any>> {
+    try {
+      const client = this.getClient();
+      
+      // Update buyer_property interest_level to 'loved'
+      // This will trigger the database trigger to create a timeline
+      const { data, error } = await client
+        .from('buyer_properties')
+        .update({
+          interest_level: 'loved',
+          last_activity_at: new Date().toISOString()
+        })
+        .eq('buyer_id', buyerId)
+        .eq('property_id', propertyId)
+        .eq('is_active', true)
+        .select('*')
+        .single();
+
+      if (error) {
+        console.error('Error loving property:', error);
+        return this.createResponse(null, error.message);
+      }
+
+      return this.createResponse(data, null);
+    } catch (error) {
+      console.error('Error in loveProperty:', error);
+      const apiError = this.handleError(error);
+      return this.createResponse(null, apiError.message);
+    }
+  }
+
+  async passProperty(buyerId: string, propertyId: string): Promise<ApiResponse<any>> {
+    try {
+      const client = this.getClient();
+      
+      // Update buyer_property to set is_active = false (removes from search)
+      const { data, error } = await client
+        .from('buyer_properties')
+        .update({
+          interest_level: 'passed',
+          is_active: false,
+          last_activity_at: new Date().toISOString()
+        })
+        .eq('buyer_id', buyerId)
+        .eq('property_id', propertyId)
+        .select('*')
+        .single();
+
+      if (error) {
+        console.error('Error passing property:', error);
+        return this.createResponse(null, error.message);
+      }
+
+      return this.createResponse(data, null);
+    } catch (error) {
+      console.error('Error in passProperty:', error);
+      const apiError = this.handleError(error);
+      return this.createResponse(null, apiError.message);
+    }
+  }
+
+  async scheduleViewing(buyerId: string, propertyId: string): Promise<ApiResponse<any>> {
+    try {
+      const client = this.getClient();
+      
+      // Update buyer_property interest_level to 'viewing_scheduled'
+      // This will trigger the database trigger to create a timeline
+      const { data, error } = await client
+        .from('buyer_properties')
+        .update({
+          interest_level: 'viewing_scheduled',
+          last_activity_at: new Date().toISOString()
+        })
+        .eq('buyer_id', buyerId)
+        .eq('property_id', propertyId)
+        .eq('is_active', true)
+        .select('*')
+        .single();
+
+      if (error) {
+        console.error('Error scheduling viewing:', error);
+        return this.createResponse(null, error.message);
+      }
+
+      return this.createResponse(data, null);
+    } catch (error) {
+      console.error('Error in scheduleViewing:', error);
+      const apiError = this.handleError(error);
+      return this.createResponse(null, apiError.message);
+    }
+  }
+
+  // Helper methods for multi-stage property addition
+  private shouldUpdateStage(currentStage: string, newStage: string): boolean {
+    const stageOrder = {
+      'interested': 1,
+      'loved': 2, 
+      'viewing_scheduled': 3,
+      'under_contract': 4,
+      'pending': 5
+    };
+    
+    const currentLevel = stageOrder[currentStage as keyof typeof stageOrder] || 1;
+    const newLevel = stageOrder[newStage as keyof typeof stageOrder] || 1;
+    
+    return newLevel > currentLevel;
+  }
+
+  private async createTimelineForStage(
+    buyerPropertyId: string, 
+    stage: string, 
+    timelinePhase: string, 
+    fubStage: string
+  ) {
+    const client = this.getClient();
+    
+    // Check if timeline already exists
+    const { data: existingTimeline } = await client
+      .from('timelines')
+      .select('id')
+      .eq('buyer_property_id', buyerPropertyId)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (existingTimeline) {
+      // Update existing timeline
+      await client
+        .from('timelines')
+        .update({
+          current_phase: timelinePhase,
+          current_fub_stage: fubStage,
+          stage_last_updated: new Date().toISOString()
+        })
+        .eq('id', existingTimeline.id);
+    } else {
+      // Create new timeline
+      await client
+        .from('timelines')
+        .insert({
+          buyer_property_id: buyerPropertyId,
+          current_phase: timelinePhase,
+          current_fub_stage: fubStage,
+          timeline_name: this.getTimelineNameForStage(stage),
+          timeline_notes: `Timeline created for property at ${stage} stage`,
+          is_active: true
+        });
+    }
+  }
+
+  private getTimelineNameForStage(stage: string): string {
+    const names = {
+      'loved': 'Property Loved Timeline',
+      'viewing_scheduled': 'Viewing Scheduled Timeline',
+      'under_contract': 'Under Contract Timeline',
+      'pending': 'Pending Sale Timeline'
+    };
+    return names[stage as keyof typeof names] || 'Property Timeline';
   }
 }

@@ -36,8 +36,17 @@ export interface DataService {
   updateActionItem(actionItemId: string, updates: Partial<ActionItem>): Promise<ApiResponse<ActionItem>>;
   
   // Buyer-Property relationship operations
-  addPropertyToBuyer(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;
+  addPropertyToBuyer(buyerId: string, propertyId: string, options?: {
+    initialStage?: 'interested' | 'loved' | 'viewing_scheduled' | 'under_contract' | 'pending';
+    timelinePhase?: 'pre_escrow' | 'escrow' | 'post_escrow';
+    fubStage?: 'lead' | 'hot_prospect' | 'nurture' | 'active_client' | 'pending' | 'closed';
+  }): Promise<ApiResponse<any>>;
   updateBuyerProperty(buyerId: string, propertyId: string, updates: any): Promise<ApiResponse<any>>;
+  
+  // Property workflow actions
+  loveProperty(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;
+  passProperty(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;
+  scheduleViewing(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;
 }
 
 // Abstract base class for data service implementations
@@ -76,8 +85,17 @@ export abstract class BaseDataService implements DataService {
   abstract updateActionItem(actionItemId: string, updates: Partial<ActionItem>): Promise<ApiResponse<ActionItem>>;
   
   // Buyer-Property relationship operations
-  abstract addPropertyToBuyer(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;
+  abstract addPropertyToBuyer(buyerId: string, propertyId: string, options?: {
+    initialStage?: 'interested' | 'loved' | 'viewing_scheduled' | 'under_contract' | 'pending';
+    timelinePhase?: 'pre_escrow' | 'escrow' | 'post_escrow';
+    fubStage?: 'lead' | 'hot_prospect' | 'nurture' | 'active_client' | 'pending' | 'closed';
+  }): Promise<ApiResponse<any>>;
   abstract updateBuyerProperty(buyerId: string, propertyId: string, updates: any): Promise<ApiResponse<any>>;
+  
+  // Property workflow actions
+  abstract loveProperty(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;
+  abstract passProperty(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;
+  abstract scheduleViewing(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;
 
   protected handleError(error: any): ApiError {
     if (error instanceof ApiError) {

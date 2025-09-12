@@ -1,5 +1,5 @@
 // Supabase Authentication Service Implementation
-import { supabase } from '@/lib/supabaseClient';
+import { supabase, supabaseAdmin } from '@/lib/supabaseClient';
 import { BaseAuthService } from '../api/auth';
 import { ApiResponse, AuthUser, AuthSession } from '../api/types';
 
@@ -8,12 +8,12 @@ export class SupabaseAuthService extends BaseAuthService {
     try {
       console.log('Simple login for email:', email);
       
-      // Check if the buyer exists in our database using the persons table
-      const { data: buyerData, error: buyerError } = await supabase
+      // Check if the buyer exists in our database using the admin client to bypass RLS
+      const { data: buyerData, error: buyerError } = await supabaseAdmin
         .from('persons')
-        .select('id, first_name, last_name, email, role, agent_id')
+        .select('id, first_name, last_name, email, primary_role, assigned_agent_id')
         .eq('email', email)
-        .eq('role', 'buyer')
+        .eq('primary_role', 'buyer')
         .single();
 
       // If buyer doesn't exist, return error

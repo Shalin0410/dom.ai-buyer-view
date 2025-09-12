@@ -7,6 +7,7 @@ import { useProperties } from '@/hooks/useProperties';
 import { Property, PropertyStatus } from '@/services/api/types';
 import { toast } from '@/hooks/use-toast';
 import { handlePropertyInteraction, PropertyAction } from '@/services/properties/interactions';
+import { ViewingScheduleModal } from '@/components/ViewingScheduleModal';
 
 // UI extension for property swiping
 interface SwipeProperty extends Omit<Property, 'status'> {
@@ -23,15 +24,17 @@ interface SwipeProperty extends Omit<Property, 'status'> {
 }
 
 interface PropertySwipingProps {
-  userProfile: { id: string };
+  userProfile: { id: string; name?: string; email?: string };
   onPropertyAction: (propertyId: string, action: 'like' | 'dislike' | 'save') => void;
   onOpenChat: () => void;
+  agentEmail?: string;
 }
 
-const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: PropertySwipingProps) => {
+const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat, agentEmail = 'agent@example.com' }: PropertySwipingProps) => {
   // State management - all hooks must be called unconditionally at the top level
   const [currentPropertyIndex, setCurrentPropertyIndex] = useState(0);
   const [swipeProperties, setSwipeProperties] = useState<SwipeProperty[]>([]);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   
   // Get buyer ID from user profile
   const buyerId = userProfile?.id;
@@ -117,22 +120,24 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
     onPropertyAction(currentProperty.id, action);
   }, [currentPropertyIndex, buyerId, swipeProperties, onPropertyAction]);
 
-  const handleScheduleTour = useCallback(async () => {
-    const currentProperty = swipeProperties[currentPropertyIndex];
-    if (!currentProperty || !buyerId) return;
+  const handleScheduleTour = useCallback(() => {
+    setIsScheduleModalOpen(true);
+  }, []);
+
+  const handleScheduleConfirm = useCallback(async (schedulingData: {
+    propertyId: string;
+    selectedDates: Date[];
+    additionalInfo: string;
+  }) => {
+    if (!buyerId) return false;
     
     const success = await handlePropertyInteraction({
       buyerId,
-      propertyId: currentProperty.id,
+      propertyId: schedulingData.propertyId,
       action: 'schedule_tour'
     });
     
     if (success) {
-      toast({
-        title: "Tour Scheduled!",
-        description: "Your tour request has been sent to your agent.",
-      });
-      
       // Remove property from search list
       const updatedProperties = swipeProperties.filter((_, index) => index !== currentPropertyIndex);
       setSwipeProperties(updatedProperties);
@@ -148,12 +153,15 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
           description: "Check your dashboard for tour schedules.",
         });
       }
+      
+      return true;
     } else {
       toast({
         title: "Error",
         description: "Failed to schedule tour. Please try again.",
         variant: "destructive"
       });
+      return false;
     }
   }, [currentPropertyIndex, buyerId, swipeProperties]);
 
@@ -365,7 +373,7 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
                   className="w-full bg-blue-600 hover:bg-blue-700 py-2 text-xs shadow-md"
                 >
                   <Calendar size={14} className="mr-1" />
-                  Schedule Tour (Auto-booking in progress...)
+                  Schedule Viewing
                 </Button>
               </CardContent>
             </Card>
@@ -391,6 +399,19 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
           )}
         </div>
       </div>
+
+      {/* Viewing Schedule Modal */}
+      {currentProperty && (
+        <ViewingScheduleModal
+          isOpen={isScheduleModalOpen}
+          onClose={() => setIsScheduleModalOpen(false)}
+          property={currentProperty}
+          buyerName={userProfile?.name || 'Buyer'}
+          buyerEmail={userProfile?.email || ''}
+          agentEmail={agentEmail}
+          onScheduleConfirm={handleScheduleConfirm}
+        />
+      )}
     </div>
   );
 };

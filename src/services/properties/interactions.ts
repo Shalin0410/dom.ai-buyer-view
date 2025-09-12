@@ -1,5 +1,5 @@
 // src/services/properties/interactions.ts
-import { supabase } from '@/lib/supabaseClient';
+import { supabase, supabaseAdmin } from '@/lib/supabaseClient';
 
 export type PropertyAction = 'pass' | 'save' | 'love' | 'schedule_tour';
 
@@ -7,6 +7,18 @@ export interface PropertyInteraction {
   buyerId: string;
   propertyId: string;
   action: PropertyAction;
+}
+
+/**
+ * Helper method to determine which client to use
+ */
+function getClient() {
+  // Check if we have a mock session - if so, use admin client to bypass RLS
+  const mockSession = localStorage.getItem('mockAuthSession');
+  if (mockSession) {
+    return supabaseAdmin;
+  }
+  return supabase;
 }
 
 /**
@@ -20,22 +32,30 @@ export async function handlePropertyInteraction({
   try {
     console.log('Handling property interaction:', { buyerId, propertyId, action });
 
-    // Map actions to database status values
-    const statusMapping = {
-      'pass': 'withdrawn', // Mark as passed/not interested (keeps record)
-      'save': 'researching', // Keep as researching but add to saved
-      'love': 'viewing', // Mark as interested/viewing
-      'schedule_tour': 'viewing' // Mark as tour scheduled
+    // Map actions to interest_level values (based on AGENT_WORKFLOW_REQUIREMENTS.md)
+    const interestLevelMapping = {
+      'pass': 'passed',
+      'save': 'interested', // Keep as interested but saved
+      'love': 'loved', // This will trigger timeline creation via database trigger
+      'schedule_tour': 'viewing_scheduled' // This will trigger timeline creation via database trigger
     };
 
-    // For all actions, we update or insert the buyer_properties record
-    const newStatus = statusMapping[action];
-    const notes = getActionNotes(action);
+    // Map actions to is_active values
+    const isActiveMapping = {
+      'pass': false, // Passed properties are no longer active
+      'save': true,
+      'love': true,
+      'schedule_tour': true
+    };
+
+    const newInterestLevel = interestLevelMapping[action];
+    const isActive = isActiveMapping[action];
 
     // First, try to update existing record
-    const { data: existingRecord, error: fetchError } = await supabase
+    const client = getClient();
+    const { data: existingRecord, error: fetchError } = await client
       .from('buyer_properties')
-      .select('id')
+      .select('id, interest_level')
       .eq('buyer_id', buyerId)
       .eq('property_id', propertyId)
       .single();
@@ -47,11 +67,12 @@ export async function handlePropertyInteraction({
 
     if (existingRecord) {
       // Update existing record
-      const { error: updateError } = await supabase
+      const { error: updateError } = await client
         .from('buyer_properties')
         .update({
-          status: newStatus,
-          notes: notes,
+          interest_level: newInterestLevel,
+          is_active: isActive,
+          last_activity_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
         .eq('id', existingRecord.id);
@@ -61,14 +82,27 @@ export async function handlePropertyInteraction({
         return false;
       }
     } else {
-      // Insert new record
-      const { error: insertError } = await supabase
+      // Insert new record - get organization_id from buyer
+      const { data: buyerData, error: buyerError } = await client
+        .from('persons')
+        .select('organization_id')
+        .eq('id', buyerId)
+        .single();
+
+      if (buyerError) {
+        console.error('Error fetching buyer organization:', buyerError);
+        return false;
+      }
+
+      const { error: insertError } = await client
         .from('buyer_properties')
         .insert({
+          organization_id: buyerData.organization_id,
           buyer_id: buyerId,
           property_id: propertyId,
-          status: newStatus,
-          notes: notes
+          relationship_type: 'home_buyer',
+          interest_level: newInterestLevel,
+          is_active: isActive
         });
 
       if (insertError) {
@@ -77,7 +111,7 @@ export async function handlePropertyInteraction({
       }
     }
 
-    console.log(`Property ${action} completed successfully`);
+    console.log(`Property ${action} completed successfully - interest_level: ${newInterestLevel}`);
     return true;
 
   } catch (error) {

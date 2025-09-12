@@ -1,11 +1,11 @@
 
-
+import { useState, useEffect } from 'react';
 import { useProperties } from '@/hooks/useProperties';
 import { Property } from '@/services/api/types';
+import { dataService } from '@/services';
 import ActionItems from './ActionItems';
 import DashboardHeader from './DashboardHeader';
 import ContinueSearchCard from './ContinueSearchCard';
-
 import PropertyGrid from './PropertyGrid';
 
 interface ModernDashboardProps {
@@ -15,9 +15,35 @@ interface ModernDashboardProps {
 }
 
 const ModernDashboard = ({ userData, onPropertyClick, onNavigateToSearch }: ModernDashboardProps) => {
+  const [agentEmail, setAgentEmail] = useState<string>('agent@example.com');
+  const [agentLoading, setAgentLoading] = useState<boolean>(false);
 
   // Fetch real properties from Supabase using userData.id
   const { properties, loading, error } = useProperties(userData?.id, {}, 'tracked');
+
+  // Fetch agent email based on buyer's assigned_agent_id
+  useEffect(() => {
+    const fetchAgentEmail = async () => {
+      if (!userData?.assigned_agent_id) {
+        return; // No agent assigned, keep default
+      }
+
+      setAgentLoading(true);
+      try {
+        const response = await dataService.getAgentById(userData.assigned_agent_id);
+        if (response.success && response.data) {
+          setAgentEmail(response.data.email);
+        }
+      } catch (error) {
+        console.error('Error fetching agent email:', error);
+        // Keep default email on error
+      } finally {
+        setAgentLoading(false);
+      }
+    };
+
+    fetchAgentEmail();
+  }, [userData?.assigned_agent_id]);
 
   // Map database properties to dashboard format
   const mapPropertiesToDashboardFormat = (dbProperties: Property[]) => {
@@ -143,6 +169,12 @@ const ModernDashboard = ({ userData, onPropertyClick, onNavigateToSearch }: Mode
             <PropertyGrid 
               properties={dashboardProperties}
               onPropertyClick={onPropertyClick}
+              buyerInfo={{
+                id: userData?.id || '',
+                name: userData?.first_name ? `${userData.first_name} ${userData.last_name || ''}`.trim() : 'Buyer',
+                email: userData?.email || ''
+              }}
+              agentEmail={agentEmail}
             />
           </div>
 
