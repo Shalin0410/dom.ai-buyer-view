@@ -77,7 +77,6 @@ const Header = ({ activeTab, onTabChange }: HeaderProps) => {
               icon={MessageSquare} 
               label="Messages" 
               tabKey="chat" 
-              count={3}
             />
             <NavButton 
               icon={User} 
