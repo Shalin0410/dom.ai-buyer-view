@@ -21,21 +21,41 @@ const ModernDashboard = ({ userData, onPropertyClick, onNavigateToSearch }: Mode
   // Fetch real properties from Supabase using userData.id
   const { properties, loading, error } = useProperties(userData?.id, {}, 'tracked');
 
-  // Fetch agent email based on buyer's assigned_agent_id
+  // Fetch agent email using proper buyer->agent lookup flow
   useEffect(() => {
     const fetchAgentEmail = async () => {
-      if (!userData?.assigned_agent_id) {
-        return; // No agent assigned, keep default
+      if (!userData?.email) {
+        console.log('[ModernDashboard] No user email available for agent lookup');
+        return;
       }
 
       setAgentLoading(true);
       try {
-        const response = await dataService.getAgentById(userData.assigned_agent_id);
-        if (response.success && response.data) {
-          setAgentEmail(response.data.email);
+        console.log('[ModernDashboard] Fetching buyer info for email:', userData.email);
+
+        // Step 1: Get buyer info to find their assigned_agent_id
+        const buyerResponse = await dataService.getBuyerByEmail(userData.email);
+        console.log('[ModernDashboard] getBuyerByEmail response:', buyerResponse);
+
+        if (buyerResponse.success && buyerResponse.data?.assigned_agent_id) {
+          const agentId = buyerResponse.data.assigned_agent_id;
+          console.log('[ModernDashboard] Found assigned_agent_id:', agentId);
+
+          // Step 2: Get agent info using the assigned_agent_id
+          const agentResponse = await dataService.getAgentById(agentId);
+          console.log('[ModernDashboard] getAgentById response:', agentResponse);
+
+          if (agentResponse.success && agentResponse.data?.email) {
+            console.log('[ModernDashboard] Setting agent email to:', agentResponse.data.email);
+            setAgentEmail(agentResponse.data.email);
+          } else {
+            console.log('[ModernDashboard] Failed to get agent details:', agentResponse);
+          }
+        } else {
+          console.log('[ModernDashboard] No assigned_agent_id found for buyer:', buyerResponse);
         }
       } catch (error) {
-        console.error('Error fetching agent email:', error);
+        console.error('[ModernDashboard] Error fetching agent email:', error);
         // Keep default email on error
       } finally {
         setAgentLoading(false);
@@ -43,7 +63,7 @@ const ModernDashboard = ({ userData, onPropertyClick, onNavigateToSearch }: Mode
     };
 
     fetchAgentEmail();
-  }, [userData?.assigned_agent_id]);
+  }, [userData?.email]);
 
   // Map database properties to dashboard format
   const mapPropertiesToDashboardFormat = (dbProperties: Property[]) => {

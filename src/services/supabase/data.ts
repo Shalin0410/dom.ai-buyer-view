@@ -103,14 +103,18 @@ export class SupabaseDataService extends BaseDataService {
           created_at: buyerData.assigned_agent.created_at,
           updated_at: buyerData.assigned_agent.updated_at
         };
-        
+
         return this.createResponse({
           ...buyerData,
+          agent_id: buyerData.assigned_agent_id, // Add agent_id for useAgent hook
           agent
         });
       }
 
-      return this.createResponse(buyerData);
+      return this.createResponse({
+        ...buyerData,
+        agent_id: buyerData.assigned_agent_id // Include agent_id even if null
+      });
     } catch (error) {
       console.error('Error in getBuyerByEmail:', error);
       const apiError = this.handleError(error);

@@ -26,30 +26,35 @@ const ProfilePage = ({ userData }: ProfilePageProps) => {
     return tagString.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
   };
 
-  // Create profile data from database or use fallback values
+  // Extract buyer_profiles data (comes from the database query)
+  const buyerProfile = userProfile?.buyer_profiles?.[0] || null;
+
+  // Create profile data utilizing both persons table and buyer_profiles table
   const profileData = {
-    // Basic requirements - derive from user profile data
-    bedrooms: 3, // Could be derived from buyer_needs analysis
-    bathrooms: 2,
-    minSquareFootage: 1800,
-    propertyType: 'Single-family',
-    location: userProfile?.background?.includes('tech') ? 'San Francisco, CA' : 
-              userProfile?.background?.includes('family') ? 'Suburban area' : 'City area',
-    priceRange: { 
-      min: userProfile?.price_min || 400000, 
-      max: userProfile?.price_max || 650000 
+    // Price range - prioritize buyer_profiles table
+    priceRange: {
+      min: buyerProfile?.price_min || userProfile?.price_min || 400000,
+      max: buyerProfile?.price_max || userProfile?.price_max || 650000
     },
-    // Lifestyle preferences - parse from buyer_needs
-    lifestyle: userProfile?.buyer_needs?.includes('family') ? ['Family-friendly', 'Good schools', 'Safe neighborhood'] :
-               userProfile?.buyer_needs?.includes('modern') ? ['Modern amenities', 'Move-in ready', 'City living'] :
-               userProfile?.buyer_needs?.includes('investment') ? ['Investment potential', 'Rental income', 'Appreciation'] :
-               ['Low maintenance', 'Accessibility', 'Quiet area'],
-    // Tags from database
+    // Budget and financing info - from buyer_profiles table
+    budgetApproved: buyerProfile?.budget_approved || userProfile?.budget_approved || false,
+    preApprovalAmount: buyerProfile?.pre_approval_amount || userProfile?.pre_approval_amount,
+    preApprovalExpiry: buyerProfile?.pre_approval_expiry || userProfile?.pre_approval_expiry,
+    downPaymentAmount: buyerProfile?.down_payment_amount,
+    // Buyer preferences - from buyer_profiles table
+    buyerNeeds: buyerProfile?.buyer_needs || userProfile?.buyer_needs,
+    preferredAreas: buyerProfile?.preferred_areas || [],
+    propertyTypePreferences: buyerProfile?.property_type_preferences || [],
+    mustHaveFeatures: buyerProfile?.must_have_features || [],
+    niceToHaveFeatures: buyerProfile?.nice_to_have_features || [],
+    idealMoveInDate: buyerProfile?.ideal_move_in_date,
+    urgencyLevel: buyerProfile?.urgency_level,
+    // Personal info - from persons table
     tags: parseTags(userProfile?.tags),
-    // Budget info
-    budgetApproved: userProfile?.budget_approved || false,
-    preApprovalAmount: userProfile?.pre_approval_amount,
-    preApprovalExpiry: userProfile?.pre_approval_expiry
+    background: userProfile?.background,
+    // Activity info - from persons table
+    lastContactDate: userProfile?.last_contact_date,
+    nextFollowupDate: userProfile?.next_followup_date
   };
 
   if (isLoadingProfile) {
