@@ -11,7 +11,7 @@ export class SupabaseAuthService extends BaseAuthService {
       // Check if the buyer exists in our database using the admin client to bypass RLS
       const { data: buyerData, error: buyerError } = await supabaseAdmin
         .from('persons')
-        .select('id, first_name, last_name, email, primary_role, assigned_agent_id')
+        .select('id, first_name, last_name, email, primary_role, assigned_agent_id, organization_id')
         .eq('email', email)
         .eq('primary_role', 'buyer')
         .single();
@@ -28,6 +28,7 @@ export class SupabaseAuthService extends BaseAuthService {
       const mockUser: AuthUser = {
         id: buyerData.id,
         email: buyerData.email,
+        organization_id: buyerData.organization_id,
         created_at: new Date().toISOString(),
         last_sign_in_at: new Date().toISOString()
       };

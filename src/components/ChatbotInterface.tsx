@@ -1,11 +1,16 @@
 // src/components/ChatbotInterface.tsx
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, Plus, MessageSquare, Trash2, Archive, Edit3, X, Check } from 'lucide-react';
+import { Send, Bot, Plus, MessageSquare, Trash2, Archive, Edit3, X, Check, Mail, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useChatbot } from '@/hooks/useChatbot';
 import { useNotionIntegration } from '@/hooks/useNotionIntegration';
+import { useAuth } from '@/contexts/AuthContext';
+import { rephraseUserQuestionForAgent } from '@/services/chatbot/openai';
+import { convertMessagesToChatFormat } from '@/services/chatbot/conversation';
 import { formatDistanceToNow } from 'date-fns';
 // import { QuestionSelection, QuestionCategory } from './QuestionSelection';
 // import { CategoryQuestions } from './CategoryQuestions';
@@ -118,7 +123,8 @@ const parseMarkdown = (text: string, linkCitations: Array<{ text: string; url: s
 const ChatbotInterface = () => {
   // Initialize Notion integration hook
   useNotionIntegration();
-  
+
+  const { user } = useAuth();
   const {
     conversations,
     currentConversation,
@@ -142,13 +148,96 @@ const ChatbotInterface = () => {
   // const [selectedCategory, setSelectedCategory] = useState<QuestionCategory | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Email composition state
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailContent, setEmailContent] = useState('');
+  const [userQuestion, setUserQuestion] = useState('');
+  const [originalQuestion, setOriginalQuestion] = useState('');
+  const [rephrasedQuestion, setRephrasedQuestion] = useState('');
+  const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
+  const [isRephrasingQuestion, setIsRephrasingQuestion] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [agentEmail, setAgentEmail] = useState<string>('agent@example.com');
+  const [agentName, setAgentName] = useState<string>('Your Agent');
+  const [buyerName, setBuyerName] = useState<string>('');
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const closeEmailModal = () => {
+    setShowEmailModal(false);
+    setEmailContent('');
+    setUserQuestion('');
+    setOriginalQuestion('');
+    setRephrasedQuestion('');
+    setIsRephrasingQuestion(false);
+    setIsGeneratingEmail(false);
   };
 
   useEffect(() => {
     scrollToBottom();
   }, [currentConversation?.messages]);
+
+  // Fetch agent email when user is available
+  useEffect(() => {
+    const fetchAgentEmail = async () => {
+      if (!user?.email) {
+        console.log('[ChatbotInterface] No user email available for agent lookup');
+        return;
+      }
+
+      try {
+        console.log('[ChatbotInterface] Fetching buyer info for email:', user.email);
+        // Import dataService dynamically to avoid circular imports
+        const { dataService } = await import('@/services');
+
+        // Step 1: Get buyer info to find their assigned_agent_id
+        const buyerResponse = await dataService.getBuyerByEmail(user.email);
+        console.log('[ChatbotInterface] getBuyerByEmail response:', buyerResponse);
+
+        // Set buyer name from buyer data
+        if (buyerResponse.success && buyerResponse.data) {
+          const buyer = buyerResponse.data;
+          const fullBuyerName = `${buyer.first_name || ''} ${buyer.last_name || ''}`.trim();
+          setBuyerName(fullBuyerName || buyer.email || 'Buyer');
+          console.log('[ChatbotInterface] Setting buyer name to:', fullBuyerName || buyer.email || 'Buyer');
+        }
+
+        if (buyerResponse.success && buyerResponse.data?.assigned_agent_id) {
+          const agentId = buyerResponse.data.assigned_agent_id;
+          console.log('[ChatbotInterface] Found assigned_agent_id:', agentId);
+
+          // Step 2: Get agent info using the assigned_agent_id
+          const agentResponse = await dataService.getAgentById(agentId);
+          console.log('[ChatbotInterface] getAgentById response:', agentResponse);
+
+          if (agentResponse.success && agentResponse.data?.email) {
+            console.log('[ChatbotInterface] Setting agent email to:', agentResponse.data.email);
+            setAgentEmail(agentResponse.data.email);
+
+            // Also set agent name if available
+            if (agentResponse.data.first_name || agentResponse.data.last_name) {
+              const firstName = (agentResponse.data.first_name || '').trim();
+              const lastName = (agentResponse.data.last_name || '').trim();
+              const fullName = `${firstName} ${lastName}`.trim();
+              setAgentName(fullName || 'Your Agent');
+              console.log('[ChatbotInterface] Setting agent name to:', fullName);
+            }
+          } else {
+            console.log('[ChatbotInterface] Failed to get agent details:', agentResponse);
+          }
+        } else {
+          console.log('[ChatbotInterface] No assigned_agent_id found for buyer:', buyerResponse);
+        }
+      } catch (error) {
+        console.error('[ChatbotInterface] Error fetching agent email:', error);
+        // Keep default email on error
+      }
+    };
+
+    fetchAgentEmail();
+  }, [user?.email]);
 
   // Handle state management for conversations and view modes
   useEffect(() => {
@@ -247,6 +336,124 @@ const ChatbotInterface = () => {
     }
   };
 
+  // Email functionality
+  const handleContactAgent = async (question: string) => {
+    setOriginalQuestion(question);
+    setShowEmailModal(true);
+    setIsRephrasingQuestion(true);
+
+    try {
+      // Get conversation context for AI rephrasing
+      const conversationMessages = currentConversation?.messages
+        ? convertMessagesToChatFormat(currentConversation.messages)
+        : [];
+
+      console.log('[ChatbotInterface] Rephrasing question for agent...');
+
+      // Use AI to rephrase the question
+      const rephraseResult = await rephraseUserQuestionForAgent({
+        conversationMessages,
+        latestUserMessage: question
+      });
+
+      console.log('[ChatbotInterface] Question rephrased:', rephraseResult.rephrasedQuestion);
+
+      setRephrasedQuestion(rephraseResult.rephrasedQuestion);
+      setUserQuestion(rephraseResult.rephrasedQuestion);
+      setIsRephrasingQuestion(false);
+
+      // Generate email content with the rephrased question
+      generateEmailContent(rephraseResult.rephrasedQuestion);
+
+    } catch (error) {
+      console.error('[ChatbotInterface] Error rephrasing question:', error);
+      setIsRephrasingQuestion(false);
+
+      // Fallback to original question
+      setRephrasedQuestion(question);
+      setUserQuestion(question);
+      generateEmailContent(question);
+    }
+  };
+
+  const generateEmailContent = async (question: string) => {
+    setIsGeneratingEmail(true);
+    try {
+      console.log('[ChatbotInterface] generateEmailContent - Current values:', {
+        buyerName,
+        agentName,
+        agentEmail,
+        question
+      });
+
+      // Use simple template instead of AI to reduce costs and ensure reliability
+      const finalBuyerName = buyerName || user?.name || 'Buyer';
+      const finalAgentName = agentName || 'Your Agent';
+
+      const emailTemplate = `Dear ${finalAgentName},
+
+I hope this message finds you well. I have a question about my home buying journey that I'd appreciate your guidance on:
+
+${question}
+
+Could you please provide some advice or schedule a time to discuss this further? I would greatly appreciate your expertise and assistance.
+
+Thank you for your time and support.
+
+Best regards,
+${finalBuyerName}`;
+
+      setEmailContent(emailTemplate);
+    } catch (error) {
+      console.error('Error generating email:', error);
+      // Fallback template
+      setEmailContent(
+        `Dear ${agentName || 'Your Agent'},\n\nI have a question about my home buying journey:\n\n${question}\n\nCould you please provide guidance?\n\nBest regards,\n${buyerName || user?.name || 'Buyer'}`
+      );
+    } finally {
+      setIsGeneratingEmail(false);
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!emailContent.trim()) return;
+
+    setIsSendingEmail(true);
+    try {
+      const response = await fetch('/api/send-agent-question', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: agentEmail,
+          buyerName: buyerName || user?.name || 'Buyer',
+          buyerEmail: user?.email || '',
+          subject: `Question from ${buyerName || user?.name || 'Buyer'}: Home Buying Assistance`,
+          message: emailContent,
+          originalQuestion: userQuestion,
+          agentName: agentName,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send email');
+      }
+
+      // Close modal and show success message
+      closeEmailModal();
+
+      // Add a system message to the current conversation
+      // Note: This would require extending the chat system to support system messages
+
+    } catch (error) {
+      console.error('Error sending email:', error);
+      // You could show an error toast here
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-white">
       {/* Sidebar */}
@@ -284,19 +491,71 @@ const ChatbotInterface = () => {
                       ? 'bg-gray-100 border-gray-300'
                       : 'bg-white border-gray-200 hover:bg-gray-50'
                   }`}
-                  onClick={() => handleLoadConversation(conversation.id)}
+                  onClick={() => editingTitle !== conversation.id && handleLoadConversation(conversation.id)}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-medium text-gray-900 truncate">
-                        {conversation.title}
-                      </h3>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {formatDistanceToNow(new Date(conversation.updated_at), { addSuffix: true })}
-                      </p>
+                      {editingTitle === conversation.id ? (
+                        <div className="space-y-2">
+                          <Input
+                            value={newTitle}
+                            onChange={(e) => setNewTitle(e.target.value)}
+                            onKeyPress={handleTitleKeyPress}
+                            className="text-sm font-medium"
+                            autoFocus
+                            placeholder="Enter conversation title..."
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSaveTitle();
+                              }}
+                              className="bg-green-500 hover:bg-green-600 text-white h-6 px-2"
+                            >
+                              <Check size={12} />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCancelEdit();
+                              }}
+                              className="border-red-300 text-red-600 hover:bg-red-50 h-6 px-2"
+                            >
+                              <X size={12} />
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <h3 className="text-sm font-medium text-gray-900 truncate">
+                            {conversation.title}
+                          </h3>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {formatDistanceToNow(new Date(conversation.updated_at), { addSuffix: true })}
+                          </p>
+                        </>
+                      )}
                     </div>
-                    
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+
+                    {editingTitle !== conversation.id && (
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStartEditTitle(conversation.id, conversation.title);
+                        }}
+                        className="text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                        title="Edit conversation title"
+                      >
+                        <Edit3 size={12} />
+                      </Button>
                       <Button
                         size="sm"
                         variant="ghost"
@@ -305,6 +564,7 @@ const ChatbotInterface = () => {
                           handleArchiveConversation(conversation.id);
                         }}
                         className="text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                        title="Archive conversation"
                       >
                         <Archive size={12} />
                       </Button>
@@ -316,10 +576,12 @@ const ChatbotInterface = () => {
                           handleDeleteConversation(conversation.id);
                         }}
                         className="text-gray-500 hover:text-red-600 hover:bg-red-50"
+                        title="Delete conversation"
                       >
                         <Trash2 size={12} />
-                      </Button>
-                    </div>
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))
@@ -525,24 +787,24 @@ const ChatbotInterface = () => {
                                  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
                                  const textLinks: Array<{ text: string; url: string }> = [];
                                  let match;
-                                 
+
                                  while ((match = linkRegex.exec(message.content)) !== null) {
                                    textLinks.push({
                                      text: match[1],
                                      url: match[2]
                                    });
                                  }
-                                 
+
                                  // Combine sources from API and links from text, removing duplicates
                                  const allSources: Array<{ title: string; url?: string; sourceType?: string }> = [...(message.sources || [])];
-                                 
+
                                  textLinks.forEach(textLink => {
                                    // Check if this link is already in sources (by URL)
-                                   const isDuplicate = allSources.some(source => 
-                                     source.url === textLink.url || 
+                                   const isDuplicate = allSources.some(source =>
+                                     source.url === textLink.url ||
                                      source.title === textLink.title
                                    );
-                                   
+
                                    if (!isDuplicate) {
                                      allSources.push({
                                        title: textLink.title,
@@ -551,7 +813,7 @@ const ChatbotInterface = () => {
                                      });
                                    }
                                  });
-                                 
+
                                  // Create citation array for parseMarkdown
                                  const linkCitations = allSources
                                    .filter(source => source.url)
@@ -559,10 +821,41 @@ const ChatbotInterface = () => {
                                      text: source.title || '',
                                      url: source.url || ''
                                    }));
-                                 
+
                                  return parseMarkdown(message.content, linkCitations);
                                })()}
                              </div>
+
+                             {/* Contact Agent Button - Show if AI suggests contacting agent */}
+                             {message.role === 'assistant' && (
+                               message.content.toLowerCase().includes('contact') &&
+                               (message.content.toLowerCase().includes('agent') ||
+                                message.content.toLowerCase().includes('real estate') ||
+                                message.content.toLowerCase().includes('professional'))
+                             ) && (
+                               <div className="mt-3 pt-3 border-t border-gray-200">
+                                 <Button
+                                   onClick={() => {
+                                     // Find the user's original question (previous message)
+                                     const messageIndex = currentConversation?.messages.findIndex(m => m.id === message.id);
+                                     const userMessage = messageIndex !== undefined && messageIndex > 0
+                                       ? currentConversation?.messages[messageIndex - 1]
+                                       : null;
+                                     const question = userMessage?.role === 'user'
+                                       ? userMessage.content
+                                       : inputText || 'I have a question about my home buying journey';
+
+                                     handleContactAgent(question);
+                                   }}
+                                   variant="outline"
+                                   size="sm"
+                                   className="flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50"
+                                 >
+                                   <Mail className="h-4 w-4" />
+                                   Contact Your Agent
+                                 </Button>
+                               </div>
+                             )}
                             
                                                          {(() => {
                                // Extract links from the message content
@@ -695,6 +988,135 @@ const ChatbotInterface = () => {
           </div>
         </div>
       </div>
+
+      {/* Email Modal */}
+      {showEmailModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="h-5 w-5" />
+                  Contact Your Agent
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={closeEmailModal}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Original Question */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Your Original Message:
+                </label>
+                <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-800">
+                  {originalQuestion}
+                </div>
+              </div>
+
+              {/* AI Rephrased Question */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  AI-Enhanced Question for Agent:
+                </label>
+                {isRephrasingQuestion ? (
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      </div>
+                      <span className="text-sm text-gray-600">AI is rephrasing your question for better clarity...</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                    <div className="text-sm text-gray-800">
+                      {rephrasedQuestion || userQuestion}
+                    </div>
+                    {rephrasedQuestion && rephrasedQuestion !== originalQuestion && (
+                      <div className="mt-2 text-xs text-blue-600">
+                        ✨ AI has rephrased your question to provide more context for your agent
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  {agentName !== 'Your Agent' ? `${agentName}'s Email:` : 'Agent Email:'}
+                </label>
+                <Input
+                  value={agentEmail}
+                  onChange={(e) => setAgentEmail(e.target.value)}
+                  placeholder="agent@example.com"
+                  className="mb-2"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Email Message:
+                </label>
+                {isGeneratingEmail ? (
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      </div>
+                      <span className="text-sm text-gray-600">Generating professional email...</span>
+                    </div>
+                  </div>
+                ) : (
+                  <Textarea
+                    value={emailContent}
+                    onChange={(e) => setEmailContent(e.target.value)}
+                    placeholder="Your message to the agent..."
+                    rows={8}
+                    className="resize-none"
+                  />
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={closeEmailModal}
+                  disabled={isSendingEmail}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSendEmail}
+                  disabled={!emailContent.trim() || isSendingEmail || isGeneratingEmail}
+                  className="flex items-center gap-2"
+                >
+                  {isSendingEmail ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4" />
+                      Send Email
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,10 +1,11 @@
 // src/hooks/useChatbot.ts
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  sendChatMessage, 
-  ChatMessage, 
-  shouldStartNewConversation 
+import {
+  sendChatMessage,
+  ChatMessage,
+  shouldStartNewConversation,
+  generateConversationTitle
 } from '@/services/chatbot/openai';
 import {
   Conversation,
@@ -130,6 +131,7 @@ export function useChatbot(): ChatbotState & ChatbotActions {
   const sendMessage = useCallback(async (content: string) => {
     if (!user || !content.trim()) return;
 
+    console.log('[Chatbot] sendMessage called with user:', { id: user.id, email: user.email, organization_id: user.organization_id });
     setState(prev => ({ ...prev, isSending: true, error: null }));
 
     try {
@@ -142,7 +144,7 @@ export function useChatbot(): ChatbotState & ChatbotActions {
       // If no current conversation, create one now that user is actually sending a message
       if (!state.currentConversation) {
         console.log('[Chatbot] Creating actual database conversation for first message');
-        conversationId = await createConversation(undefined, user.id);
+        conversationId = await createConversation(undefined, user.id, user.organization_id);
         const newConversation = await getConversation(conversationId);
         
         // Add the user message immediately to the UI
@@ -191,7 +193,7 @@ export function useChatbot(): ChatbotState & ChatbotActions {
       // Check if we should start a new conversation due to length
       if (shouldStartNewConversation(conversationHistory)) {
         console.log('Conversation getting long, starting new one...');
-        conversationId = await createConversation(undefined, user.id);
+        conversationId = await createConversation(undefined, user.id, user.organization_id);
         conversationHistory = [];
         const newConversation = await getConversation(conversationId);
         
@@ -244,11 +246,16 @@ export function useChatbot(): ChatbotState & ChatbotActions {
 
       // Update the conversation title if it's still the default
       let finalTitle = state.currentConversation?.conversation.title || 'New Conversation';
+      console.log('[Chatbot] Current conversation title:', finalTitle);
       if (finalTitle === 'New Conversation') {
-        const currentMessages = state.currentConversation?.messages || [];
-        const allMessages = [...currentMessages, assistantMessage];
-        finalTitle = getConversationSummary(allMessages);
+        // Use AI to generate a professional, concise title from the user's first message
+        finalTitle = await generateConversationTitle(content);
+        console.log('[Chatbot] AI-generated title:', finalTitle);
         await updateConversationTitle(conversationId, finalTitle);
+        console.log('[Chatbot] Updated conversation title to:', finalTitle);
+
+        // Refresh conversations list to ensure the updated title is reflected in the sidebar
+        refreshConversations();
       }
 
       // Update state with the real assistant response and replace temp user message

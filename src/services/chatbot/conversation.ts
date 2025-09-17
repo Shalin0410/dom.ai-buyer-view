@@ -1,5 +1,5 @@
 // src/services/chatbot/conversation.ts
-import { supabase } from '@/lib/supabaseClient';
+import { supabase, supabaseAdmin } from '@/lib/supabaseClient';
 import { ChatMessage } from './openai';
 
 export interface Conversation {
@@ -28,7 +28,9 @@ export interface ConversationWithMessages {
 // Get all conversations for the current user
 export async function getUserConversations(userId?: string): Promise<Conversation[]> {
   try {
-    let query = supabase
+    console.log('[Conversation] Fetching conversations for user:', userId);
+
+    let query = supabaseAdmin
       .from('conversations')
       .select('id, title, status, created_at, updated_at')
       .eq('status', 'active')
@@ -48,6 +50,7 @@ export async function getUserConversations(userId?: string): Promise<Conversatio
       return [];
     }
 
+    console.log('[Conversation] Found conversations:', data?.length || 0);
     return data || [];
   } catch (error) {
     console.error('Error in getUserConversations:', error);
@@ -59,7 +62,7 @@ export async function getUserConversations(userId?: string): Promise<Conversatio
 export async function getConversation(conversationId: string): Promise<ConversationWithMessages | null> {
   try {
     // Get conversation details
-    const { data: conversationData, error: conversationError } = await supabase
+    const { data: conversationData, error: conversationError } = await supabaseAdmin
       .from('conversations')
       .select('id, title, status, created_at, updated_at')
       .eq('id', conversationId)
@@ -71,7 +74,7 @@ export async function getConversation(conversationId: string): Promise<Conversat
     }
 
     // Get messages for this conversation
-    const { data: messagesData, error: messagesError } = await supabase
+    const { data: messagesData, error: messagesError } = await supabaseAdmin
       .from('messages')
       .select('id, conversation_id, role, content, sources, tokens_used, created_at')
       .eq('conversation_id', conversationId)
@@ -113,11 +116,44 @@ export async function getConversation(conversationId: string): Promise<Conversat
 }
 
 // Create a new conversation
-export async function createConversation(title?: string, userId?: string): Promise<string> {
+export async function createConversation(title?: string, userId?: string, organizationId?: string): Promise<string> {
   try {
-    const { data, error } = await supabase
+    console.log('[Conversation] Creating conversation with params:', { title, userId, organizationId });
+
+    // Get organization_id from the current user's context if not provided
+    if (!organizationId && userId) {
+      console.log('[Conversation] Fetching organization_id for user:', userId);
+      // Use admin client to bypass RLS when fetching user organization
+      const { data: userData, error: userError } = await supabaseAdmin
+        .from('persons')
+        .select('organization_id')
+        .eq('id', userId)
+        .single();
+
+      if (userError || !userData) {
+        console.error('Error fetching user organization:', userError);
+        throw new Error('Failed to get user organization');
+      }
+      organizationId = userData.organization_id;
+      console.log('[Conversation] Found organization_id:', organizationId);
+    }
+
+    if (!organizationId) {
+      console.error('[Conversation] No organization_id provided or found');
+      throw new Error('Organization ID is required');
+    }
+
+    console.log('[Conversation] Inserting conversation with data:', {
+      organization_id: organizationId,
+      user_id: userId || null,
+      title: title || 'New Conversation',
+      status: 'active'
+    });
+
+    const { data, error } = await supabaseAdmin
       .from('conversations')
       .insert({
+        organization_id: organizationId,
         user_id: userId || null,
         title: title || 'New Conversation',
         status: 'active'
@@ -126,14 +162,23 @@ export async function createConversation(title?: string, userId?: string): Promi
       .single();
 
     if (error) {
-      console.error('Error creating conversation:', error);
-      throw new Error('Failed to create conversation');
+      console.error('Error creating conversation in database:', error);
+      throw new Error(`Failed to create conversation: ${error.message}`);
     }
 
+    console.log('[Conversation] Successfully created conversation:', data.id);
     return data.id;
   } catch (error) {
     console.error('Error in createConversation:', error);
-    return 'mock-' + Date.now();
+    // Generate a proper UUID for mock conversations
+    const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+    const mockId = `mock-${uuid}`;
+    console.log('[Conversation] Returning mock conversation ID:', mockId);
+    return mockId;
   }
 }
 
@@ -147,7 +192,7 @@ export async function addMessage(
 ): Promise<string> {
   try {
     // Insert message directly into the messages table
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('messages')
       .insert({
         conversation_id: conversationId,
@@ -165,7 +210,7 @@ export async function addMessage(
     }
 
     // Update conversation timestamp
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from('conversations')
       .update({ updated_at: new Date().toISOString() })
       .eq('id', conversationId);
@@ -177,14 +222,20 @@ export async function addMessage(
     return data.id;
   } catch (error) {
     console.error('Error in addMessage:', error);
-    return 'mock-msg-' + Date.now();
+    // Generate a proper UUID for mock messages
+    const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+    return `mock-msg-${uuid}`;
   }
 }
 
 // Update conversation title
 export async function updateConversationTitle(conversationId: string, title: string): Promise<void> {
   try {
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('conversations')
       .update({ title, updated_at: new Date().toISOString() })
       .eq('id', conversationId);
@@ -201,7 +252,7 @@ export async function updateConversationTitle(conversationId: string, title: str
 // Archive a conversation
 export async function archiveConversation(conversationId: string): Promise<void> {
   try {
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('conversations')
       .update({ status: 'archived', updated_at: new Date().toISOString() })
       .eq('id', conversationId);
@@ -218,7 +269,7 @@ export async function archiveConversation(conversationId: string): Promise<void>
 // Delete a conversation
 export async function deleteConversation(conversationId: string): Promise<void> {
   try {
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('conversations')
       .update({ status: 'deleted', updated_at: new Date().toISOString() })
       .eq('id', conversationId);
@@ -244,11 +295,22 @@ export function convertMessagesToChatFormat(messages: Message[]): ChatMessage[] 
 
 // Get conversation summary for display
 export function getConversationSummary(messages: Message[]): string {
+  console.log('[getConversationSummary] Input messages:', messages);
   const userMessages = messages.filter(msg => msg.role === 'user');
-  if (userMessages.length === 0) return 'New conversation';
-  
+  console.log('[getConversationSummary] User messages:', userMessages);
+
+  if (userMessages.length === 0) {
+    console.log('[getConversationSummary] No user messages found, returning default');
+    return 'New conversation';
+  }
+
   const firstMessage = userMessages[0].content;
-  return firstMessage.length > 50 
-    ? firstMessage.substring(0, 50) + '...' 
+  console.log('[getConversationSummary] First user message content:', firstMessage);
+
+  const title = firstMessage.length > 50
+    ? firstMessage.substring(0, 50) + '...'
     : firstMessage;
+
+  console.log('[getConversationSummary] Generated title:', title);
+  return title;
 }

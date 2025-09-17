@@ -138,6 +138,7 @@ export interface ActionItem {
 export interface AuthUser {
   id: string;
   email: string;
+  organization_id?: string;
   created_at?: string;
   last_sign_in_at?: string;
 }

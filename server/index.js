@@ -230,6 +230,190 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
+// Generate professional email content using AI
+app.post('/api/generate-agent-email', async (req, res) => {
+  try {
+    if (!req.is('application/json')) {
+      return res.status(415).json({ error: 'Content-Type must be application/json' });
+    }
+
+    const { buyerQuestion, buyerName, buyerEmail, agentName } = req.body;
+
+    console.log('[API] /api/generate-agent-email - Received values:', {
+      buyerQuestion,
+      buyerName,
+      buyerEmail,
+      agentName
+    });
+
+    if (!buyerQuestion || !buyerName) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      temperature: 0.7,
+      messages: [
+        {
+          role: 'system',
+          content: `You are a professional email assistant helping homebuyers draft emails to their real estate agents. Generate a polite, professional, and concise email based on the buyer's question. The email should:
+
+          1. Be courteous and professional
+          2. Address the agent by name if provided
+          3. Clearly state the buyer's question or concern
+          4. Request guidance or assistance
+          5. Include appropriate closing with the buyer's name
+          6. Be concise but informative
+
+          Do not include subject lines, email headers, or signatures - just the email body content.`
+        },
+        {
+          role: 'user',
+          content: `Please draft a professional email for a homebuyer named "${buyerName}" to send to their real estate agent${agentName ? ` named "${agentName}"` : ''}. ${agentName ? `Start the email with "Dear ${agentName}," or "Hi ${agentName},"` : 'Start the email with a professional greeting.'} The buyer's question/concern is: "${buyerQuestion}". End the email with the buyer's name "${buyerName}".`
+        }
+      ]
+    });
+
+    const emailContent = completion.choices?.[0]?.message?.content?.trim() ||
+      `Hi,\n\nI have a question about my home buying journey that I'd appreciate your help with:\n\n${buyerQuestion}\n\nCould you please provide some guidance or schedule a time to discuss this?\n\nThank you for your assistance.\n\nBest regards,\n${buyerName}`;
+
+    return res.json({ emailContent });
+
+  } catch (error) {
+    console.error('Error generating email:', error);
+    return res.status(500).json({ error: 'Failed to generate email content' });
+  }
+});
+
+// Send agent question email
+app.post('/api/send-agent-question', async (req, res) => {
+  try {
+    if (!req.is('application/json')) {
+      return res.status(415).json({ error: 'Content-Type must be application/json' });
+    }
+
+    const { to, buyerName, buyerEmail, subject, message, originalQuestion, agentName } = req.body;
+
+    if (!to || !buyerName || !buyerEmail || !message) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Validate email addresses
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(to) || !emailRegex.test(buyerEmail)) {
+      return res.status(400).json({ error: 'Invalid email address' });
+    }
+
+    if (!process.env.GMAIL_APP_PASSWORD) {
+      return res.status(500).json({ error: 'Email service not configured' });
+    }
+
+    const transporter = createEmailTransporter();
+
+    const mailOptions = {
+      from: {
+        name: 'Buyer Journey AI Platform',
+        address: 'beta.dom.ai@gmail.com'
+      },
+      to: to,
+      cc: buyerEmail,
+      subject: subject || `Question from ${buyerName}: Home Buying Assistance`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Question from ${buyerName}</title>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background-color: #2563eb; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+            .content { background-color: #ffffff; padding: 30px; border: 1px solid #e5e7eb; }
+            .footer { background-color: #f8fafc; padding: 20px; border-radius: 0 0 8px 8px; text-align: center; }
+            .buyer-info { background-color: #f0fdf4; padding: 15px; border-radius: 5px; margin: 15px 0; }
+            .question-section { background-color: #eff6ff; padding: 15px; border-radius: 5px; margin: 15px 0; }
+            .message-section { background-color: #f1f5f9; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #3b82f6; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1 style="margin: 0; font-size: 24px;">💬 Question from Buyer</h1>
+              <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Message from buyer journey platform</p>
+            </div>
+
+            <div class="content">
+              <div class="buyer-info">
+                <h3 style="margin: 0 0 10px 0; color: #059669;">👤 Buyer Information</h3>
+                <p><strong>Name:</strong> ${buyerName}</p>
+                <p><strong>Email:</strong> <a href="mailto:${buyerEmail}">${buyerEmail}</a></p>
+              </div>
+
+              ${originalQuestion ? `
+                <div class="question-section">
+                  <h3 style="margin: 0 0 10px 0; color: #2563eb;">❓ Original Question</h3>
+                  <p style="white-space: pre-wrap;">${originalQuestion}</p>
+                </div>
+              ` : ''}
+
+              <div class="message-section">
+                <h3 style="margin: 0 0 10px 0; color: #3b82f6;">💬 Message</h3>
+                <p style="margin: 0; white-space: pre-wrap;">${message}</p>
+              </div>
+
+              <div style="margin-top: 30px; padding: 20px; background-color: #f3f4f6; border-radius: 5px; text-align: center;">
+                <h3 style="margin: 0 0 10px 0; color: #1f2937;">📞 Next Steps</h3>
+                <p style="margin: 0;">Please respond directly to the buyer to provide assistance.</p>
+              </div>
+            </div>
+
+            <div class="footer">
+              <p style="margin: 0; color: #6b7280; font-size: 14px;">
+                This email was sent automatically from the buyer journey platform.
+              </p>
+              <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 12px;">
+                Generated at ${new Date().toLocaleString()}
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      replyTo: buyerEmail
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+
+    console.log('Agent question email sent successfully:', info.messageId);
+
+    return res.status(200).json({
+      success: true,
+      messageId: info.messageId,
+      message: 'Question sent successfully to agent'
+    });
+
+  } catch (error) {
+    console.error('Error sending agent question email:', error);
+
+    if (error.code === 'EAUTH') {
+      return res.status(500).json({
+        error: 'Email authentication failed',
+        details: 'Invalid Gmail credentials'
+      });
+    } else if (error.code === 'ENOTFOUND') {
+      return res.status(500).json({
+        error: 'Network error',
+        details: 'Unable to connect to email service'
+      });
+    } else {
+      return res.status(500).json({
+        error: 'Failed to send email',
+        details: error.message
+      });
+    }
+  }
+});
+
 // Email sending endpoint
 app.post('/api/send-viewing-email', async (req, res) => {
   try {
@@ -259,6 +443,10 @@ app.post('/api/send-viewing-email', async (req, res) => {
       console.error('Gmail app password not configured');
       return res.status(500).json({ error: 'Email service not configured' });
     }
+
+    console.log('Gmail app password configured:', !!process.env.GMAIL_APP_PASSWORD);
+    console.log('Gmail app password length:', process.env.GMAIL_APP_PASSWORD?.length);
+    console.log('Gmail app password (masked):', process.env.GMAIL_APP_PASSWORD?.substring(0, 5) + '...' + process.env.GMAIL_APP_PASSWORD?.slice(-3));
 
     // Create transporter
     const transporter = createEmailTransporter();

@@ -156,8 +156,18 @@ export default async function handler(req, res) {
   try {
     const { to, buyerName, buyerEmail, property, selectedDatesAndTimes, additionalInfo } = req.body;
 
+    // Log incoming request for debugging
+    console.log('Email request received:', {
+      to,
+      buyerName,
+      buyerEmail,
+      propertyAddress: property?.address,
+      datesCount: selectedDatesAndTimes?.length
+    });
+
     // Validate required fields
     if (!to || !buyerName || !buyerEmail || !property || !selectedDatesAndTimes) {
+      console.log('Missing required fields:', { to: !!to, buyerName: !!buyerName, buyerEmail: !!buyerEmail, property: !!property, selectedDatesAndTimes: !!selectedDatesAndTimes });
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -176,8 +186,25 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Email service not configured' });
     }
 
+    console.log('Gmail app password configured:', !!process.env.GMAIL_APP_PASSWORD);
+    console.log('Gmail app password length:', process.env.GMAIL_APP_PASSWORD?.length);
+    console.log('Gmail app password (masked):', process.env.GMAIL_APP_PASSWORD?.substring(0, 5) + '...' + process.env.GMAIL_APP_PASSWORD?.slice(-3));
+    console.log('Creating email transporter...');
+
     // Create transporter
     const transporter = createTransporter();
+
+    // Test connection
+    try {
+      await transporter.verify();
+      console.log('SMTP connection verified successfully');
+    } catch (verifyError) {
+      console.error('SMTP connection verification failed:', verifyError);
+      return res.status(500).json({
+        error: 'Email service connection failed',
+        details: verifyError.message
+      });
+    }
 
     // Prepare email data
     const emailData = {
@@ -192,7 +219,7 @@ export default async function handler(req, res) {
     const mailOptions = {
       from: {
         name: 'Buyer Journey AI Platform',
-        address: 'dom.ai@gmail.com'
+        address: 'beta.dom.ai@gmail.com'
       },
       to: to,
       cc: buyerEmail, // CC the buyer for confirmation
@@ -203,9 +230,20 @@ export default async function handler(req, res) {
     };
 
     // Send email
+    console.log('Sending email with options:', {
+      from: mailOptions.from,
+      to: mailOptions.to,
+      cc: mailOptions.cc,
+      subject: mailOptions.subject
+    });
+
     const info = await transporter.sendMail(mailOptions);
-    
-    console.log('Email sent successfully:', info.messageId);
+
+    console.log('Email sent successfully:', {
+      messageId: info.messageId,
+      accepted: info.accepted,
+      rejected: info.rejected
+    });
     
     return res.status(200).json({ 
       success: true, 
