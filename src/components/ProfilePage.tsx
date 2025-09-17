@@ -31,30 +31,30 @@ const ProfilePage = ({ userData }: ProfilePageProps) => {
 
   // Create profile data utilizing both persons table and buyer_profiles table
   const profileData = {
-    // Price range - prioritize buyer_profiles table
+    // Price range - prioritize buyer_profiles table, no hardcoded fallbacks
     priceRange: {
-      min: buyerProfile?.price_min || userProfile?.price_min || 400000,
-      max: buyerProfile?.price_max || userProfile?.price_max || 650000
+      min: buyerProfile?.price_min || userProfile?.price_min || null,
+      max: buyerProfile?.price_max || userProfile?.price_max || null
     },
     // Budget and financing info - from buyer_profiles table
-    budgetApproved: buyerProfile?.budget_approved || userProfile?.budget_approved || false,
-    preApprovalAmount: buyerProfile?.pre_approval_amount || userProfile?.pre_approval_amount,
-    preApprovalExpiry: buyerProfile?.pre_approval_expiry || userProfile?.pre_approval_expiry,
-    downPaymentAmount: buyerProfile?.down_payment_amount,
+    budgetApproved: buyerProfile?.budget_approved ?? userProfile?.budget_approved ?? null,
+    preApprovalAmount: buyerProfile?.pre_approval_amount || userProfile?.pre_approval_amount || null,
+    preApprovalExpiry: buyerProfile?.pre_approval_expiry || userProfile?.pre_approval_expiry || null,
+    downPaymentAmount: buyerProfile?.down_payment_amount || null,
     // Buyer preferences - from buyer_profiles table
-    buyerNeeds: buyerProfile?.buyer_needs || userProfile?.buyer_needs,
+    buyerNeeds: buyerProfile?.buyer_needs || userProfile?.buyer_needs || null,
     preferredAreas: buyerProfile?.preferred_areas || [],
     propertyTypePreferences: buyerProfile?.property_type_preferences || [],
     mustHaveFeatures: buyerProfile?.must_have_features || [],
     niceToHaveFeatures: buyerProfile?.nice_to_have_features || [],
-    idealMoveInDate: buyerProfile?.ideal_move_in_date,
-    urgencyLevel: buyerProfile?.urgency_level,
+    idealMoveInDate: buyerProfile?.ideal_move_in_date || null,
+    urgencyLevel: buyerProfile?.urgency_level || null,
     // Personal info - from persons table
     tags: parseTags(userProfile?.tags),
-    background: userProfile?.background,
+    background: userProfile?.background || null,
     // Activity info - from persons table
-    lastContactDate: userProfile?.last_contact_date,
-    nextFollowupDate: userProfile?.next_followup_date
+    lastContactDate: userProfile?.last_contact_date || null,
+    nextFollowupDate: userProfile?.next_followup_date || null
   };
 
   if (isLoadingProfile) {
@@ -184,43 +184,55 @@ const ProfilePage = ({ userData }: ProfilePageProps) => {
             <div>
               <p className="text-xs text-gray-600 mb-2">Buyer Needs</p>
               <p className="text-sm text-gray-800 leading-relaxed">
-                {userProfile?.buyer_needs || 'No specific requirements provided'}
+                {profileData.buyerNeeds || 'No specific requirements provided'}
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-gray-600">Min Price</p>
-                <p className="font-semibold">${profileData.priceRange.min.toLocaleString()}</p>
+            {(profileData.priceRange.min || profileData.priceRange.max) ? (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-gray-600">Min Price</p>
+                  <p className="font-semibold">
+                    {profileData.priceRange.min ? `$${profileData.priceRange.min.toLocaleString()}` : 'Not specified'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-600">Max Price</p>
+                  <p className="font-semibold">
+                    {profileData.priceRange.max ? `$${profileData.priceRange.max.toLocaleString()}` : 'Not specified'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-gray-600">Max Price</p>
-                <p className="font-semibold">${profileData.priceRange.max.toLocaleString()}</p>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-sm text-gray-500">No price range specified</p>
               </div>
-            </div>
+            )}
           </div>
         </ProfileSection>
 
         {/* Budget & Financing */}
         <ProfileSection title="Budget & Financing" icon={DollarSign}>
           <div className="space-y-3">
-            <div>
-              <p className="text-xs text-gray-600">Price Range</p>
-              <p className="font-semibold">
-                ${profileData.priceRange.min.toLocaleString()} - ${profileData.priceRange.max.toLocaleString()}
-              </p>
-            </div>
+            {(profileData.priceRange.min || profileData.priceRange.max) && (
+              <div>
+                <p className="text-xs text-gray-600">Price Range</p>
+                <p className="font-semibold">
+                  {profileData.priceRange.min ? `$${profileData.priceRange.min.toLocaleString()}` : 'No min'} - {profileData.priceRange.max ? `$${profileData.priceRange.max.toLocaleString()}` : 'No max'}
+                </p>
+              </div>
+            )}
             <div>
               <p className="text-xs text-gray-600">Budget Status</p>
               <div className="flex items-center gap-2">
-                <Badge 
-                  variant={profileData.budgetApproved ? 'outline' : 'secondary'} 
+                <Badge
+                  variant={profileData.budgetApproved ? 'outline' : 'secondary'}
                   className={`text-xs ${profileData.budgetApproved ? 'bg-green-50 text-green-700 border-green-200' : ''}`}
                 >
-                  {profileData.budgetApproved ? 'Pre-approved' : 'Not pre-approved'}
+                  {profileData.budgetApproved === true ? 'Pre-approved' : profileData.budgetApproved === false ? 'Not pre-approved' : 'Status unknown'}
                 </Badge>
                 {profileData.budgetApproved && profileData.preApprovalAmount && (
                   <span className="text-sm text-gray-600">
-                    ${profileData.preApprovalAmount.toLocaleString()}
+                    ${Number(profileData.preApprovalAmount).toLocaleString()}
                   </span>
                 )}
               </div>
@@ -229,6 +241,12 @@ const ProfilePage = ({ userData }: ProfilePageProps) => {
               <div>
                 <p className="text-xs text-gray-600">Pre-approval Expires</p>
                 <p className="font-semibold">{new Date(profileData.preApprovalExpiry).toLocaleDateString()}</p>
+              </div>
+            )}
+            {profileData.downPaymentAmount && (
+              <div>
+                <p className="text-xs text-gray-600">Down Payment Amount</p>
+                <p className="font-semibold">${Number(profileData.downPaymentAmount).toLocaleString()}</p>
               </div>
             )}
           </div>
@@ -243,16 +261,18 @@ const ProfilePage = ({ userData }: ProfilePageProps) => {
                 <p className="text-sm text-gray-800">{userProfile.background}</p>
               </div>
             )}
-            <div>
-              <p className="text-xs text-gray-600 mb-2">Lifestyle Preferences</p>
-              <div className="flex flex-wrap gap-1">
-                {profileData.lifestyle.map((item, index) => (
-                  <Badge key={index} variant="secondary" className="text-xs bg-blue-50 text-blue-700">
-                    {item}
-                  </Badge>
-                ))}
+            {profileData.preferredAreas && profileData.preferredAreas.length > 0 && (
+              <div>
+                <p className="text-xs text-gray-600 mb-2">Preferred Areas</p>
+                <div className="flex flex-wrap gap-1">
+                  {profileData.preferredAreas.map((area, index) => (
+                    <Badge key={index} variant="secondary" className="text-xs bg-blue-50 text-blue-700">
+                      {area}
+                    </Badge>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
             {profileData.tags.length > 0 && (
               <div>
                 <p className="text-xs text-gray-600 mb-2">Tags</p>
@@ -268,22 +288,85 @@ const ProfilePage = ({ userData }: ProfilePageProps) => {
           </div>
         </ProfileSection>
 
+        {/* Property Preferences */}
+        {(profileData.propertyTypePreferences.length > 0 || profileData.mustHaveFeatures.length > 0 || profileData.niceToHaveFeatures.length > 0 || profileData.idealMoveInDate || profileData.urgencyLevel) && (
+          <ProfileSection title="Property Preferences" icon={Home}>
+            <div className="space-y-3">
+              {profileData.propertyTypePreferences.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-600 mb-2">Property Types</p>
+                  <div className="flex flex-wrap gap-1">
+                    {profileData.propertyTypePreferences.map((type, index) => (
+                      <Badge key={index} variant="secondary" className="text-xs bg-green-50 text-green-700">
+                        {type}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {profileData.mustHaveFeatures.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-600 mb-2">Must-Have Features</p>
+                  <div className="flex flex-wrap gap-1">
+                    {profileData.mustHaveFeatures.map((feature, index) => (
+                      <Badge key={index} variant="secondary" className="text-xs bg-red-50 text-red-700">
+                        {feature}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {profileData.niceToHaveFeatures.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-600 mb-2">Nice-to-Have Features</p>
+                  <div className="flex flex-wrap gap-1">
+                    {profileData.niceToHaveFeatures.map((feature, index) => (
+                      <Badge key={index} variant="outline" className="text-xs">
+                        {feature}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {(profileData.idealMoveInDate || profileData.urgencyLevel) && (
+                <div className="grid grid-cols-2 gap-4">
+                  {profileData.idealMoveInDate && (
+                    <div>
+                      <p className="text-xs text-gray-600">Ideal Move-in Date</p>
+                      <p className="font-semibold">{new Date(profileData.idealMoveInDate).toLocaleDateString()}</p>
+                    </div>
+                  )}
+                  {profileData.urgencyLevel && (
+                    <div>
+                      <p className="text-xs text-gray-600">Urgency Level</p>
+                      <p className="font-semibold capitalize">{profileData.urgencyLevel}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </ProfileSection>
+        )}
+
         {/* Activity & Communication */}
         <ProfileSection title="Activity & Communication" icon={Calendar}>
           <div className="space-y-3">
-            {userProfile?.last_contact_date && (
+            {profileData.lastContactDate && (
               <div>
                 <p className="text-xs text-gray-600">Last Contact</p>
-                <p className="font-semibold">{new Date(userProfile.last_contact_date).toLocaleDateString()}</p>
+                <p className="font-semibold">{new Date(profileData.lastContactDate).toLocaleDateString()}</p>
               </div>
             )}
-            {userProfile?.next_followup_date && (
+            {profileData.nextFollowupDate && (
               <div>
                 <p className="text-xs text-gray-600">Next Follow-up</p>
-                <p className="font-semibold">{new Date(userProfile.next_followup_date).toLocaleDateString()}</p>
+                <p className="font-semibold">{new Date(profileData.nextFollowupDate).toLocaleDateString()}</p>
               </div>
             )}
-            {(!userProfile?.last_contact_date && !userProfile?.next_followup_date) && (
+            {(!profileData.lastContactDate && !profileData.nextFollowupDate) && (
               <div className="text-center py-4">
                 <p className="text-sm text-gray-500">No recent activity</p>
               </div>
