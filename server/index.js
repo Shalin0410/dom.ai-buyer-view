@@ -507,6 +507,211 @@ app.post('/api/send-viewing-email', async (req, res) => {
   }
 });
 
+// Send agent message email (general messaging)
+app.post('/api/send-agent-message', async (req, res) => {
+  try {
+    if (!req.is('application/json')) {
+      return res.status(415).json({ error: 'Content-Type must be application/json' });
+    }
+
+    const { to, buyerName, buyerEmail, agentName, subject, message } = req.body;
+
+    // Log incoming request for debugging
+    console.log('Agent message email request received:', {
+      to,
+      buyerName,
+      buyerEmail,
+      agentName,
+      hasSubject: !!subject,
+      messageLength: message?.length
+    });
+
+    // Validate required fields
+    if (!to || !buyerName || !buyerEmail || !message) {
+      console.log('Missing required fields:', {
+        to: !!to,
+        buyerName: !!buyerName,
+        buyerEmail: !!buyerEmail,
+        message: !!message
+      });
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Validate email addresses
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(to)) {
+      return res.status(400).json({ error: 'Invalid agent email address' });
+    }
+    if (!emailRegex.test(buyerEmail)) {
+      return res.status(400).json({ error: 'Invalid buyer email address' });
+    }
+
+    // Check if Gmail credentials are configured
+    if (!process.env.GMAIL_APP_PASSWORD) {
+      console.error('Gmail app password not configured');
+      return res.status(500).json({ error: 'Email service not configured' });
+    }
+
+    console.log('Creating email transporter...');
+
+    // Create transporter
+    const transporter = createEmailTransporter();
+
+    // Test connection
+    try {
+      await transporter.verify();
+      console.log('SMTP connection verified successfully');
+    } catch (verifyError) {
+      console.error('SMTP connection verification failed:', verifyError);
+      return res.status(500).json({
+        error: 'Email service connection failed',
+        details: verifyError.message
+      });
+    }
+
+    // Determine subject line
+    const emailSubject = subject
+      ? `💬 Message from ${buyerName}: ${subject}`
+      : `💬 Message from ${buyerName}`;
+
+    // Email options
+    const mailOptions = {
+      from: {
+        name: 'Buyer Journey AI Platform',
+        address: 'beta.dom.ai@gmail.com'
+      },
+      to: to,
+      subject: emailSubject,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Message from Buyer</title>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background-color: #2563eb; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+            .content { background-color: #ffffff; padding: 30px; border: 1px solid #e5e7eb; }
+            .footer { background-color: #f8fafc; padding: 20px; border-radius: 0 0 8px 8px; text-align: center; }
+            .buyer-info { background-color: #f0fdf4; padding: 15px; border-radius: 5px; margin: 15px 0; }
+            .message-content { background-color: #f1f5f9; padding: 20px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #3b82f6; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1 style="margin: 0; font-size: 24px;">💬 Message from Your Buyer</h1>
+              <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">New message from buyer journey platform</p>
+            </div>
+
+            <div class="content">
+              <h2 style="color: #1f2937; margin-top: 0;">Message Details</h2>
+
+              <div class="buyer-info">
+                <h3 style="margin: 0 0 10px 0; color: #059669;">👤 From</h3>
+                <p><strong>Name:</strong> ${buyerName}</p>
+                <p><strong>Email:</strong> <a href="mailto:${buyerEmail}">${buyerEmail}</a></p>
+              </div>
+
+              ${subject ? `
+                <div style="margin: 15px 0;">
+                  <h3 style="margin: 0 0 10px 0; color: #2563eb;">📝 Subject</h3>
+                  <p style="font-weight: 600; color: #1f2937;">${subject}</p>
+                </div>
+              ` : ''}
+
+              <div class="message-content">
+                <h3 style="margin: 0 0 15px 0; color: #3b82f6;">💬 Message</h3>
+                <p style="margin: 0; white-space: pre-wrap; line-height: 1.6;">${message}</p>
+              </div>
+
+              <div style="margin-top: 30px; padding: 20px; background-color: #f3f4f6; border-radius: 5px; text-align: center;">
+                <h3 style="margin: 0 0 10px 0; color: #1f2937;">📞 Reply to Buyer</h3>
+                <p style="margin: 0;">You can reply directly to this email to contact ${buyerName}.</p>
+                <p style="margin: 10px 0 0 0; font-size: 14px; color: #6b7280;">
+                  <strong>Reply-to:</strong> ${buyerEmail}
+                </p>
+              </div>
+            </div>
+
+            <div class="footer">
+              <p style="margin: 0; color: #6b7280; font-size: 14px;">
+                This email was sent automatically from the buyer journey platform.
+              </p>
+              <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 12px;">
+                Generated at ${new Date().toLocaleString()}
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+MESSAGE FROM YOUR BUYER
+
+FROM:
+Name: ${buyerName}
+Email: ${buyerEmail}
+
+${subject ? `SUBJECT:\n${subject}\n\n` : ''}MESSAGE:
+${message}
+
+---
+You can reply directly to this email to contact ${buyerName}.
+Reply-to: ${buyerEmail}
+
+This email was sent automatically from the buyer journey platform.
+Generated at ${new Date().toLocaleString()}
+      `.trim(),
+      replyTo: buyerEmail // Allow agent to reply directly to buyer
+    };
+
+    // Send email
+    console.log('Sending message email with options:', {
+      from: mailOptions.from,
+      to: mailOptions.to,
+      subject: mailOptions.subject,
+      replyTo: mailOptions.replyTo
+    });
+
+    const info = await transporter.sendMail(mailOptions);
+
+    console.log('Message email sent successfully:', {
+      messageId: info.messageId,
+      accepted: info.accepted,
+      rejected: info.rejected
+    });
+
+    return res.status(200).json({
+      success: true,
+      messageId: info.messageId,
+      message: 'Message sent successfully to agent'
+    });
+
+  } catch (error) {
+    console.error('Error sending message email:', error);
+
+    // Return appropriate error message
+    if (error.code === 'EAUTH') {
+      return res.status(500).json({
+        error: 'Email authentication failed',
+        details: 'Invalid Gmail credentials'
+      });
+    } else if (error.code === 'ENOTFOUND') {
+      return res.status(500).json({
+        error: 'Network error',
+        details: 'Unable to connect to email service'
+      });
+    } else {
+      return res.status(500).json({
+        error: 'Failed to send message',
+        details: error.message
+      });
+    }
+  }
+});
+
 // Optional: Notion webhook endpoint with signature verification
 // Supports HMAC-SHA256 signature via NOTION_WEBHOOK_SECRET or simple verification token
 app.post('/api/notion/webhook', express.raw({ type: '*/*' }), (req, res) => {

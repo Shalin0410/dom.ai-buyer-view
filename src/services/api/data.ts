@@ -8,6 +8,8 @@ export interface DataService {
   getBuyerByEmail(email: string): Promise<ApiResponse<Buyer>>;
   createBuyer(buyer: Omit<Buyer, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<Buyer>>;
   updateBuyer(id: string, updates: Partial<Buyer>): Promise<ApiResponse<Buyer>>;
+  updateBuyerProfile(personId: string, profileData: any): Promise<ApiResponse<any>>;
+  updateBuyerComplete(id: string, personUpdates: any, profileUpdates: any): Promise<ApiResponse<Buyer>>;
   deleteBuyer(id: string): Promise<ApiResponse<null>>;
 
   // Agent operations

@@ -21,6 +21,13 @@ const ModernDashboard = ({ userData, onPropertyClick, onNavigateToSearch }: Mode
   // Fetch real properties from Supabase using userData.id
   const { properties, loading, error } = useProperties(userData?.id, {}, 'tracked');
 
+  // Fetch available properties for the "new matches" section
+  const { properties: availableProperties, loading: availableLoading } = useProperties(userData?.id, {}, 'available');
+
+  // Debug logging for available properties
+  console.log('[ModernDashboard] Available properties:', availableProperties);
+  console.log('[ModernDashboard] Available loading:', availableLoading);
+
   // Fetch agent email using proper buyer->agent lookup flow
   useEffect(() => {
     const fetchAgentEmail = async () => {
@@ -155,8 +162,8 @@ const ModernDashboard = ({ userData, onPropertyClick, onNavigateToSearch }: Mode
     );
   }
 
-  // Show error state
-  if (error) {
+  // Show error state only for actual errors, not for "no properties" messages
+  if (error && !error.includes('No properties found')) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30">
         <DashboardHeader userData={userData} />
@@ -164,8 +171,8 @@ const ModernDashboard = ({ userData, onPropertyClick, onNavigateToSearch }: Mode
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <p className="text-red-600 mb-4">{error}</p>
-              <button 
-                onClick={() => window.location.reload()} 
+              <button
+                onClick={() => window.location.reload()}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 Try Again
@@ -184,18 +191,39 @@ const ModernDashboard = ({ userData, onPropertyClick, onNavigateToSearch }: Mode
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           <div className="lg:col-span-3 space-y-8">
-            <ContinueSearchCard onNavigateToSearch={handleNavigateToSearch} />
-
-            <PropertyGrid 
-              properties={dashboardProperties}
-              onPropertyClick={onPropertyClick}
-              buyerInfo={{
-                id: userData?.id || '',
-                name: userData?.first_name ? `${userData.first_name} ${userData.last_name || ''}`.trim() : 'Buyer',
-                email: userData?.email || ''
-              }}
-              agentEmail={agentEmail}
+            <ContinueSearchCard
+              onNavigateToSearch={handleNavigateToSearch}
+              availableProperties={availableProperties}
+              loading={availableLoading}
             />
+
+            {dashboardProperties.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="bg-white rounded-lg shadow-sm p-8">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Properties in Your Journey</h3>
+                  <p className="text-gray-600 mb-4">
+                    Start exploring properties in the search tab to build your personalized dashboard.
+                  </p>
+                  <button
+                    onClick={handleNavigateToSearch}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Browse Properties
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <PropertyGrid
+                properties={dashboardProperties}
+                onPropertyClick={onPropertyClick}
+                buyerInfo={{
+                  id: userData?.id || '',
+                  name: userData?.first_name ? `${userData.first_name} ${userData.last_name || ''}`.trim() : 'Buyer',
+                  email: userData?.email || ''
+                }}
+                agentEmail={agentEmail}
+              />
+            )}
           </div>
 
           <div className="space-y-6">

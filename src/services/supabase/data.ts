@@ -72,11 +72,32 @@ export class SupabaseDataService extends BaseDataService {
     try {
       // First, get the buyer data with profile and agent information
       const client = this.getClient();
+
       const { data: buyerData, error: buyerError } = await client
         .from('persons')
         .select(`
           *,
-          buyer_profiles(*),
+          buyer_profiles(
+            id,
+            person_id,
+            price_min,
+            price_max,
+            budget_approved,
+            pre_approval_amount,
+            pre_approval_expiry,
+            down_payment_amount,
+            buyer_needs,
+            preferred_areas,
+            property_type_preferences,
+            must_have_features,
+            nice_to_have_features,
+            bathrooms,
+            bedrooms,
+            ideal_move_in_date,
+            urgency_level,
+            created_at,
+            updated_at
+          ),
           assigned_agent:persons!assigned_agent_id(*)
         `)
         .eq('email', email)
@@ -151,13 +172,31 @@ export class SupabaseDataService extends BaseDataService {
   async updateBuyer(id: string, updates: Partial<Buyer>): Promise<ApiResponse<Buyer>> {
     try {
       const client = this.getClient();
+
+      console.log('🔍 updateBuyer called with:', { id, updates });
+
+      // First check if the record exists
+      const { data: existingRecord, error: checkError } = await client
+        .from('persons')
+        .select('id, first_name, last_name, primary_role')
+        .eq('id', id)
+        .single();
+
+      console.log('🔍 Existing record check:', { existingRecord, checkError });
+
+      if (checkError || !existingRecord) {
+        console.error('Record not found for update:', { id, checkError });
+        return this.createResponse(null, `Record not found for id: ${id}`);
+      }
+
       const { data, error } = await client
         .from('persons')
         .update(updates)
         .eq('id', id)
-        .eq('primary_role', 'buyer')
         .select()
         .single();
+
+      console.log('🔍 Update result:', { data, error });
 
       if (error) {
         console.error('Error updating buyer:', error);
@@ -167,6 +206,98 @@ export class SupabaseDataService extends BaseDataService {
       return this.createResponse(data);
     } catch (error) {
       console.error('Error in updateBuyer:', error);
+      const apiError = this.handleError(error);
+      return this.createResponse(null, apiError.message);
+    }
+  }
+
+  async updateBuyerProfile(personId: string, profileData: any): Promise<ApiResponse<any>> {
+    try {
+      const client = this.getClient();
+
+      // First check if a buyer profile exists for this person
+      const { data: existingProfile, error: checkError } = await client
+        .from('buyer_profiles')
+        .select('id')
+        .eq('person_id', personId)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        // Error other than "no rows returned"
+        console.error('Error checking existing buyer profile:', checkError);
+        return this.createResponse(null, checkError.message);
+      }
+
+      let result;
+      if (existingProfile) {
+        // Update existing profile
+        const { data, error } = await client
+          .from('buyer_profiles')
+          .update({
+            ...profileData,
+            updated_at: new Date().toISOString()
+          })
+          .eq('person_id', personId)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error updating buyer profile:', error);
+          return this.createResponse(null, error.message);
+        }
+        result = data;
+      } else {
+        // Create new profile
+        const { data, error } = await client
+          .from('buyer_profiles')
+          .insert({
+            person_id: personId,
+            ...profileData,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error creating buyer profile:', error);
+          return this.createResponse(null, error.message);
+        }
+        result = data;
+      }
+
+      return this.createResponse(result);
+    } catch (error) {
+      console.error('Error in updateBuyerProfile:', error);
+      const apiError = this.handleError(error);
+      return this.createResponse(null, apiError.message);
+    }
+  }
+
+  async updateBuyerComplete(id: string, personUpdates: any, profileUpdates: any): Promise<ApiResponse<Buyer>> {
+    try {
+      console.log('🔍 updateBuyerComplete called with:', { id, personUpdates, profileUpdates });
+
+      // Update the person record only if there are changes
+      if (Object.keys(personUpdates).length > 0) {
+        const personResult = await this.updateBuyer(id, personUpdates);
+        if (!personResult.success) {
+          return personResult;
+        }
+      }
+
+      // Update or create the buyer profile only if there are changes
+      if (Object.keys(profileUpdates).length > 0) {
+        const profileResult = await this.updateBuyerProfile(id, profileUpdates);
+        if (!profileResult.success) {
+          return this.createResponse(null, profileResult.error);
+        }
+      }
+
+      // Return the updated buyer with profile data
+      return await this.getBuyerById(id);
+    } catch (error) {
+      console.error('Error in updateBuyerComplete:', error);
       const apiError = this.handleError(error);
       return this.createResponse(null, apiError.message);
     }
