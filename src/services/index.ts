@@ -53,6 +53,12 @@ class ServiceFactory {
     return this.dataService;
   }
 
+  // Force refresh of data service (for debugging)
+  refreshDataService(): DataService {
+    this.dataService = null;
+    return this.getDataService();
+  }
+
   // Method to change provider (useful for testing or switching backends)
   setProvider(provider: ServiceConfig['provider']) {
     this.config.provider = provider;
