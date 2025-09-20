@@ -176,9 +176,16 @@ export default async function handler(req, res) {
     }
 
     // Check if Gmail credentials are configured
+    console.log('Environment check - GMAIL_APP_PASSWORD exists:', !!process.env.GMAIL_APP_PASSWORD);
+    console.log('Environment check - Available env vars:', Object.keys(process.env).filter(key => key.includes('GMAIL')));
+
     if (!process.env.GMAIL_APP_PASSWORD) {
       console.error('Gmail app password not configured');
-      return res.status(500).json({ error: 'Email service not configured' });
+      return res.status(500).json({
+        success: false,
+        error: 'Email service not configured',
+        details: 'GMAIL_APP_PASSWORD environment variable is missing'
+      });
     }
 
     console.log('Creating email transporter...');
