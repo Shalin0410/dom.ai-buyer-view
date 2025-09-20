@@ -47,7 +47,7 @@ const AddTaskDialog = ({ onTaskAdded }: AddTaskDialogProps) => {
         title: formData.title.trim(),
         description: formData.description.trim(),
         action_required: 'review_disclosures_reports', // Default action type for custom tasks
-        status: 'researching' as const,
+        status: 'pending' as const,
         buying_stage: 'initial_research' as const,
         priority: formData.priority as 'low' | 'medium' | 'high' | 'urgent',
         due_date: formData.due_date ? formData.due_date.toISOString().split('T')[0] : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default to 1 week from now
