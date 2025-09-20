@@ -1,4 +1,4 @@
-const nodemailer = require('nodemailer');
+import nodemailer from 'nodemailer';
 
 // Create transporter with Gmail SMTP (reusing existing configuration)
 const createTransporter = () => {
@@ -128,6 +128,17 @@ Generated at ${new Date().toLocaleString()}
 };
 
 export default async function handler(req, res) {
+  // Set CORS headers for development
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+
+  // Handle OPTIONS request for CORS
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -237,22 +248,37 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('Error sending agent message email:', error);
+    console.error('Error stack:', error.stack);
 
-    // Return appropriate error message
-    if (error.code === 'EAUTH') {
+    // Ensure we always return JSON response
+    try {
+      // Return appropriate error message
+      if (error.code === 'EAUTH') {
+        return res.status(500).json({
+          success: false,
+          error: 'Email authentication failed',
+          details: 'Invalid Gmail credentials'
+        });
+      } else if (error.code === 'ENOTFOUND') {
+        return res.status(500).json({
+          success: false,
+          error: 'Network error',
+          details: 'Unable to connect to email service'
+        });
+      } else {
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to send email',
+          details: error.message || 'Unknown error occurred'
+        });
+      }
+    } catch (responseError) {
+      console.error('Error sending error response:', responseError);
+      // Fallback response
       return res.status(500).json({
-        error: 'Email authentication failed',
-        details: 'Invalid Gmail credentials'
-      });
-    } else if (error.code === 'ENOTFOUND') {
-      return res.status(500).json({
-        error: 'Network error',
-        details: 'Unable to connect to email service'
-      });
-    } else {
-      return res.status(500).json({
-        error: 'Failed to send email',
-        details: error.message
+        success: false,
+        error: 'Internal server error',
+        details: 'Unable to process request'
       });
     }
   }

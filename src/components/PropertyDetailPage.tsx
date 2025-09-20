@@ -93,7 +93,7 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          to: 'agent@example.com', // TODO: Get actual agent email
+          to: property.buyer?.agent?.email || 'agent@example.com',
           buyerName: user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : 'Buyer',
           buyerEmail: user.email,
           property: {
@@ -115,7 +115,15 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
         })
       });
 
-      const result = await response.json();
+      // Handle non-JSON response (like HTML error pages)
+      let result;
+      try {
+        result = await response.json();
+      } catch (parseError) {
+        const text = await response.text();
+        console.error('Server returned non-JSON response:', text);
+        throw new Error(`Server error (${response.status}): Unable to parse response`);
+      }
 
       if (response.ok && result.success) {
         setMessageSent(true);
@@ -123,8 +131,8 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
         // Reset success message after 3 seconds
         setTimeout(() => setMessageSent(false), 3000);
       } else {
-        console.error('Failed to send message:', result.error);
-        alert('Failed to send message. Please try again.');
+        console.error('Failed to send message:', result.error || result);
+        alert(`Failed to send message: ${result.error || 'Unknown error'}. Please try again.`);
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -427,7 +435,12 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <p className="font-medium text-gray-900 text-sm">Your Agent:</p>
+                    <p className="font-medium text-gray-900 text-sm">
+                      Your Agent: {property.buyer?.agent ?
+                        `${property.buyer.agent.first_name} ${property.buyer.agent.last_name}` :
+                        'Agent'
+                      }
+                    </p>
                     <p className="mt-2 text-gray-700 text-xs">Send a message to your real estate agent about this property. They'll receive it via email and can respond directly to you.</p>
                   </div>
 
