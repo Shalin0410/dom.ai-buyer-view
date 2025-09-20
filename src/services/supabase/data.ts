@@ -878,9 +878,8 @@ export class SupabaseDataService extends BaseDataService {
       const { data: buyerPropertyData, error: buyerPropertyError } = await client
         .from('buyer_properties')
         .select(`
-          id, 
-          interest_level, 
-          notes, 
+          id,
+          interest_level,
           updated_at,
           buyer_id,
           buyer:persons!buyer_properties_buyer_id_fkey (
@@ -992,18 +991,7 @@ export class SupabaseDataService extends BaseDataService {
         });
       });
 
-      // Add buyer property notes if they exist
-      if (buyerPropertyData.notes) {
-        activities.push({
-          id: `notes_${buyerPropertyData.id}`,
-          property_id: propertyId,
-          type: 'note',
-          title: 'Buyer Notes',
-          description: buyerPropertyData.notes,
-          created_at: buyerPropertyData.updated_at,
-          created_by: buyerPropertyData.buyer_id
-        });
-      }
+      // Note: Buyer property notes are stored in timeline_notes in the timelines table
 
       // Sort all activities by created_at (most recent first)
       activities.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -1584,7 +1572,7 @@ export class SupabaseDataService extends BaseDataService {
           )
         `)
         .eq('assigned_buyer_id', buyerId)
-        .eq('status', 'pending')
+        .in('status', ['pending', 'completed'])
         .order('priority', { ascending: false })
         .order('created_at', { ascending: true });
 
@@ -1630,8 +1618,6 @@ export class SupabaseDataService extends BaseDataService {
 
   // Update action item (mark as completed, update status, etc.)
   async updateActionItem(actionItemId: string, updates: Partial<{
-    is_completed: boolean;
-    is_irrelevant: boolean;
     status: string;
     completed_date: string;
     completion_notes: string;
@@ -1639,6 +1625,8 @@ export class SupabaseDataService extends BaseDataService {
     priority: string;
   }>): Promise<ApiResponse<ActionItem>> {
     try {
+      const client = this.getClient();
+
       const { data, error } = await client
         .from('action_items')
         .update({
@@ -1708,6 +1696,8 @@ export class SupabaseDataService extends BaseDataService {
   // Create a new action item
   async createActionItem(actionItem: Omit<ActionItem, 'id' | 'last_activity_at'>): Promise<ApiResponse<ActionItem>> {
     try {
+      const client = this.getClient();
+
       // Get buyer's organization_id
       const { data: buyerData, error: buyerError } = await client
         .from('persons')

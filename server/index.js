@@ -514,16 +514,20 @@ app.post('/api/send-agent-message', async (req, res) => {
       return res.status(415).json({ error: 'Content-Type must be application/json' });
     }
 
-    const { to, buyerName, buyerEmail, agentName, subject, message } = req.body;
+    const { to, buyerName, buyerEmail, agentName, subject, message, property } = req.body;
 
     // Log incoming request for debugging
-    console.log('Agent message email request received:', {
+    console.log('🔥 EXPRESS SERVER - Agent message email request received:', {
       to,
       buyerName,
       buyerEmail,
       agentName,
       hasSubject: !!subject,
-      messageLength: message?.length
+      hasProperty: !!property,
+      propertyAddress: property?.address,
+      messageLength: message?.length,
+      source: property ? 'PropertyDetailPage' : subject ? 'AgentMessageModal' : 'Unknown',
+      endpoint: 'EXPRESS_SERVER'
     });
 
     // Validate required fields
@@ -572,6 +576,8 @@ app.post('/api/send-agent-message', async (req, res) => {
     // Determine subject line
     const emailSubject = subject
       ? `💬 Message from ${buyerName}: ${subject}`
+      : property
+      ? `💬 Message from ${buyerName} - ${property.address}`
       : `💬 Message from ${buyerName}`;
 
     // Email options
@@ -614,6 +620,22 @@ app.post('/api/send-agent-message', async (req, res) => {
                 <p><strong>Email:</strong> <a href="mailto:${buyerEmail}">${buyerEmail}</a></p>
               </div>
 
+              ${property ? `
+                <div style="background-color: #eff6ff; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                  <h3 style="margin: 0 0 10px 0; color: #2563eb;">🏡 Property Details</h3>
+                  <p><strong>Address:</strong> ${property.address || 'N/A'}</p>
+                  <p><strong>Location:</strong> ${property.city || 'N/A'}, ${property.state || 'N/A'} ${property.zipCode || property.zip_code || ''}</p>
+                  <p><strong>Price:</strong> $${(property.price || property.listing_price)?.toLocaleString() || 'N/A'}</p>
+                  ${property.bedrooms ? `<p><strong>Bedrooms:</strong> ${property.bedrooms}</p>` : ''}
+                  ${property.bathrooms ? `<p><strong>Bathrooms:</strong> ${property.bathrooms}</p>` : ''}
+                  ${property.square_feet ? `<p><strong>Square Feet:</strong> ${property.square_feet.toLocaleString()}</p>` : ''}
+                  ${property.year_built ? `<p><strong>Year Built:</strong> ${property.year_built}</p>` : ''}
+                  ${property.property_type ? `<p><strong>Property Type:</strong> ${property.property_type.replace('_', ' ').replace(/\\b\\w/g, l => l.toUpperCase())}</p>` : ''}
+                  ${property.mls_number || property.mlsNumber ? `<p><strong>MLS Number:</strong> ${property.mls_number || property.mlsNumber}</p>` : ''}
+                  ${property.lot_size ? `<p><strong>Lot Size:</strong> ${property.lot_size} acres</p>` : ''}
+                </div>
+              ` : ''}
+
               ${subject ? `
                 <div style="margin: 15px 0;">
                   <h3 style="margin: 0 0 10px 0; color: #2563eb;">📝 Subject</h3>
@@ -654,7 +676,22 @@ FROM:
 Name: ${buyerName}
 Email: ${buyerEmail}
 
-${subject ? `SUBJECT:\n${subject}\n\n` : ''}MESSAGE:
+${property ? `PROPERTY DETAILS:
+Address: ${property.address || 'N/A'}
+Location: ${property.city || 'N/A'}, ${property.state || 'N/A'} ${property.zipCode || property.zip_code || ''}
+Price: $${(property.price || property.listing_price)?.toLocaleString() || 'N/A'}
+${property.bedrooms ? `Bedrooms: ${property.bedrooms}` : ''}
+${property.bathrooms ? `Bathrooms: ${property.bathrooms}` : ''}
+${property.square_feet ? `Square Feet: ${property.square_feet.toLocaleString()}` : ''}
+${property.year_built ? `Year Built: ${property.year_built}` : ''}
+${property.property_type ? `Property Type: ${property.property_type.replace('_', ' ').replace(/\\b\\w/g, l => l.toUpperCase())}` : ''}
+${property.mls_number || property.mlsNumber ? `MLS Number: ${property.mls_number || property.mlsNumber}` : ''}
+${property.lot_size ? `Lot Size: ${property.lot_size} acres` : ''}
+
+` : ''}${subject ? `SUBJECT:
+${subject}
+
+` : ''}MESSAGE:
 ${message}
 
 ---
@@ -744,9 +781,12 @@ app.post('/api/notion/webhook', express.raw({ type: '*/*' }), (req, res) => {
   }
 });
 
-const port = process.env.PORT || 8788;
+// Test endpoint to verify server is updated
+app.get('/api/test-update', (req, res) => {
+  res.json({ message: 'Server has been updated with property support!', timestamp: new Date().toISOString() });
+});
+
+const port = process.env.PORT || 8788; // Updated
 app.listen(port, () => {
   console.log(`Chat server running on http://localhost:${port}`);
 });
-
-

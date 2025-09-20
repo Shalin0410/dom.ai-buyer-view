@@ -24,9 +24,6 @@ const ModernDashboard = ({ userData, onPropertyClick, onNavigateToSearch }: Mode
   // Fetch available properties for the "new matches" section
   const { properties: availableProperties, loading: availableLoading } = useProperties(userData?.id, {}, 'available');
 
-  // Debug logging for available properties
-  console.log('[ModernDashboard] Available properties:', availableProperties);
-  console.log('[ModernDashboard] Available loading:', availableLoading);
 
   // Fetch agent email using proper buyer->agent lookup flow
   useEffect(() => {

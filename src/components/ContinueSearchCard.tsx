@@ -11,8 +11,6 @@ interface ContinueSearchCardProps {
 }
 
 const ContinueSearchCard = ({ onNavigateToSearch, availableProperties = [], loading = false }: ContinueSearchCardProps) => {
-  // Debug logging
-  console.log('[ContinueSearchCard] Props:', { availableProperties, loading, count: availableProperties?.length });
 
   // Show loading state
   if (loading) {

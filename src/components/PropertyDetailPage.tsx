@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { ArrowLeft, MapPin, Bed, Bath, Square, DollarSign, MessageCircle, Bot, CheckCircle, Calendar, TrendingUp, Star, Clock, Target, Loader2 } from 'lucide-react';
+import { ArrowLeft, MapPin, Bed, Bath, Square, DollarSign, MessageCircle, Bot, CheckCircle, Calendar, TrendingUp, Star, Clock, Target, Loader2, Send } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,8 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
   const [activeSection, setActiveSection] = useState('overview');
   const [chatMessage, setChatMessage] = useState('');
   const [agentMessage, setAgentMessage] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [messageSent, setMessageSent] = useState(false);
   
   const { user } = useAuth();
   const { property, loading, error } = useProperty(propertyId);
@@ -77,6 +79,58 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
     const element = document.getElementById(sectionId);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!agentMessage.trim() || !user || !property || sendingMessage) return;
+
+    setSendingMessage(true);
+    try {
+      const response = await fetch('/api/send-agent-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: 'agent@example.com', // TODO: Get actual agent email
+          buyerName: user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : 'Buyer',
+          buyerEmail: user.email,
+          property: {
+            address: property.address,
+            city: property.city,
+            state: property.state,
+            zipCode: property.zip_code,
+            price: property.purchase_price || property.listing_price,
+            listing_price: property.listing_price,
+            bedrooms: property.bedrooms,
+            bathrooms: property.bathrooms,
+            square_feet: property.square_feet,
+            year_built: property.year_built,
+            property_type: property.property_type,
+            mls_number: property.mls_number,
+            lot_size: property.lot_size
+          },
+          message: agentMessage.trim()
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        setMessageSent(true);
+        setAgentMessage('');
+        // Reset success message after 3 seconds
+        setTimeout(() => setMessageSent(false), 3000);
+      } else {
+        console.error('Failed to send message:', result.error);
+        alert('Failed to send message. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      alert('Failed to send message. Please try again.');
+    } finally {
+      setSendingMessage(false);
     }
   };
 
@@ -332,6 +386,8 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
           <section id="communication" className="space-y-6">
             <h2 className="text-xl font-bold text-gray-900">Communication</h2>
             
+            {/* AI Assistant - Commented out as requested */}
+            {/*
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card className="border border-gray-200 shadow-lg bg-white/80 backdrop-blur-sm">
                 <CardHeader>
@@ -341,7 +397,7 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <Textarea 
+                  <Textarea
                     placeholder="Ask any questions about this property..."
                     value={chatMessage}
                     onChange={(e) => setChatMessage(e.target.value)}
@@ -351,33 +407,64 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
                     <MessageCircle size={16} className="mr-2" />
                     Send Message
                   </Button>
-                  
+
                   <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                     <p className="font-medium text-gray-900 text-sm">AI Assistant:</p>
                     <p className="mt-2 text-gray-700 text-xs">I'm here to help answer questions about this property's features, neighborhood, market data, and more!</p>
                   </div>
                 </CardContent>
               </Card>
+            */}
+
+            <div className="max-w-lg mx-auto">
 
               <Card className="border border-gray-200 shadow-lg bg-white/80 backdrop-blur-sm">
                 <CardHeader>
-                  <CardTitle className="text-gray-900 text-lg">Message Your Agent</CardTitle>
+                  <CardTitle className="flex items-center space-x-2 text-gray-900 text-lg">
+                    <MessageCircle size={20} />
+                    <span>Message Your Agent</span>
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <p className="font-medium text-gray-900 text-sm">Sarah Chen (Agent):</p>
-                    <p className="mt-2 text-gray-700 text-xs">Great choice! I've already reached out to the listing agent. When would you like to schedule a viewing?</p>
-                    <p className="text-xs text-gray-400 mt-3">2 hours ago</p>
+                    <p className="font-medium text-gray-900 text-sm">Your Agent:</p>
+                    <p className="mt-2 text-gray-700 text-xs">Send a message to your real estate agent about this property. They'll receive it via email and can respond directly to you.</p>
                   </div>
-                  
-                  <Textarea 
-                    placeholder="Type your message to Sarah..."
+
+                  <Textarea
+                    placeholder="Type your message about this property..."
                     value={agentMessage}
                     onChange={(e) => setAgentMessage(e.target.value)}
-                    className="min-h-[100px] text-sm border-gray-200 focus:border-gray-400 bg-white"
+                    className="min-h-[120px] text-sm border-gray-200 focus:border-gray-400 bg-white"
+                    disabled={sendingMessage}
                   />
-                  <Button className="w-full bg-gray-700 hover:bg-gray-600 text-white text-sm shadow-md">
-                    Send to Agent
+
+                  {messageSent && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                      <div className="flex items-center space-x-2">
+                        <CheckCircle size={16} className="text-green-600" />
+                        <p className="text-sm text-green-800 font-medium">Message sent successfully!</p>
+                      </div>
+                      <p className="text-xs text-green-700 mt-1">Your agent will receive the email and can reply directly to you.</p>
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={handleSendMessage}
+                    disabled={!agentMessage.trim() || sendingMessage}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {sendingMessage ? (
+                      <>
+                        <Loader2 size={16} className="mr-2 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Send size={16} className="mr-2" />
+                        Send to Agent
+                      </>
+                    )}
                   </Button>
                 </CardContent>
               </Card>

@@ -12,7 +12,6 @@ import AddTaskDialog from './AddTaskDialog';
 import { dataService } from '@/services';
 
 const ActionItems = () => {
-  const [checkedItems, setCheckedItems] = useState<string[]>([]);
   const [updatingItems, setUpdatingItems] = useState<string[]>([]);
   const { user } = useAuth();
   const { data: buyer } = useBuyer(user?.email || '');
@@ -45,19 +44,11 @@ const ActionItems = () => {
   };
 
   const handleCheckChange = async (itemId: string, checked: boolean) => {
-    // Optimistically update UI
-    if (checked) {
-      setCheckedItems([...checkedItems, itemId]);
-    } else {
-      setCheckedItems(checkedItems.filter(id => id !== itemId));
-    }
-
     // Update in database
     setUpdatingItems([...updatingItems, itemId]);
     try {
       const response = await dataService.updateActionItem(itemId, {
-        is_completed: checked,
-        completed_date: checked ? new Date().toISOString().split('T')[0] : '',
+        completed_date: checked ? new Date().toISOString().split('T')[0] : null,
         status: checked ? 'completed' : 'pending'
       });
 
@@ -65,21 +56,9 @@ const ActionItems = () => {
         // Refresh the action items to get the latest data
         refreshActionItems();
       } else {
-        // Revert optimistic update if failed
-        if (checked) {
-          setCheckedItems(checkedItems.filter(id => id !== itemId));
-        } else {
-          setCheckedItems([...checkedItems, itemId]);
-        }
         console.error('Error updating action item:', response.error);
       }
     } catch (error) {
-      // Revert optimistic update if failed
-      if (checked) {
-        setCheckedItems(checkedItems.filter(id => id !== itemId));
-      } else {
-        setCheckedItems([...checkedItems, itemId]);
-      }
       console.error('Error updating action item:', error);
     } finally {
       setUpdatingItems(updatingItems.filter(id => id !== itemId));
@@ -120,19 +99,43 @@ const ActionItems = () => {
     );
   }
 
-  const pendingItems = actionItems.filter(item => !checkedItems.includes(item.id));
-  const completedItems = actionItems.filter(item => checkedItems.includes(item.id));
+  // Helper function to check if a task is overdue
+  const isOverdue = (dueDate: string) => {
+    const today = new Date();
+    const due = new Date(dueDate);
+    today.setHours(0, 0, 0, 0);
+    due.setHours(0, 0, 0, 0);
+    return due < today;
+  };
+
+  // Categorize items by status and due date
+  const pendingItems = actionItems.filter(item =>
+    item.status === 'pending' && !isOverdue(item.due_date)
+  );
+  const overdueItems = actionItems.filter(item =>
+    item.status === 'pending' && isOverdue(item.due_date)
+  );
+  const completedItems = actionItems.filter(item => item.status === 'completed');
 
   return (
     <Card className="border-0 bg-white shadow-sm">
       <CardHeader className="pb-6">
-        <div className="flex items-center justify-between">
+        <div className="space-y-3">
           <CardTitle className="text-xl font-semibold text-gray-900">
             Action Items
           </CardTitle>
-          <Badge variant="secondary" className="text-sm bg-blue-50 text-blue-700 border-blue-200">
-            {pendingItems.length} pending
-          </Badge>
+          <div className="flex gap-2">
+            {pendingItems.length > 0 && (
+              <Badge variant="secondary" className="text-sm bg-blue-50 text-blue-700 border-blue-200">
+                {pendingItems.length} pending
+              </Badge>
+            )}
+            {overdueItems.length > 0 && (
+              <Badge variant="secondary" className="text-sm bg-red-50 text-red-700 border-red-200">
+                {overdueItems.length} overdue
+              </Badge>
+            )}
+          </div>
         </div>
       </CardHeader>
       
@@ -146,7 +149,7 @@ const ActionItems = () => {
             <div className="flex items-start gap-3">
               <Checkbox
                 id={item.id}
-                checked={checkedItems.includes(item.id)}
+                checked={item.status === 'completed'}
                 onCheckedChange={(checked) => handleCheckChange(item.id, checked as boolean)}
                 className="mt-1"
               />
@@ -193,6 +196,77 @@ const ActionItems = () => {
           </div>
         ))}
 
+        {/* Overdue Items */}
+        {overdueItems.length > 0 && (
+          <>
+            <div className="border-t pt-4 mt-6">
+              <h5 className="text-sm font-medium text-red-600 mb-3">Overdue</h5>
+              <div className="space-y-3">
+                {overdueItems.map((item, index) => (
+                  <div
+                    key={item.id}
+                    className="border border-red-100 bg-red-50/50 rounded-lg p-4"
+                  >
+                    <div className="flex items-start gap-3">
+                      <Checkbox
+                        id={item.id}
+                        checked={item.status === 'completed'}
+                        onCheckedChange={(checked) => handleCheckChange(item.id, checked as boolean)}
+                        className="mt-1"
+                      />
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                            #{pendingItems.length + index + 1}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className="text-xs px-2 py-0.5 bg-red-100 text-red-700 border-red-200"
+                          >
+                            OVERDUE
+                          </Badge>
+                          <Badge
+                            variant="outline"
+                            className={`text-xs px-2 py-0.5 ${getPriorityColor(item.priority)}`}
+                          >
+                            {getPriorityText(item.priority)}
+                          </Badge>
+                        </div>
+
+                        <h4 className="font-medium text-gray-900 mb-1 leading-tight">
+                          {item.title}
+                        </h4>
+
+                        <p className="text-sm text-gray-600 mb-3">
+                          {item.description}
+                        </p>
+
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <div className="flex items-center gap-1">
+                            <AlertTriangle size={8} className="text-red-500 fill-current" />
+                            <span className="text-red-600 font-medium">Overdue</span>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            <Calendar size={12} />
+                            <span className="text-red-600">
+                              {new Date(item.due_date).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric'
+                              })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
         {/* Completed Items */}
         {completedItems.length > 0 && (
           <>
@@ -202,19 +276,32 @@ const ActionItems = () => {
                 {completedItems.map((item, index) => (
                   <div key={item.id} className="border border-green-100 bg-green-50/50 rounded-lg p-4 opacity-75">
                     <div className="flex items-start gap-3">
-                      <div className="mt-1">
-                        <div className="w-4 h-4 bg-green-500 rounded-sm flex items-center justify-center">
-                          <Check size={12} className="text-white" />
-                        </div>
-                      </div>
+                      <Checkbox
+                        id={`completed-${item.id}`}
+                        checked={item.status === 'completed'}
+                        onCheckedChange={(checked) => handleCheckChange(item.id, checked as boolean)}
+                        className="mt-1"
+                      />
                       
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium text-gray-700 mb-1 leading-tight line-through">
                           {item.title}
                         </h4>
-                        <p className="text-sm text-gray-500 line-through">
+                        <p className="text-sm text-gray-500 line-through mb-2">
                           {item.description}
                         </p>
+                        {item.completed_date && (
+                          <div className="flex items-center gap-1 text-xs text-green-600">
+                            <CheckCircle2 size={12} />
+                            <span>
+                              Completed on {new Date(item.completed_date).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -229,7 +316,7 @@ const ActionItems = () => {
           <AddTaskDialog onTaskAdded={refreshActionItems} />
         </div>
 
-        {pendingItems.length === 0 && (
+        {pendingItems.length === 0 && overdueItems.length === 0 && (
           <div className="text-center py-12">
             <CheckCircle2 size={48} className="mx-auto text-green-500 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">All caught up!</h3>
