@@ -1,8 +1,8 @@
-import nodemailer from 'nodemailer';
+const nodemailer = require('nodemailer');
 
 // Create transporter with Gmail SMTP (reusing existing configuration)
 const createTransporter = () => {
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 465,
     secure: true,
@@ -127,7 +127,7 @@ Generated at ${new Date().toLocaleString()}
   `.trim();
 };
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Set CORS headers for development
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -191,17 +191,37 @@ export default async function handler(req, res) {
     console.log('Creating email transporter...');
 
     // Create transporter
-    const transporter = createTransporter();
+    let transporter;
+    try {
+      transporter = createTransporter();
+      console.log('Transporter created successfully');
+    } catch (createError) {
+      console.error('Failed to create transporter:', createError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to create email transporter',
+        details: createError.message
+      });
+    }
 
     // Test connection
+    console.log('Testing SMTP connection...');
     try {
       await transporter.verify();
       console.log('SMTP connection verified successfully');
     } catch (verifyError) {
       console.error('SMTP connection verification failed:', verifyError);
+      console.error('Verify error details:', {
+        code: verifyError.code,
+        command: verifyError.command,
+        response: verifyError.response,
+        responseCode: verifyError.responseCode
+      });
       return res.status(500).json({
+        success: false,
         error: 'Email service connection failed',
-        details: verifyError.message
+        details: verifyError.message,
+        code: verifyError.code
       });
     }
 
@@ -239,7 +259,24 @@ export default async function handler(req, res) {
       subject: mailOptions.subject
     });
 
-    const info = await transporter.sendMail(mailOptions);
+    let info;
+    try {
+      console.log('Attempting to send email...');
+      info = await transporter.sendMail(mailOptions);
+      console.log('Email send attempt completed');
+    } catch (sendError) {
+      console.error('Email sending failed:', sendError);
+      console.error('Send error details:', {
+        code: sendError.code,
+        command: sendError.command,
+        response: sendError.response,
+        responseCode: sendError.responseCode,
+        message: sendError.message
+      });
+
+      // Re-throw the error to be handled by the outer catch block
+      throw sendError;
+    }
 
     console.log('Agent message email sent successfully:', {
       messageId: info.messageId,
