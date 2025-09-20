@@ -707,10 +707,16 @@ export class SupabaseDataService extends BaseDataService {
         return this.createResponse(null, propertyError.message);
       }
 
-      // Get buyer-property relationship if it exists
+      // Get buyer-property relationship with buyer and agent information
       const { data: buyerPropertyData } = await client
         .from('buyer_properties')
-        .select('*')
+        .select(`
+          *,
+          buyer:persons!buyer_id(
+            *,
+            assigned_agent:persons!assigned_agent_id(*)
+          )
+        `)
         .eq('property_id', id)
         .maybeSingle();
 
@@ -740,7 +746,7 @@ export class SupabaseDataService extends BaseDataService {
         listing_url: propertyData.listing_url,
         created_at: propertyData.created_at,
         updated_at: propertyData.updated_at,
-        
+
         // Buyer-specific info (from buyer_properties or defaults)
         buyer_id: buyerPropertyData?.buyer_id,
         status: buyerPropertyData?.status || 'researching',
@@ -751,7 +757,7 @@ export class SupabaseDataService extends BaseDataService {
         offer_date: buyerPropertyData?.offer_date,
         closing_date: buyerPropertyData?.closing_date,
         last_activity_at: buyerPropertyData?.updated_at || propertyData.created_at,
-        
+
         // Related data
         photos: (photos || []).map(photo => ({
           id: photo.id,
@@ -762,7 +768,25 @@ export class SupabaseDataService extends BaseDataService {
           order: photo.display_order,
           created_at: photo.created_at,
           updated_at: photo.updated_at
-        }))
+        })),
+
+        // Buyer and agent information
+        buyer: buyerPropertyData?.buyer ? {
+          id: buyerPropertyData.buyer.id,
+          first_name: buyerPropertyData.buyer.first_name,
+          last_name: buyerPropertyData.buyer.last_name,
+          email: buyerPropertyData.buyer.email,
+          agent_id: buyerPropertyData.buyer.assigned_agent_id,
+          agent: buyerPropertyData.buyer.assigned_agent ? {
+            id: buyerPropertyData.buyer.assigned_agent.id,
+            first_name: buyerPropertyData.buyer.assigned_agent.first_name,
+            last_name: buyerPropertyData.buyer.assigned_agent.last_name,
+            email: buyerPropertyData.buyer.assigned_agent.email,
+            phone: buyerPropertyData.buyer.assigned_agent.phone,
+            created_at: buyerPropertyData.buyer.assigned_agent.created_at,
+            updated_at: buyerPropertyData.buyer.assigned_agent.updated_at
+          } : null
+        } : undefined
       };
 
       return this.createResponse(property);

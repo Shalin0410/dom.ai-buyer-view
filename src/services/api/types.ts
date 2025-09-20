@@ -82,7 +82,7 @@ export interface Property {
   listing_url?: string;
   created_at: string;
   updated_at: string;
-  
+
   // Buyer-specific property info from buyer_properties table
   buyer_id?: string;
   status: PropertyStatus;
@@ -93,7 +93,7 @@ export interface Property {
   offer_date?: string;
   closing_date?: string;
   last_activity_at: string;
-  
+
   // Related data
   photos: PropertyPhoto[];
   buyer?: Buyer;
