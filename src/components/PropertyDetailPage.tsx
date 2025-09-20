@@ -115,7 +115,15 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
         })
       });
 
-      const result = await response.json();
+      // Handle non-JSON response (like HTML error pages)
+      let result;
+      try {
+        result = await response.json();
+      } catch (parseError) {
+        const text = await response.text();
+        console.error('Server returned non-JSON response:', text);
+        throw new Error(`Server error (${response.status}): Unable to parse response`);
+      }
 
       if (response.ok && result.success) {
         setMessageSent(true);
@@ -123,8 +131,8 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
         // Reset success message after 3 seconds
         setTimeout(() => setMessageSent(false), 3000);
       } else {
-        console.error('Failed to send message:', result.error);
-        alert('Failed to send message. Please try again.');
+        console.error('Failed to send message:', result.error || result);
+        alert(`Failed to send message: ${result.error || 'Unknown error'}. Please try again.`);
       }
     } catch (error) {
       console.error('Error sending message:', error);
