@@ -1,4 +1,4 @@
-const nodemailer = require('nodemailer');
+import nodemailer from 'nodemailer';
 
 // Create transporter with Gmail SMTP (reusing existing configuration)
 const createTransporter = () => {
@@ -127,7 +127,7 @@ Generated at ${new Date().toLocaleString()}
   `.trim();
 };
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   try {
     // Set CORS headers for development
     res.setHeader('Access-Control-Allow-Credentials', true);

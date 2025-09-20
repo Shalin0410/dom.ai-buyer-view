@@ -87,14 +87,31 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
 
     setSendingMessage(true);
     try {
-      const response = await fetch('/api/send-agent-message-esm', {
+      const response = await fetch('/api/send-agent-message', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           to: property.buyer?.agent?.email || 'agent@example.com',
-          message: `Message from ${user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : 'Buyer'} (${user.email}) about property: ${property.address}\n\n${agentMessage.trim()}`
+          buyerName: user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : 'Buyer',
+          buyerEmail: user.email,
+          property: {
+            address: property.address,
+            city: property.city,
+            state: property.state,
+            zipCode: property.zip_code,
+            price: property.purchase_price || property.listing_price,
+            listing_price: property.listing_price,
+            bedrooms: property.bedrooms,
+            bathrooms: property.bathrooms,
+            square_feet: property.square_feet,
+            year_built: property.year_built,
+            property_type: property.property_type,
+            mls_number: property.mls_number,
+            lot_size: property.lot_size
+          },
+          message: agentMessage.trim()
         })
       });
 
