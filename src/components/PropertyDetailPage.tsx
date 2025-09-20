@@ -118,11 +118,16 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
       // Handle non-JSON response (like HTML error pages)
       let result;
       try {
-        result = await response.json();
-      } catch (parseError) {
-        const text = await response.text();
-        console.error('Server returned non-JSON response:', text);
-        throw new Error(`Server error (${response.status}): Unable to parse response`);
+        const responseText = await response.text();
+        try {
+          result = JSON.parse(responseText);
+        } catch (jsonError) {
+          console.error('Server returned non-JSON response:', responseText);
+          throw new Error(`Server error (${response.status}): Unable to parse response`);
+        }
+      } catch (readError) {
+        console.error('Error reading response:', readError);
+        throw new Error(`Server error (${response.status}): Unable to read response`);
       }
 
       if (response.ok && result.success) {
