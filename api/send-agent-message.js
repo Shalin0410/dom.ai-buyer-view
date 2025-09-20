@@ -128,23 +128,32 @@ Generated at ${new Date().toLocaleString()}
 };
 
 module.exports = async function handler(req, res) {
-  // Set CORS headers for development
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
-
-  // Handle OPTIONS request for CORS
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  // Only allow POST requests
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
   try {
+    // Set CORS headers for development
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+
+    // Handle OPTIONS request for CORS
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+
+    // Only allow POST requests
+    if (req.method !== 'POST') {
+      return res.status(405).json({ success: false, error: 'Method not allowed' });
+    }
+
+    console.log('Function started successfully');
+
+    // Test basic functionality first
+    if (!req.body) {
+      return res.status(400).json({
+        success: false,
+        error: 'No request body provided'
+      });
+    }
     const { to, buyerName, buyerEmail, property, message, subject } = req.body;
 
     // Log incoming request for debugging
@@ -325,5 +334,24 @@ module.exports = async function handler(req, res) {
         details: 'Unable to process request'
       });
     }
+  } catch (topLevelError) {
+    console.error('Top-level function error:', topLevelError);
+    console.error('Top-level error stack:', topLevelError.stack);
+
+    // Final fallback to ensure we always return JSON
+    try {
+      return res.status(500).json({
+        success: false,
+        error: 'Function execution failed',
+        details: topLevelError.message,
+        type: 'FUNCTION_INVOCATION_FAILED'
+      });
+    } catch (responseError) {
+      console.error('Failed to send error response:', responseError);
+      // Last resort - just end the response
+      if (!res.headersSent) {
+        res.status(500).end('{"success":false,"error":"Critical function error"}');
+      }
+    }
   }
-}
+};
