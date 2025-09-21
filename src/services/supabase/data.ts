@@ -708,7 +708,8 @@ export class SupabaseDataService extends BaseDataService {
       }
 
       // Get buyer-property relationship with buyer and agent information
-      const { data: buyerPropertyData } = await client
+      console.log('🔍 Fetching buyer-property data for property ID:', id);
+      const { data: buyerPropertyData, error: buyerPropertyError } = await client
         .from('buyer_properties')
         .select(`
           *,
@@ -719,6 +720,15 @@ export class SupabaseDataService extends BaseDataService {
         `)
         .eq('property_id', id)
         .maybeSingle();
+
+      console.log('🔍 Buyer-property query result:', buyerPropertyData);
+      console.log('🔍 Buyer-property query error:', buyerPropertyError);
+
+      if (buyerPropertyData?.buyer?.assigned_agent) {
+        console.log('🔍 Found agent:', buyerPropertyData.buyer.assigned_agent.email);
+      } else {
+        console.log('🔍 No agent found for this property');
+      }
 
       // Fetch photos
       const { data: photos } = await client
