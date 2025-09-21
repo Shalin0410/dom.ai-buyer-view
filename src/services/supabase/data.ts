@@ -713,25 +713,28 @@ export class SupabaseDataService extends BaseDataService {
         .from('buyer_properties')
         .select(`
           *,
-          buyer:persons!buyer_properties_buyer_id_fkey(
-            id,
-            first_name,
-            last_name,
-            email,
-            assigned_agent_id,
-            agent:persons!persons_assigned_agent_id_fkey(
-              id,
-              first_name,
-              last_name,
-              email,
-              phone,
-              created_at,
-              updated_at
-            )
-          )
+          buyer:persons!buyer_id(*)
         `)
         .eq('property_id', id)
         .maybeSingle();
+
+      // If we have a buyer, get their agent separately
+      let agentData = null;
+      if (buyerPropertyData?.buyer?.assigned_agent_id) {
+        console.log('🔍 Fetching agent data for agent ID:', buyerPropertyData.buyer.assigned_agent_id);
+        const { data: agent, error: agentError } = await client
+          .from('persons')
+          .select('id, first_name, last_name, email, phone, created_at, updated_at')
+          .eq('id', buyerPropertyData.buyer.assigned_agent_id)
+          .single();
+
+        if (agent && !agentError) {
+          agentData = agent;
+          console.log('🔍 Found agent:', agent.email);
+        } else {
+          console.log('🔍 Agent fetch error:', agentError);
+        }
+      }
 
       console.log('🔍 Buyer-property query result:', buyerPropertyData);
       console.log('🔍 Buyer-property query error:', buyerPropertyError);
@@ -805,14 +808,14 @@ export class SupabaseDataService extends BaseDataService {
           last_name: buyerPropertyData.buyer.last_name,
           email: buyerPropertyData.buyer.email,
           agent_id: buyerPropertyData.buyer.assigned_agent_id,
-          agent: buyerPropertyData.buyer.agent ? {
-            id: buyerPropertyData.buyer.agent.id,
-            first_name: buyerPropertyData.buyer.agent.first_name,
-            last_name: buyerPropertyData.buyer.agent.last_name,
-            email: buyerPropertyData.buyer.agent.email,
-            phone: buyerPropertyData.buyer.agent.phone,
-            created_at: buyerPropertyData.buyer.agent.created_at,
-            updated_at: buyerPropertyData.buyer.agent.updated_at
+          agent: agentData ? {
+            id: agentData.id,
+            first_name: agentData.first_name,
+            last_name: agentData.last_name,
+            email: agentData.email,
+            phone: agentData.phone,
+            created_at: agentData.created_at,
+            updated_at: agentData.updated_at
           } : null
         } : undefined
       };

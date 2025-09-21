@@ -26,6 +26,14 @@ export default async function handler(req, res) {
     // Parse request body
     const { to, buyerName, buyerEmail, property, message } = req.body || {};
 
+    console.log('🔍 Email API received:', {
+      to,
+      buyerName,
+      buyerEmail,
+      hasProperty: !!property,
+      messageLength: message?.length
+    });
+
     if (!to || !buyerName || !buyerEmail || !message) {
       return res.status(400).json({
         success: false,
@@ -92,6 +100,14 @@ export default async function handler(req, res) {
     };
 
     // Send email
+    console.log('🔍 About to send email to:', mailOptions.to);
+    console.log('🔍 Full mailOptions:', {
+      from: mailOptions.from,
+      to: mailOptions.to,
+      cc: mailOptions.cc,
+      subject: mailOptions.subject
+    });
+
     const info = await transporter.sendMail(mailOptions);
 
     return res.status(200).json({
