@@ -725,9 +725,15 @@ export class SupabaseDataService extends BaseDataService {
       console.log('🔍 Buyer-property query error:', buyerPropertyError);
 
       if (buyerPropertyData?.buyer?.assigned_agent) {
-        console.log('🔍 Found agent:', buyerPropertyData.buyer.assigned_agent.email);
+        console.log('🔍 Found agent raw data:', buyerPropertyData.buyer.assigned_agent);
+        console.log('🔍 Agent email from raw data:', buyerPropertyData.buyer.assigned_agent.email);
+        console.log('🔍 Agent object keys:', Object.keys(buyerPropertyData.buyer.assigned_agent));
       } else {
         console.log('🔍 No agent found for this property');
+        if (buyerPropertyData?.buyer) {
+          console.log('🔍 But buyer exists:', buyerPropertyData.buyer);
+          console.log('🔍 Buyer assigned_agent_id:', buyerPropertyData.buyer.assigned_agent_id);
+        }
       }
 
       // Fetch photos

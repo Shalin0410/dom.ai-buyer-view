@@ -90,6 +90,7 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
     console.log('🔍 Property buyer:', property.buyer);
     console.log('🔍 Property buyer agent:', property.buyer?.agent);
     console.log('🔍 Agent email:', property.buyer?.agent?.email);
+    console.log('🔍 Agent object keys:', property.buyer?.agent ? Object.keys(property.buyer.agent) : 'No agent object');
 
     setSendingMessage(true);
     try {
