@@ -708,7 +708,6 @@ export class SupabaseDataService extends BaseDataService {
       }
 
       // Get buyer-property relationship with buyer and agent information
-      console.log('🔍 Fetching buyer-property data for property ID:', id);
       const { data: buyerPropertyData, error: buyerPropertyError } = await client
         .from('buyer_properties')
         .select(`
@@ -721,7 +720,6 @@ export class SupabaseDataService extends BaseDataService {
       // If we have a buyer, get their agent separately
       let agentData = null;
       if (buyerPropertyData?.buyer?.assigned_agent_id) {
-        console.log('🔍 Fetching agent data for agent ID:', buyerPropertyData.buyer.assigned_agent_id);
         const { data: agent, error: agentError } = await client
           .from('persons')
           .select('id, first_name, last_name, email, phone, created_at, updated_at')
@@ -730,24 +728,6 @@ export class SupabaseDataService extends BaseDataService {
 
         if (agent && !agentError) {
           agentData = agent;
-          console.log('🔍 Found agent:', agent.email);
-        } else {
-          console.log('🔍 Agent fetch error:', agentError);
-        }
-      }
-
-      console.log('🔍 Buyer-property query result:', buyerPropertyData);
-      console.log('🔍 Buyer-property query error:', buyerPropertyError);
-
-      if (buyerPropertyData?.buyer?.assigned_agent) {
-        console.log('🔍 Found agent raw data:', buyerPropertyData.buyer.assigned_agent);
-        console.log('🔍 Agent email from raw data:', buyerPropertyData.buyer.assigned_agent.email);
-        console.log('🔍 Agent object keys:', Object.keys(buyerPropertyData.buyer.assigned_agent));
-      } else {
-        console.log('🔍 No agent found for this property');
-        if (buyerPropertyData?.buyer) {
-          console.log('🔍 But buyer exists:', buyerPropertyData.buyer);
-          console.log('🔍 Buyer assigned_agent_id:', buyerPropertyData.buyer.assigned_agent_id);
         }
       }
 
