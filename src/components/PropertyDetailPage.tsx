@@ -85,6 +85,12 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
   const handleSendMessage = async () => {
     if (!agentMessage.trim() || !user || !property || sendingMessage) return;
 
+    // Debug: Log the property data to see what we're getting
+    console.log('🔍 Property data:', property);
+    console.log('🔍 Property buyer:', property.buyer);
+    console.log('🔍 Property buyer agent:', property.buyer?.agent);
+    console.log('🔍 Agent email:', property.buyer?.agent?.email);
+
     setSendingMessage(true);
     try {
       const response = await fetch('/api/send-agent-message', {
