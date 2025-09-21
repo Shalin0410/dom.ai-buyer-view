@@ -713,9 +713,21 @@ export class SupabaseDataService extends BaseDataService {
         .from('buyer_properties')
         .select(`
           *,
-          buyer:persons!buyer_id(
-            *,
-            assigned_agent:persons!assigned_agent_id(*)
+          buyer:persons!buyer_properties_buyer_id_fkey(
+            id,
+            first_name,
+            last_name,
+            email,
+            assigned_agent_id,
+            agent:persons!persons_assigned_agent_id_fkey(
+              id,
+              first_name,
+              last_name,
+              email,
+              phone,
+              created_at,
+              updated_at
+            )
           )
         `)
         .eq('property_id', id)
@@ -793,14 +805,14 @@ export class SupabaseDataService extends BaseDataService {
           last_name: buyerPropertyData.buyer.last_name,
           email: buyerPropertyData.buyer.email,
           agent_id: buyerPropertyData.buyer.assigned_agent_id,
-          agent: buyerPropertyData.buyer.assigned_agent ? {
-            id: buyerPropertyData.buyer.assigned_agent.id,
-            first_name: buyerPropertyData.buyer.assigned_agent.first_name,
-            last_name: buyerPropertyData.buyer.assigned_agent.last_name,
-            email: buyerPropertyData.buyer.assigned_agent.email,
-            phone: buyerPropertyData.buyer.assigned_agent.phone,
-            created_at: buyerPropertyData.buyer.assigned_agent.created_at,
-            updated_at: buyerPropertyData.buyer.assigned_agent.updated_at
+          agent: buyerPropertyData.buyer.agent ? {
+            id: buyerPropertyData.buyer.agent.id,
+            first_name: buyerPropertyData.buyer.agent.first_name,
+            last_name: buyerPropertyData.buyer.agent.last_name,
+            email: buyerPropertyData.buyer.agent.email,
+            phone: buyerPropertyData.buyer.agent.phone,
+            created_at: buyerPropertyData.buyer.agent.created_at,
+            updated_at: buyerPropertyData.buyer.agent.updated_at
           } : null
         } : undefined
       };
