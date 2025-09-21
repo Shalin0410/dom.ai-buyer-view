@@ -87,7 +87,7 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
 
     setSendingMessage(true);
     try {
-      const response = await fetch('/api/send-agent-message-simple', {
+      const response = await fetch('/api/send-agent-message', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
