@@ -96,15 +96,13 @@ export async function retrieveContext(
   for (const { doc } of scoredDocs) {
     const snippet = extractRelevantSnippet(doc, normalizedQuery);
     if (snippet) {
-      // Only include sources that are accessible to buyers (have URLs)
-      if (doc.url) {
-        results.push({ 
-          title: doc.title, 
-          snippet,
-          url: doc.url,
-          sourceType: doc.sourceType
-        });
-      }
+      // Include all relevant documents, not just those with URLs
+      results.push({
+        title: doc.title,
+        snippet,
+        url: doc.url,
+        sourceType: doc.sourceType
+      });
     }
   }
 

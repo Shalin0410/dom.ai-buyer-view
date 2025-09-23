@@ -795,24 +795,17 @@ ${finalBuyerName}`;
                                    });
                                  }
 
-                                 // Combine sources from API and links from text, removing duplicates
-                                 const allSources: Array<{ title: string; url?: string; sourceType?: string }> = [...(message.sources || [])];
-
-                                 textLinks.forEach(textLink => {
-                                   // Check if this link is already in sources (by URL)
-                                   const isDuplicate = allSources.some(source =>
-                                     source.url === textLink.url ||
-                                     source.title === textLink.title
-                                   );
-
-                                   if (!isDuplicate) {
-                                     allSources.push({
-                                       title: textLink.title,
-                                       url: textLink.url,
-                                       sourceType: 'online'
-                                     });
-                                   }
-                                 });
+                                 // Combine text links and message sources for citations
+                                 const messageSources = message.sources || [];
+                                 const allSources = [
+                                   ...textLinks,
+                                   ...messageSources.filter(source =>
+                                     source.url && !textLinks.some(link => link.url === source.url)
+                                   ).map(source => ({
+                                     text: source.title,
+                                     url: source.url
+                                   }))
+                                 ];
 
                                  // Create citation array for parseMarkdown
                                  const linkCitations = allSources
@@ -860,35 +853,25 @@ ${finalBuyerName}`;
                                                          {(() => {
                                // Extract links from the message content
                                const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-                               const textLinks: Array<{ title: string; url: string }> = [];
+                               const textLinks: Array<{ title: string; url: string; snippet?: string }> = [];
                                let match;
-                               
+
                                while ((match = linkRegex.exec(message.content)) !== null) {
                                  textLinks.push({
                                    title: match[1],
                                    url: match[2]
                                  });
                                }
-                               
-                               // Combine sources from API and links from text, removing duplicates
-                               const allSources: Array<{ title: string; url?: string; sourceType?: string }> = [...(message.sources || [])];
-                               
-                               textLinks.forEach(textLink => {
-                                 // Check if this link is already in sources (by URL)
-                                 const isDuplicate = allSources.some(source => 
-                                   source.url === textLink.url || 
-                                   source.title === textLink.title
-                                 );
-                                 
-                                 if (!isDuplicate) {
-                                   allSources.push({
-                                     title: textLink.title,
-                                     url: textLink.url,
-                                     sourceType: 'online'
-                                   });
-                                 }
-                               });
-                               
+
+                               // Combine text links and message sources (from web search)
+                               const messageSources = message.sources || [];
+                               const allSources = [
+                                 ...textLinks,
+                                 ...messageSources.filter(source =>
+                                   source.url && !textLinks.some(link => link.url === source.url)
+                                 )
+                               ];
+
                                // Only show sources section if there are sources with URLs
                                if (allSources.length > 0 && allSources.some(source => source.url)) {
                                  return (
@@ -900,24 +883,31 @@ ${finalBuyerName}`;
                                            <span className="text-xs font-semibold text-gray-600 min-w-[16px] mt-0.5">
                                              {index + 1}.
                                            </span>
-                                           <a
-                                             href={source.url}
-                                             target="_blank"
-                                             rel="noopener noreferrer"
-                                             className="text-xs text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1 flex-1"
-                                           >
-                                             <span className="truncate">{source.title}</span>
-                                             <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                             </svg>
-                                           </a>
+                                           <div className="flex-1">
+                                             <a
+                                               href={source.url}
+                                               target="_blank"
+                                               rel="noopener noreferrer"
+                                               className="text-xs text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1"
+                                             >
+                                               <span className="truncate">{source.title}</span>
+                                               <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                               </svg>
+                                             </a>
+                                             {source.snippet && (
+                                               <div className="text-xs text-gray-600 mt-1 line-clamp-2">
+                                                 {source.snippet}
+                                               </div>
+                                             )}
+                                           </div>
                                          </div>
                                        ))}
                                      </div>
                                    </div>
                                  );
                                }
-                               
+
                                return null;
                              })()}
                           </div>

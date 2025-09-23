@@ -190,10 +190,7 @@ app.post('/api/chat', async (req, res) => {
       )
       .slice(0, 5);
 
-    if (sanitizedContext.length === 0) {
-      const fallbackAnswer = "I don't have enough buyer-focused context to answer that. Please rephrase your question or ask your agent for details.";
-      return res.json({ answer: fallbackAnswer, sources: [] });
-    }
+    // Allow questions even without specific context - use general AI knowledge for real estate questions
 
     // Guard against technical/internal queries
     const qLower = String(query).toLowerCase();
@@ -203,13 +200,17 @@ app.post('/api/chat', async (req, res) => {
       return res.json({ answer: scopeAnswer, sources: [] });
     }
 
-    // Build context block
-    const contextBlock = sanitizedContext
-      .slice(0, 5)
-      .map((c, i) => `Source ${i + 1} — ${c.title}\n${c.snippet}`)
-      .join('\n\n');
+    // Build context block if available
+    const contextBlock = sanitizedContext.length > 0
+      ? sanitizedContext
+          .slice(0, 5)
+          .map((c, i) => `Source ${i + 1} — ${c.title}\n${c.snippet}`)
+          .join('\n\n')
+      : '';
 
-    const userPrompt = `Question: ${query}\n\nContext:\n${contextBlock}\n\nInstructions:\n- Use only the context.\n- If not enough, say you don't know and suggest contacting the agent.\n- Do not discuss internal systems or technical implementation.`;
+    const userPrompt = contextBlock
+      ? `Question: ${query}\n\nAdditional Context from Knowledge Base:\n${contextBlock}\n\nInstructions: Use your real estate knowledge along with the provided context to give a comprehensive, helpful answer.`
+      : `Question: ${query}\n\nInstructions: Use your real estate and home buying knowledge to provide a comprehensive, helpful answer.`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',

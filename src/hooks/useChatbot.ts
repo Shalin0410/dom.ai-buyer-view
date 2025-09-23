@@ -153,7 +153,6 @@ export function useChatbot(): ChatbotState & ChatbotActions {
           conversation_id: conversationId,
           role: 'user' as const,
           content: content,
-          sources: [],
           tokens_used: null,
           created_at: new Date().toISOString()
         };
@@ -176,7 +175,6 @@ export function useChatbot(): ChatbotState & ChatbotActions {
           conversation_id: conversationId,
           role: 'user' as const,
           content: content,
-          sources: [],
           tokens_used: null,
           created_at: new Date().toISOString()
         };
@@ -203,7 +201,6 @@ export function useChatbot(): ChatbotState & ChatbotActions {
           conversation_id: conversationId,
           role: 'user' as const,
           content: content,
-          sources: [],
           tokens_used: null,
           created_at: new Date().toISOString()
         };
@@ -226,11 +223,11 @@ export function useChatbot(): ChatbotState & ChatbotActions {
 
       // Add AI response to database
       const assistantMessageId = await addMessage(
-        conversationId, 
-        'assistant', 
-        response.message, 
-        response.sources, 
-        response.tokensUsed
+        conversationId,
+        'assistant',
+        response.message,
+        response.tokensUsed,
+        response.sources
       );
 
       // Create the assistant message for immediate display
@@ -239,9 +236,9 @@ export function useChatbot(): ChatbotState & ChatbotActions {
         conversation_id: conversationId,
         role: 'assistant' as const,
         content: response.message,
-        sources: response.sources || [],
         tokens_used: response.tokensUsed,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        sources: response.sources
       };
 
       // Update the conversation title if it's still the default
@@ -276,8 +273,7 @@ export function useChatbot(): ChatbotState & ChatbotActions {
               conversation_id: conversationId,
               role: 'user' as const,
               content: content,
-              sources: [],
-              tokens_used: null,
+                  tokens_used: null,
               created_at: new Date().toISOString()
             },
             assistantMessage

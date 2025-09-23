@@ -8,7 +8,7 @@ export default async function handler(req: any, res: any) {
   }
 
   const SYSTEM_PROMPT =
-    'You are a home-buying assistant for consumers. Only answer from the provided context. If the context is insufficient or the question is outside home-buying education, say you don’t know and suggest contacting the agent. Do not reveal internal systems, databases, architecture, or CRM processes. Cite the included source titles when relevant.';
+    'You are Dom AI, a knowledgeable home-buying assistant for consumers. You help with questions about the home buying process, real estate markets, financing, neighborhoods, and general real estate education. You can search the web for current market data, local information, and recent trends. Always provide helpful, accurate information while maintaining a friendly tone. Use the knowledge base context when provided, but don\'t limit yourself to only that information. For complex legal or specific transaction questions, suggest contacting their real estate agent. Do not reveal internal systems, databases, or technical architecture.';
 
   const buyerOnlyTitles = [
     'home buying process overview',
@@ -52,40 +52,82 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    const filtered = context
-      .filter((c) => buyerOnlyTitles.some(t => (c?.title || '').toLowerCase().includes(t)))
-      .map((c) => ({ title: c.title, snippet: c.snippet }));
-
-    if (filtered.length === 0) {
-      res.status(200).json({
-        answer: 'I can help with the home buying process (finances, finding homes, offers, escrow, closing). Please ask a buyer-focused question.',
-        sources: [],
-      });
-      return;
-    }
+    // Use all available context instead of filtering by specific titles
+    const filtered = context.map((c) => ({ title: c.title, snippet: c.snippet }));
 
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    // Build the user content with knowledge base context if available
+    let userContent = `Question: ${query}`;
+
+    if (filtered.length > 0) {
+      userContent += `\n\nContext from knowledge base:\n` +
+        filtered.map(c => `Title: ${c.title}\nSnippet: ${c.snippet}`).join('\n\n');
+    }
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       temperature: 0.2,
+      tools: [{ type: 'web_search' }],
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
         {
           role: 'user',
-          content: `Question: ${query}\n\nContext:\n` +
-            filtered.map(c => `Title: ${c.title}\nSnippet: ${c.snippet}`).join('\n\n'),
+          content: userContent,
         },
       ],
     });
 
-    const answer = completion.choices?.[0]?.message?.content ?? '';
-    const sources = filtered.map(c => c.title);
-    res.status(200).json({ answer, sources });
-  } catch (err: any) {
+    const message = completion.choices?.[0]?.message;
+    const answer = message?.content ?? '';
+
+    // Extract citations from web search results
+    const citations: Array<{
+      title: string;
+      url: string;
+      snippet?: string;
+    }> = [];
+
+    // Check if web search was used and extract citations
+    if (message?.tool_calls) {
+      for (const toolCall of message.tool_calls) {
+        if (toolCall.type === 'web_search') {
+          // Extract search results from the tool call response
+          const searchResults = (toolCall as any).web_search?.results || [];
+          for (const result of searchResults) {
+            if (result.url && result.title) {
+              citations.push({
+                title: result.title,
+                url: result.url,
+                snippet: result.snippet || result.content
+              });
+            }
+          }
+        }
+      }
+    }
+
     res.status(200).json({
-      answer: 'I encountered an issue generating an answer. Please try again with a buyer-focused question.',
-      sources: [],
+      answer,
+      sources: citations.length > 0 ? citations : undefined
+    });
+  } catch (err: any) {
+    console.error('Chat API error:', err);
+
+    // Provide helpful fallback responses based on the query
+    const queryLower = (body.query || '').toLowerCase();
+    let fallbackAnswer = '';
+
+    if (queryLower.includes('san jose') || queryLower.includes('fremont') || queryLower.includes('area') || queryLower.includes('neighborhood')) {
+      fallbackAnswer = 'I\'d be happy to help you compare areas for home buying! To provide the most accurate and current information about San Jose vs Fremont, including market trends, school districts, commute factors, and neighborhood characteristics, I recommend speaking with your real estate agent who has access to the latest local market data and can provide personalized insights based on your specific needs and budget.';
+    } else if (queryLower.includes('home buying') || queryLower.includes('process') || queryLower.includes('steps')) {
+      fallbackAnswer = 'The home buying process typically involves several key steps: 1) Getting pre-approved for a mortgage, 2) Finding and touring homes, 3) Making an offer, 4) Going under contract with inspections and appraisal, and 5) Closing. Each step has important considerations and timelines. For detailed guidance specific to your situation and local market, I recommend discussing with your real estate agent.';
+    } else {
+      fallbackAnswer = 'I encountered an issue generating a detailed answer. For personalized assistance with your home buying questions, please contact your real estate agent who can provide expert guidance tailored to your specific situation.';
+    }
+
+    res.status(200).json({
+      answer: fallbackAnswer,
     });
   }
 }

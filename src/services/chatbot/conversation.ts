@@ -15,9 +15,13 @@ export interface Message {
   conversation_id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
-  sources: Array<{ title: string; url?: string; sourceType?: string }>;
   tokens_used: number | null;
   created_at: string;
+  sources?: Array<{
+    title: string;
+    url: string;
+    snippet?: string;
+  }>;
 }
 
 export interface ConversationWithMessages {
@@ -99,9 +103,9 @@ export async function getConversation(conversationId: string): Promise<Conversat
         conversation_id: msg.conversation_id,
         role: msg.role as 'user' | 'assistant' | 'system',
         content: msg.content,
-        sources: msg.sources || [],
         tokens_used: msg.tokens_used,
-        created_at: msg.created_at
+        created_at: msg.created_at,
+        sources: msg.sources
       }))
       // Remove any potential duplicates based on message ID
       .filter((message, index, array) => 
@@ -187,8 +191,8 @@ export async function addMessage(
   conversationId: string,
   role: 'user' | 'assistant' | 'system',
   content: string,
-  sources: Array<{ title: string; url?: string; sourceType?: string }> = [],
-  tokensUsed?: number
+  tokensUsed?: number,
+  sources?: Array<{ title: string; url: string; snippet?: string; }>
 ): Promise<string> {
   try {
     // Insert message directly into the messages table
@@ -198,8 +202,8 @@ export async function addMessage(
         conversation_id: conversationId,
         role: role,
         content: content,
-        sources: sources,
-        tokens_used: tokensUsed
+        tokens_used: tokensUsed,
+        sources: sources || []
       })
       .select('id')
       .single();
