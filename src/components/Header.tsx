@@ -1,7 +1,5 @@
 
-import { MessageSquare, Search, Home, User, LogOut } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { MessageSquare, Search, LayoutDashboard, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface HeaderProps {
@@ -10,95 +8,62 @@ interface HeaderProps {
 }
 
 const Header = ({ activeTab, onTabChange }: HeaderProps) => {
-  const { signOut, user } = useAuth();
-
-  const handleLogout = async () => {
-    try {
-      await signOut();
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
+  const { user } = useAuth();
   const NavButton = ({ icon: Icon, label, tabKey, count = 0 }) => (
     <button
       onClick={() => onTabChange(tabKey)}
-      className={`relative flex items-center space-x-2 px-6 py-3 rounded-xl transition-all duration-300 group ${
-        activeTab === tabKey 
-          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' 
-          : 'text-[#2E2E2E] hover:bg-white/50 hover:shadow-md'
+      className={`relative flex items-center space-x-2 px-4 py-2 rounded-full transition-all duration-200 ${
+        activeTab === tabKey
+          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+          : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
       }`}
     >
-      <div className="relative">
-        <Icon 
-          size={20} 
-          strokeWidth={activeTab === tabKey ? 2.5 : 2} 
-        />
-        {count > 0 && (
-          <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 text-xs bg-[#F47C6D] border-0 text-[#E8ECF2] shadow-lg">
-            {count}
-          </Badge>
-        )}
-      </div>
-      <span className={`font-medium transition-all duration-300 ${
-        activeTab === tabKey ? 'text-white' : 'text-[#2E2E2E]'
-      }`}>
-        {label}
-      </span>
+      <Icon size={20} />
+      <span className="font-medium">{label}</span>
+      {count > 0 && (
+        <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+          {count}
+        </div>
+      )}
     </button>
   );
 
   return (
-    <header className="sticky top-0 z-50 glass-card border-b border-white/30 shadow-modern">
+    <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Logo/Brand */}
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-              <Home size={20} className="text-white" />
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+              <span className="text-white font-bold text-xl">
+                {(user?.name?.charAt(0) || user?.email?.charAt(0) || 'D').toUpperCase()}
+              </span>
             </div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Dom AI
-            </h1>
+            <span className="text-xl font-bold text-black">Dom AI</span>
           </div>
 
           {/* Navigation */}
-          <nav className="flex items-center space-x-4">
-            <NavButton 
-              icon={Home} 
-              label="Dashboard" 
-              tabKey="dashboard" 
+          <nav className="flex items-center space-x-1">
+            <NavButton
+              icon={LayoutDashboard}
+              label="Dashboard"
+              tabKey="dashboard"
             />
-            <NavButton 
-              icon={Search} 
-              label="Search" 
-              tabKey="search" 
+            <NavButton
+              icon={Search}
+              label="Search"
+              tabKey="search"
             />
-            <NavButton 
-              icon={MessageSquare} 
-              label="Messages" 
-              tabKey="chat" 
+            <NavButton
+              icon={MessageSquare}
+              label="Messages"
+              tabKey="chat"
             />
-            <NavButton 
-              icon={User} 
-              label="Profile" 
-              tabKey="profile" 
+            <NavButton
+              icon={User}
+              label="Profile"
+              tabKey="profile"
             />
-            
-            {/* User Info and Logout */}
-            <div className="flex items-center space-x-3 ml-6 pl-6 border-l border-white/20">
-              <div className="text-sm text-gray-600">
-                {user?.email}
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLogout}
-                className="text-gray-600 hover:text-red-600 hover:bg-red-50"
-              >
-                <LogOut size={16} className="mr-1" />
-                Logout
-              </Button>
-            </div>
           </nav>
         </div>
       </div>
