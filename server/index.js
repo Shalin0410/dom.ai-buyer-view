@@ -190,10 +190,7 @@ app.post('/api/chat', async (req, res) => {
       )
       .slice(0, 5);
 
-    if (sanitizedContext.length === 0) {
-      const fallbackAnswer = "I don't have enough buyer-focused context to answer that. Please rephrase your question or ask your agent for details.";
-      return res.json({ answer: fallbackAnswer, sources: [] });
-    }
+    // Allow questions even without specific context - use general AI knowledge for real estate questions
 
     // Guard against technical/internal queries
     const qLower = String(query).toLowerCase();
@@ -203,27 +200,109 @@ app.post('/api/chat', async (req, res) => {
       return res.json({ answer: scopeAnswer, sources: [] });
     }
 
-    // Build context block
-    const contextBlock = sanitizedContext
-      .slice(0, 5)
-      .map((c, i) => `Source ${i + 1} — ${c.title}\n${c.snippet}`)
-      .join('\n\n');
+    // Build context block if available
+    const contextBlock = sanitizedContext.length > 0
+      ? sanitizedContext
+          .slice(0, 5)
+          .map((c, i) => `Source ${i + 1} — ${c.title}\n${c.snippet}`)
+          .join('\n\n')
+      : '';
 
-    const userPrompt = `Question: ${query}\n\nContext:\n${contextBlock}\n\nInstructions:\n- Use only the context.\n- If not enough, say you don't know and suggest contacting the agent.\n- Do not discuss internal systems or technical implementation.`;
+    // Build the user content with knowledge base context if available
+    let userContent = `Question: ${query}`;
 
-    const completion = await openai.chat.completions.create({
+    if (sanitizedContext.length > 0) {
+      userContent += `\n\nContext from knowledge base:\n` +
+        sanitizedContext.map(c => `Title: ${c.title}\nSnippet: ${c.snippet}`).join('\n\n');
+    }
+
+    // Use the Responses API for web search with proper citations
+    console.log('[Chat API] Making OpenAI request with:', {
       model: 'gpt-4o-mini',
-      temperature: 0.3,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: userPrompt },
-      ],
+      tools: [{ type: 'web_search' }],
+      inputPreview: userContent.substring(0, 100) + '...'
     });
 
-    const answer = completion.choices?.[0]?.message?.content?.trim() || '';
-    // Echo back the titles used so the client can display Sources
-    const sources = sanitizedContext.map((c) => c.title);
-    return res.json({ answer, sources });
+    const response = await openai.responses.create({
+      model: 'gpt-4o-mini',
+      tools: [{ type: 'web_search' }],
+      input: `${SYSTEM_PROMPT}\n\n${userContent}`,
+    });
+
+    console.log('[Chat API] OpenAI response structure:', {
+      outputTypes: response.output.map(item => item.type),
+      outputCount: response.output.length
+    });
+
+    // Check if web search was triggered
+    const webSearchCall = response.output.find((item) => item.type === 'web_search_call');
+    const webSearchTriggered = !!webSearchCall;
+
+    // Log web search detection for debugging
+    console.log('[Chat API] Web search triggered:', webSearchTriggered);
+    if (webSearchTriggered) {
+      console.log('[Chat API] Web search call:', {
+        id: webSearchCall.id,
+        status: webSearchCall.status,
+        action: webSearchCall.action?.type || 'unknown',
+        query: webSearchCall.action?.query || 'no query',
+        sourcesCount: webSearchCall.action?.sources?.length || 0
+      });
+    }
+
+    // Extract the assistant message with annotations
+    const messageItem = response.output.find((item) => item.type === 'message');
+    const textContent = messageItem?.content?.find((content) => content.type === 'output_text');
+
+    const answer = textContent?.text ?? '';
+    const annotations = textContent?.annotations ?? [];
+
+    // Log annotations for debugging
+    console.log('[Chat API] Annotations found:', annotations.length);
+    if (annotations.length > 0) {
+      console.log('[Chat API] Annotation types:', annotations.map((a) => a.type));
+    }
+
+    // Extract citations from URL annotations
+    const citations = [];
+
+    // Process URL citations from annotations
+    for (const annotation of annotations) {
+      if (annotation.type === 'url_citation' && annotation.url && annotation.title) {
+        citations.push({
+          title: annotation.title,
+          url: annotation.url,
+          snippet: annotation.snippet || ''
+        });
+      }
+    }
+
+    // Also check for sources in the web search call output
+    if (webSearchCall?.action?.sources) {
+      for (const source of webSearchCall.action.sources) {
+        if (source.url && source.title && !citations.some(c => c.url === source.url)) {
+          citations.push({
+            title: source.title,
+            url: source.url,
+            snippet: source.snippet || ''
+          });
+        }
+      }
+    }
+
+    // Log final citation count
+    console.log('[Chat API] Total citations extracted:', citations.length);
+
+    return res.json({
+      answer,
+      sources: citations.length > 0 ? citations : undefined,
+      webSearch: webSearchTriggered ? {
+        triggered: true,
+        query: webSearchCall?.action?.query || null,
+        sourcesCount: webSearchCall?.action?.sources?.length || 0,
+        status: webSearchCall?.status || 'unknown'
+      } : { triggered: false }
+    });
   } catch (err) {
     console.error('Chat error:', err?.response?.data || err?.message || err);
     return res.status(500).json({ error: 'Chat service error' });

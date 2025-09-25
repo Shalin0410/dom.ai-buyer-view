@@ -91,14 +91,11 @@ export class SupabaseDataService extends BaseDataService {
             property_type_preferences,
             must_have_features,
             nice_to_have_features,
-            bathrooms,
-            bedrooms,
             ideal_move_in_date,
             urgency_level,
             created_at,
             updated_at
-          ),
-          assigned_agent:persons!assigned_agent_id(*)
+          )
         `)
         .eq('email', email)
         .eq('primary_role', 'buyer')
@@ -113,28 +110,33 @@ export class SupabaseDataService extends BaseDataService {
         return this.createResponse(null, buyerError.message);
       }
 
-      // Agent data is already included in the query via assigned_agent relationship
-      if (buyerData.assigned_agent) {
-        const agent: Agent = {
-          id: buyerData.assigned_agent.id,
-          first_name: buyerData.assigned_agent.first_name || 'Unknown',
-          last_name: buyerData.assigned_agent.last_name || 'Agent',
-          email: buyerData.assigned_agent.email || '',
-          phone: buyerData.assigned_agent.phone || null,
-          created_at: buyerData.assigned_agent.created_at,
-          updated_at: buyerData.assigned_agent.updated_at
-        };
+      // Fetch agent data separately if assigned_agent_id exists
+      let agent: Agent | null = null;
+      if (buyerData.assigned_agent_id) {
+        const { data: agentData, error: agentError } = await client
+          .from('persons')
+          .select('*')
+          .eq('id', buyerData.assigned_agent_id)
+          .eq('primary_role', 'agent')
+          .single();
 
-        return this.createResponse({
-          ...buyerData,
-          agent_id: buyerData.assigned_agent_id, // Add agent_id for useAgent hook
-          agent
-        });
+        if (!agentError && agentData) {
+          agent = {
+            id: agentData.id,
+            first_name: agentData.first_name || 'Unknown',
+            last_name: agentData.last_name || 'Agent',
+            email: agentData.email || '',
+            phone: agentData.phone || null,
+            created_at: agentData.created_at,
+            updated_at: agentData.updated_at
+          };
+        }
       }
 
       return this.createResponse({
         ...buyerData,
-        agent_id: buyerData.assigned_agent_id // Include agent_id even if null
+        agent_id: buyerData.assigned_agent_id, // Add agent_id for useAgent hook
+        agent
       });
     } catch (error) {
       console.error('Error in getBuyerByEmail:', error);

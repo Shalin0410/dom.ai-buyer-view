@@ -51,19 +51,25 @@ export const buyerDocs: Doc[] = [
 
 // Sanitized Notion backups (from former notion-backups.ts; title + content only)
 export const notionBackups: Doc[] = [
-  { title: 'Make home buying transparent', content: `Pain points for home buyers
-- Hidden costs and unclear month-to-month affordability create uncertainty
-- Dense seller information (disclosures, TIC agreements) is hard to understand
-- Information is fragmented across many places, making decisions harder
+  { title: 'Make home buying transparent', content: `## Pain points for home buyers
+- Process is filled with hidden costs - you never know what additional closing costs will come up, and there is no clear sense of what your month to month will be, which causes stress and thoughts on "can i really afford this"
+- Information shared by sellers is dense and complex - disclosures, TIC agreements - and often very hard to understand by a layman
+- Have to go across multiple tools to find all the information you need to make a informed decision - risk assessment, mortgage calculator, etc.
 
-Pain points for realtors
-- Limited time to review documents in detail
-- High effort to educate first-time buyers repeatedly
+## Pain points for realtors
+- Don't have enough time to read all disclosures in detail
+- Home buyers, esp first timers, are nervous and it's hard to appease them
 
-Hypothesis
-- Provide a single source of truth for buyers
-- Offer summaries of key information and highlight risks
-- Support an end-to-end process with clear steps and education` },
+## Hypothesis
+- What if there is a tool that is built for home buyers but marketed by realtors
+- The tool would: mark up things to be vary about in all documents, provide a risk assessment, provide a calculation on what monthly costs should be, lay out the end to end process using a chat based system
+
+## Solution components
+- Chat based system to explain the home buying process, and help with answering any questions
+- Month to month expenses calculator
+- Disclosure review
+- Single source of truth for all your home buying process / journey
+- AI solution that gives a summary, and points out things to look for` },
   { title: 'Real Estate Tech Tool Development', content: `Overview
 For agents, buyer trust depends on clear expectations and timely guidance. Repetitive education and coordination reduce time for higher-value work. A streamlined, buyer-centric experience can improve consistency and confidence.
 

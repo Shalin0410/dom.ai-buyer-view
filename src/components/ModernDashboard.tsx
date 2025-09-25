@@ -186,14 +186,14 @@ const ModernDashboard = ({ userData, onPropertyClick, onNavigateToSearch }: Mode
       <DashboardHeader userData={userData} />
 
       <div className="max-w-7xl mx-auto px-6 py-8">
+        <ContinueSearchCard
+          onNavigateToSearch={handleNavigateToSearch}
+          availableProperties={availableProperties}
+          loading={availableLoading}
+        />
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           <div className="lg:col-span-3 space-y-8">
-            <ContinueSearchCard
-              onNavigateToSearch={handleNavigateToSearch}
-              availableProperties={availableProperties}
-              loading={availableLoading}
-            />
-
             {dashboardProperties.length === 0 ? (
               <div className="text-center py-12">
                 <div className="bg-white rounded-lg shadow-sm p-8">
