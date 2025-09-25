@@ -227,7 +227,8 @@ export function useChatbot(): ChatbotState & ChatbotActions {
         'assistant',
         response.message,
         response.tokensUsed,
-        response.sources
+        response.sources,
+        response.webSearch
       );
 
       // Create the assistant message for immediate display
@@ -238,7 +239,8 @@ export function useChatbot(): ChatbotState & ChatbotActions {
         content: response.message,
         tokens_used: response.tokensUsed,
         created_at: new Date().toISOString(),
-        sources: response.sources
+        sources: response.sources,
+        webSearch: response.webSearch
       };
 
       // Update the conversation title if it's still the default

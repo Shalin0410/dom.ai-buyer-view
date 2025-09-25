@@ -8,7 +8,7 @@ export default async function handler(req: any, res: any) {
   }
 
   const SYSTEM_PROMPT =
-    'You are Dom AI, a knowledgeable home-buying assistant for consumers. You help with questions about the home buying process, real estate markets, financing, neighborhoods, and general real estate education. You can search the web for current market data, local information, and recent trends. Always provide helpful, accurate information while maintaining a friendly tone. Use the knowledge base context when provided, but don\'t limit yourself to only that information. For complex legal or specific transaction questions, suggest contacting their real estate agent. Do not reveal internal systems, databases, or technical architecture.';
+    'You are Dom AI, a knowledgeable home-buying assistant for consumers. You help with questions about the home buying process, real estate markets, financing, neighborhoods, and general real estate education. You can search the web for current market data, local information, and recent trends. Always provide helpful, accurate information while maintaining a friendly tone. Use the knowledge base context when provided, but don\'t limit yourself to only that information. For complex legal or specific transaction questions, suggest contacting their real estate agent. Do not reveal internal systems, databases, or technical architecture.\n\nIMPORTANT: Format your responses with clear structure. Use **bold headings** for main sections (like **Home Prices and Sales:**, **Market Competitiveness:**, **Recommendation:**). Separate different topics with double line breaks to create clear paragraphs. This helps users easily scan and understand your response.';
 
   const buyerOnlyTitles = [
     'home buying process overview',
@@ -65,51 +65,170 @@ export default async function handler(req: any, res: any) {
         filtered.map(c => `Title: ${c.title}\nSnippet: ${c.snippet}`).join('\n\n');
     }
 
-    const completion = await openai.chat.completions.create({
+    // Use the Responses API for web search with proper citations
+    console.log('[Chat API] Making OpenAI request with:', {
       model: 'gpt-4o-mini',
-      temperature: 0.2,
       tools: [{ type: 'web_search' }],
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        {
-          role: 'user',
-          content: userContent,
-        },
-      ],
+      inputPreview: userContent.substring(0, 100) + '...'
     });
 
-    const message = completion.choices?.[0]?.message;
-    const answer = message?.content ?? '';
+    const response = await openai.responses.create({
+      model: 'gpt-4o-mini',
+      tools: [{ type: 'web_search' }],
+      input: `${SYSTEM_PROMPT}\n\n${userContent}`,
+    });
 
-    // Extract citations from web search results
+    console.log('[Chat API] OpenAI response structure:', {
+      outputTypes: response.output.map(item => item.type),
+      outputCount: response.output.length
+    });
+
+    // Check if web search was triggered
+    const webSearchCall = response.output.find((item: any) => item.type === 'web_search_call');
+    const webSearchTriggered = !!webSearchCall;
+
+    // Log web search detection for debugging
+    console.log('[Chat API] Web search triggered:', webSearchTriggered);
+    if (webSearchTriggered) {
+      console.log('[Chat API] Web search call:', {
+        id: webSearchCall.id,
+        status: webSearchCall.status,
+        action: webSearchCall.action?.type || 'unknown',
+        query: webSearchCall.action?.query || 'no query',
+        sourcesCount: webSearchCall.action?.sources?.length || 0
+      });
+    }
+
+    // Extract the assistant message with annotations
+    const messageItem = response.output.find((item: any) => item.type === 'message');
+    const textContent = messageItem?.content?.find((content: any) => content.type === 'output_text');
+
+    let answer = textContent?.text ?? '';
+    
+    // Post-process the answer to ensure proper formatting
+    // Add line breaks after bold headings if they don't exist
+    answer = answer.replace(/(\*\*[^*]+\*\*:)([^\n])/g, '$1\n$2');
+    
+    // Ensure double line breaks between major sections
+    answer = answer.replace(/(\*\*[^*]+\*\*:)\n([^\n])/g, '$1\n\n$2');
+    
+    const annotations = textContent?.annotations ?? [];
+
+    // Log annotations for debugging
+    console.log('[Chat API] Annotations found:', annotations.length);
+    if (annotations.length > 0) {
+      console.log('[Chat API] Annotation types:', annotations.map((a: any) => a.type));
+    }
+
+    // Extract citations from URL annotations and web search sources
     const citations: Array<{
       title: string;
       url: string;
       snippet?: string;
     }> = [];
 
-    // Check if web search was used and extract citations
-    if (message?.tool_calls) {
-      for (const toolCall of message.tool_calls) {
-        if (toolCall.type === 'web_search') {
-          // Extract search results from the tool call response
-          const searchResults = (toolCall as any).web_search?.results || [];
-          for (const result of searchResults) {
-            if (result.url && result.title) {
-              citations.push({
-                title: result.title,
-                url: result.url,
-                snippet: result.snippet || result.content
-              });
-            }
-          }
+    // Process URL citations from annotations
+    for (const annotation of annotations) {
+      if (annotation.type === 'url_citation' && annotation.url && annotation.title) {
+        citations.push({
+          title: annotation.title,
+          url: annotation.url,
+          snippet: annotation.snippet || ''
+        });
+      }
+    }
+
+    // Also check for sources in the web search call output
+    if (webSearchCall?.action?.sources) {
+      for (const source of webSearchCall.action.sources) {
+        if (source.url && source.title && !citations.some(c => c.url === source.url)) {
+          citations.push({
+            title: source.title,
+            url: source.url,
+            snippet: source.snippet || ''
+          });
         }
       }
     }
 
+    // Log final citation count
+    console.log('[Chat API] Total citations extracted:', citations.length);
+
+    // Process citations to create inline badges and source list
+    let modifiedAnswer = answer;
+    const processedSources: Array<{
+      id: string;
+      title: string;
+      url: string;
+      snippet?: string;
+    }> = [];
+
+    if (citations.length > 0) {
+      // Create unique source IDs and process citations
+      citations.forEach((citation, index) => {
+        // Create a short source ID from the domain name
+        let sourceId;
+        try {
+          const domain = new URL(citation.url).hostname.replace('www.', '');
+          const parts = domain.split('.');
+          sourceId = parts.length > 1 ? parts[0] : domain.substring(0, 10);
+        } catch {
+          sourceId = `source${index + 1}`;
+        }
+
+        processedSources.push({
+          id: sourceId,
+          title: citation.title,
+          url: citation.url,
+          snippet: citation.snippet
+        });
+      });
+
+      // Add inline citation markers in the text
+      // For now, we'll add them at the end of sentences or paragraphs
+      // In a more advanced implementation, we could parse the content more intelligently
+
+      // Add badge-style citations at strategic points in the text
+      if (processedSources.length > 0) {
+        // More intelligent citation placement - add at the end of key sentences
+        processedSources.forEach((source, index) => {
+          // Create badge citation format like (source_name) that will be rendered as badges
+          const sourceName = source.id;
+          const citationMarker = `(${sourceName})`;
+
+          // Find a good place to insert the citation
+          // Look for sentences that might benefit from citation
+          const sentences = modifiedAnswer.split(/(?<=[.!?])\s+/);
+
+          if (sentences.length > 1) {
+            // Add citations to different sentences for better distribution
+            let targetSentenceIndex = Math.min(index + 1, sentences.length - 1);
+            if (targetSentenceIndex < sentences.length) {
+              // Insert citation at the end of the sentence, before the punctuation
+              sentences[targetSentenceIndex] = sentences[targetSentenceIndex].replace(/([.!?])$/, ` ${citationMarker}$1`);
+            }
+          } else {
+            // If only one sentence, add at the end
+            modifiedAnswer += ` ${citationMarker}`;
+          }
+
+          modifiedAnswer = sentences.join(' ');
+        });
+
+        // Clean up any extra spaces that might have been introduced
+        modifiedAnswer = modifiedAnswer.replace(/\s+/g, ' ').trim();
+      }
+    }
+
     res.status(200).json({
-      answer,
-      sources: citations.length > 0 ? citations : undefined
+      answer: modifiedAnswer,
+      sources: processedSources.length > 0 ? processedSources : undefined,
+      webSearch: webSearchTriggered ? {
+        triggered: true,
+        query: webSearchCall?.action?.query || null,
+        sourcesCount: webSearchCall?.action?.sources?.length || 0,
+        status: webSearchCall?.status || 'unknown'
+      } : { triggered: false }
     });
   } catch (err: any) {
     console.error('Chat API error:', err);

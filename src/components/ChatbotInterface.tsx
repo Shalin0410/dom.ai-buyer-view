@@ -1,124 +1,25 @@
 // src/components/ChatbotInterface.tsx
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, Plus, MessageSquare, Trash2, Archive, Edit3, X, Check, Mail, User } from 'lucide-react';
+import { Send, Bot, Plus, MessageSquare, Trash2, Archive, Edit3, X, Check, Mail, User, Search, Globe, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useChatbot } from '@/hooks/useChatbot';
 import { useNotionIntegration } from '@/hooks/useNotionIntegration';
 import { useAuth } from '@/contexts/AuthContext';
 import { rephraseUserQuestionForAgent } from '@/services/chatbot/openai';
 import { convertMessagesToChatFormat } from '@/services/chatbot/conversation';
 import { formatDistanceToNow } from 'date-fns';
+import PerplexityResponse from './PerplexityResponse';
 // import { QuestionSelection, QuestionCategory } from './QuestionSelection';
 // import { CategoryQuestions } from './CategoryQuestions';
 
 // type ViewMode = 'questions' | 'category' | 'chat';
 type ViewMode = 'chat';
 
-// Function to parse markdown formatting with link support
-const parseMarkdown = (text: string, linkCitations: Array<{ text: string; url: string }> = []) => {
-  // First, extract links and replace them with placeholders
-  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-  const links: Array<{ text: string; url: string }> = [];
-  let linkIndex = 0;
-  
-  const textWithPlaceholders = text.replace(linkRegex, (match, linkText, linkUrl) => {
-    links.push({ text: linkText, url: linkUrl });
-    return `__LINK_${linkIndex++}__`;
-  });
-  
-  // Split text into parts (text and markdown elements)
-  const parts = textWithPlaceholders.split(/(\*\*.*?\*\*)/g);
-  
-  return parts.map((part, index) => {
-    // Check if this part is a link placeholder - replace with numbered citation
-    const linkMatch = part.match(/__LINK_(\d+)__/);
-    if (linkMatch) {
-      const linkIndex = parseInt(linkMatch[1]);
-      const link = links[linkIndex];
-      
-      // Find the citation number for this link
-      const citationIndex = linkCitations.findIndex(citation => 
-        citation.url === link.url || citation.text === link.text
-      );
-      
-             if (citationIndex !== -1) {
-         return (
-           <span key={index} className="inline-flex items-center">
-             <span className="text-xs text-gray-600 align-sub">
-               [{citationIndex + 1}]
-             </span>
-           </span>
-         );
-       }
-      
-      // Fallback if citation not found
-      return (
-        <span key={index} className="font-medium text-gray-700">
-          {link.text}
-        </span>
-      );
-    }
-    
-    // Check if this part is bold text (wrapped in **)
-    if (part.startsWith('**') && part.endsWith('**')) {
-      const boldText = part.slice(2, -2); // Remove ** markers
-      return (
-        <span key={index} className="font-semibold">
-          {boldText}
-        </span>
-      );
-    }
-    
-    // Check for numbered lists (lines starting with number and period)
-    if (/^\d+\.\s/.test(part)) {
-      const lines = part.split('\n');
-      return (
-        <div key={index} className="space-y-1">
-          {lines.map((line, lineIndex) => {
-            if (/^\d+\.\s/.test(line)) {
-              const [number, ...content] = line.split('. ');
-              return (
-                <div key={lineIndex} className="flex gap-2">
-                  <span className="font-semibold text-gray-700 min-w-[20px]">{number}.</span>
-                  <span>{content.join('. ')}</span>
-                </div>
-              );
-            }
-            return <span key={lineIndex}>{line}</span>;
-          })}
-        </div>
-      );
-    }
-    
-    // Check for bullet points (lines starting with - or *)
-    if (/^[-*]\s/.test(part)) {
-      const lines = part.split('\n');
-      return (
-        <div key={index} className="space-y-1">
-          {lines.map((line, lineIndex) => {
-            if (/^[-*]\s/.test(line)) {
-              const content = line.substring(2);
-              return (
-                <div key={lineIndex} className="flex gap-2">
-                  <span className="text-gray-700 min-w-[20px]">•</span>
-                  <span>{content}</span>
-                </div>
-              );
-            }
-            return <span key={lineIndex}>{line}</span>;
-          })}
-        </div>
-      );
-    }
-    
-    // Regular text
-    return <span key={index}>{part}</span>;
-  });
-};
 
 const ChatbotInterface = () => {
   // Initialize Notion integration hook
@@ -204,11 +105,11 @@ const ChatbotInterface = () => {
           console.log('[ChatbotInterface] Setting buyer name to:', fullBuyerName || buyer.email || 'Buyer');
         }
 
-        if (buyerResponse.success && buyerResponse.data?.assigned_agent_id) {
-          const agentId = buyerResponse.data.assigned_agent_id;
-          console.log('[ChatbotInterface] Found assigned_agent_id:', agentId);
+        if (buyerResponse.success && buyerResponse.data?.agent_id) {
+          const agentId = buyerResponse.data.agent_id;
+          console.log('[ChatbotInterface] Found agent_id:', agentId);
 
-          // Step 2: Get agent info using the assigned_agent_id
+          // Step 2: Get agent info using the agent_id
           const agentResponse = await dataService.getAgentById(agentId);
           console.log('[ChatbotInterface] getAgentById response:', agentResponse);
 
@@ -228,7 +129,7 @@ const ChatbotInterface = () => {
             console.log('[ChatbotInterface] Failed to get agent details:', agentResponse);
           }
         } else {
-          console.log('[ChatbotInterface] No assigned_agent_id found for buyer:', buyerResponse);
+          console.log('[ChatbotInterface] No agent_id found for buyer:', buyerResponse);
         }
       } catch (error) {
         console.error('[ChatbotInterface] Error fetching agent email:', error);
@@ -387,7 +288,7 @@ const ChatbotInterface = () => {
       });
 
       // Use simple template instead of AI to reduce costs and ensure reliability
-      const finalBuyerName = buyerName || user?.name || 'Buyer';
+      const finalBuyerName = buyerName || user?.email || 'Buyer';
       const finalAgentName = agentName || 'Your Agent';
 
       const emailTemplate = `Dear ${finalAgentName},
@@ -408,7 +309,7 @@ ${finalBuyerName}`;
       console.error('Error generating email:', error);
       // Fallback template
       setEmailContent(
-        `Dear ${agentName || 'Your Agent'},\n\nI have a question about my home buying journey:\n\n${question}\n\nCould you please provide guidance?\n\nBest regards,\n${buyerName || user?.name || 'Buyer'}`
+        `Dear ${agentName || 'Your Agent'},\n\nI have a question about my home buying journey:\n\n${question}\n\nCould you please provide guidance?\n\nBest regards,\n${buyerName || user?.email || 'Buyer'}`
       );
     } finally {
       setIsGeneratingEmail(false);
@@ -427,9 +328,9 @@ ${finalBuyerName}`;
         },
         body: JSON.stringify({
           to: agentEmail,
-          buyerName: buyerName || user?.name || 'Buyer',
+          buyerName: buyerName || user?.email || 'Buyer',
           buyerEmail: user?.email || '',
-          subject: `Question from ${buyerName || user?.name || 'Buyer'}: Home Buying Assistance`,
+          subject: `Question from ${buyerName || user?.email || 'Buyer'}: Home Buying Assistance`,
           message: emailContent,
           originalQuestion: userQuestion,
           agentName: agentName,
@@ -455,7 +356,8 @@ ${finalBuyerName}`;
   };
 
   return (
-    <div className="flex h-screen bg-white">
+    <TooltipProvider>
+      <div className="flex h-screen bg-white">
       {/* Sidebar */}
       <div className={`${showSidebar ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-40 w-80 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:shadow-none lg:z-auto border-r border-gray-200`}>
         <div className="flex flex-col h-full">
@@ -773,144 +675,49 @@ ${finalBuyerName}`;
                         key={`message-${message.id}-${message.created_at}`}
                         className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                       >
-                        <div className={`max-w-[80%] ${message.role === 'user' ? 'order-2' : 'order-1'}`}>
-                          <div
-                            className={`p-3 rounded-lg ${
-                              message.role === 'user'
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-gray-100 border border-gray-200 text-gray-900'
-                            }`}
-                          >
-                                                         <div className="whitespace-pre-wrap">
-                               {message.role === 'user' ? message.content : (() => {
-                                 // Extract links from the message content for citations
-                                 const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-                                 const textLinks: Array<{ text: string; url: string }> = [];
-                                 let match;
-
-                                 while ((match = linkRegex.exec(message.content)) !== null) {
-                                   textLinks.push({
-                                     text: match[1],
-                                     url: match[2]
-                                   });
-                                 }
-
-                                 // Combine text links and message sources for citations
-                                 const messageSources = message.sources || [];
-                                 const allSources = [
-                                   ...textLinks,
-                                   ...messageSources.filter(source =>
-                                     source.url && !textLinks.some(link => link.url === source.url)
-                                   ).map(source => ({
-                                     text: source.title,
-                                     url: source.url
-                                   }))
-                                 ];
-
-                                 // Create citation array for parseMarkdown
-                                 const linkCitations = allSources
-                                   .filter(source => source.url)
-                                   .map(source => ({
-                                     text: source.title || '',
-                                     url: source.url || ''
-                                   }));
-
-                                 return parseMarkdown(message.content, linkCitations);
-                               })()}
-                             </div>
-
-                             {/* Contact Agent Button - Show if AI suggests contacting agent */}
-                             {message.role === 'assistant' && (
-                               message.content.toLowerCase().includes('contact') &&
+                        <div className={`max-w-[90%] ${message.role === 'user' ? 'order-2' : 'order-1'}`}>
+                          {message.role === 'user' ? (
+                            <div className="bg-blue-500 text-white p-3 rounded-lg">
+                              <div className="whitespace-pre-wrap">{message.content}</div>
+                            </div>
+                          ) : (
+                            <div className="bg-white border border-gray-200 rounded-lg p-4">
+                              <PerplexityResponse
+                                content={message.content}
+                                sources={message.sources || []}
+                                webSearch={message.webSearch}
+                              />
+                              
+                              {/* Contact Agent Button - Show if AI suggests contacting agent */}
+                              {message.content.toLowerCase().includes('contact') &&
                                (message.content.toLowerCase().includes('agent') ||
                                 message.content.toLowerCase().includes('real estate') ||
-                                message.content.toLowerCase().includes('professional'))
-                             ) && (
-                               <div className="mt-3 pt-3 border-t border-gray-200">
-                                 <Button
-                                   onClick={() => {
-                                     // Find the user's original question (previous message)
-                                     const messageIndex = currentConversation?.messages.findIndex(m => m.id === message.id);
-                                     const userMessage = messageIndex !== undefined && messageIndex > 0
-                                       ? currentConversation?.messages[messageIndex - 1]
-                                       : null;
-                                     const question = userMessage?.role === 'user'
-                                       ? userMessage.content
-                                       : inputText || 'I have a question about my home buying journey';
+                                message.content.toLowerCase().includes('professional')) && (
+                                <div className="mt-4 pt-4 border-t border-gray-200">
+                                  <Button
+                                    onClick={() => {
+                                      // Find the user's original question (previous message)
+                                      const messageIndex = currentConversation?.messages.findIndex(m => m.id === message.id);
+                                      const userMessage = messageIndex !== undefined && messageIndex > 0
+                                        ? currentConversation?.messages[messageIndex - 1]
+                                        : null;
+                                      const question = userMessage?.role === 'user'
+                                        ? userMessage.content
+                                        : inputText || 'I have a question about my home buying journey';
 
-                                     handleContactAgent(question);
-                                   }}
-                                   variant="outline"
-                                   size="sm"
-                                   className="flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50"
-                                 >
-                                   <Mail className="h-4 w-4" />
-                                   Contact Your Agent
-                                 </Button>
-                               </div>
-                             )}
-                            
-                                                         {(() => {
-                               // Extract links from the message content
-                               const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-                               const textLinks: Array<{ title: string; url: string; snippet?: string }> = [];
-                               let match;
-
-                               while ((match = linkRegex.exec(message.content)) !== null) {
-                                 textLinks.push({
-                                   title: match[1],
-                                   url: match[2]
-                                 });
-                               }
-
-                               // Combine text links and message sources (from web search)
-                               const messageSources = message.sources || [];
-                               const allSources = [
-                                 ...textLinks,
-                                 ...messageSources.filter(source =>
-                                   source.url && !textLinks.some(link => link.url === source.url)
-                                 )
-                               ];
-
-                               // Only show sources section if there are sources with URLs
-                               if (allSources.length > 0 && allSources.some(source => source.url)) {
-                                 return (
-                                   <div className="mt-3 pt-3 border-t border-gray-200">
-                                     <p className="text-xs font-medium text-gray-700 mb-2">Sources:</p>
-                                     <div className="space-y-1">
-                                       {allSources.filter(source => source.url).map((source, index) => (
-                                         <div key={`${message.id}-source-${index}`} className="flex items-start gap-2">
-                                           <span className="text-xs font-semibold text-gray-600 min-w-[16px] mt-0.5">
-                                             {index + 1}.
-                                           </span>
-                                           <div className="flex-1">
-                                             <a
-                                               href={source.url}
-                                               target="_blank"
-                                               rel="noopener noreferrer"
-                                               className="text-xs text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1"
-                                             >
-                                               <span className="truncate">{source.title}</span>
-                                               <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                               </svg>
-                                             </a>
-                                             {source.snippet && (
-                                               <div className="text-xs text-gray-600 mt-1 line-clamp-2">
-                                                 {source.snippet}
-                                               </div>
-                                             )}
-                                           </div>
-                                         </div>
-                                       ))}
-                                     </div>
-                                   </div>
-                                 );
-                               }
-
-                               return null;
-                             })()}
-                          </div>
+                                      handleContactAgent(question);
+                                    }}
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50"
+                                  >
+                                    <Mail className="h-4 w-4" />
+                                    Contact Your Agent
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          )}
                           <p className="text-xs text-gray-500 mt-1">
                             {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
                           </p>
@@ -1107,7 +914,8 @@ ${finalBuyerName}`;
           </Card>
         </div>
       )}
-    </div>
+      </div>
+    </TooltipProvider>
   );
 };
 

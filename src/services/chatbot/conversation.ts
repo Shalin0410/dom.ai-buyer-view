@@ -22,6 +22,12 @@ export interface Message {
     url: string;
     snippet?: string;
   }>;
+  webSearch?: {
+    triggered: boolean;
+    query?: string | null;
+    sourcesCount?: number;
+    status?: string;
+  };
 }
 
 export interface ConversationWithMessages {
@@ -80,7 +86,7 @@ export async function getConversation(conversationId: string): Promise<Conversat
     // Get messages for this conversation
     const { data: messagesData, error: messagesError } = await supabaseAdmin
       .from('messages')
-      .select('id, conversation_id, role, content, sources, tokens_used, created_at')
+      .select('id, conversation_id, role, content, sources, tokens_used, created_at, web_search')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true });
 
@@ -105,7 +111,8 @@ export async function getConversation(conversationId: string): Promise<Conversat
         content: msg.content,
         tokens_used: msg.tokens_used,
         created_at: msg.created_at,
-        sources: msg.sources
+        sources: msg.sources,
+        webSearch: msg.web_search
       }))
       // Remove any potential duplicates based on message ID
       .filter((message, index, array) => 
@@ -192,7 +199,8 @@ export async function addMessage(
   role: 'user' | 'assistant' | 'system',
   content: string,
   tokensUsed?: number,
-  sources?: Array<{ title: string; url: string; snippet?: string; }>
+  sources?: Array<{ title: string; url: string; snippet?: string; }>,
+  webSearch?: { triggered: boolean; query?: string | null; sourcesCount?: number; status?: string; }
 ): Promise<string> {
   try {
     // Insert message directly into the messages table
@@ -203,7 +211,8 @@ export async function addMessage(
         role: role,
         content: content,
         tokens_used: tokensUsed,
-        sources: sources || []
+        sources: sources || [],
+        web_search: webSearch
       })
       .select('id')
       .single();

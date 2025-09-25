@@ -17,6 +17,12 @@ export interface ChatResponse {
   message: string;
   tokensUsed: number;
   sources?: Source[];
+  webSearch?: {
+    triggered: boolean;
+    query?: string | null;
+    sourcesCount?: number;
+    status?: string;
+  };
 }
 
 export interface ConversationContext {
@@ -150,17 +156,20 @@ export async function sendChatMessage(
     const data = await response.json();
     const assistantMessage = data.answer;
     const sources = data.sources || [];
+    const webSearch = data.webSearch || { triggered: false };
 
     if (!assistantMessage) {
       throw new Error('No response from chat API');
     }
 
     console.log('[Chatbot] Chat API response received successfully');
+    console.log('[Chatbot] Web search info:', webSearch);
 
     return {
       message: assistantMessage,
       tokensUsed: 0, // API doesn't return token count
-      sources: sources
+      sources: sources,
+      webSearch: webSearch
     };
 
   } catch (error) {
