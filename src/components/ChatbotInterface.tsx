@@ -62,6 +62,12 @@ const ChatbotInterface = () => {
   const [agentName, setAgentName] = useState<string>('Your Agent');
   const [buyerName, setBuyerName] = useState<string>('');
 
+  // New state for inline agent contact flow
+  const [pendingAgentContact, setPendingAgentContact] = useState<{
+    messageId: string;
+    userQuestion: string;
+  } | null>(null);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -145,6 +151,21 @@ const ChatbotInterface = () => {
     if (currentConversation) {
       setViewMode('chat');
       // setSelectedCategory(null);
+
+      // Check if the latest AI message suggests contacting the agent
+      const messages = currentConversation.messages;
+      if (messages.length > 0) {
+        const latestMessage = messages[messages.length - 1];
+        if (latestMessage.role === 'assistant' && detectAgentContactSuggestion(latestMessage.content)) {
+          const userQuestion = getUserQuestionFromContext(latestMessage.id);
+          if (userQuestion) {
+            setPendingAgentContact({
+              messageId: latestMessage.id,
+              userQuestion: userQuestion
+            });
+          }
+        }
+      }
     }
     // else {
     //   setViewMode('questions');
@@ -154,11 +175,29 @@ const ChatbotInterface = () => {
 
   const handleSendMessage = async () => {
     if (!inputText.trim() || isSending) return;
-    
+
     const message = inputText.trim();
+
+    // Check if user is responding to agent contact suggestion
+    if (pendingAgentContact && isConfirmationResponse(message)) {
+      const { userQuestion } = pendingAgentContact;
+      setPendingAgentContact(null);
+      setInputText('');
+
+      // Automatically send email to agent
+      await handleContactAgent(userQuestion);
+      return;
+    }
+
     setInputText('');
     setViewMode('chat');
     await sendMessage(message);
+  };
+
+  // Helper function to check if user input is a confirmation response
+  const isConfirmationResponse = (input: string): boolean => {
+    const normalized = input.toLowerCase().trim();
+    return ['yes', 'y', 'yeah', 'yep', 'sure', 'ok', 'okay'].includes(normalized);
   };
 
   // const handleQuestionSelect = async (question: string) => {
@@ -195,16 +234,18 @@ const ChatbotInterface = () => {
   };
 
   const handleNewConversation = async () => {
+    setPendingAgentContact(null); // Clear pending agent contact
     await createNewConversation();
     setShowSidebar(false);
     // setViewMode('questions');
   };
 
   const handleLoadConversation = async (conversationId: string) => {
+    setPendingAgentContact(null); // Clear pending agent contact
     setViewMode('chat');
     // setSelectedCategory(null);
     setInputText('');
-    
+
     await loadConversation(conversationId);
     setShowSidebar(false);
   };
@@ -235,6 +276,27 @@ const ChatbotInterface = () => {
     if (window.confirm('Are you sure you want to delete this conversation? This action cannot be undone.')) {
       await deleteConversation(conversationId);
     }
+  };
+
+  // Helper function to detect if AI suggests contacting agent
+  const detectAgentContactSuggestion = (message: string): boolean => {
+    const content = message.toLowerCase();
+    return content.includes('we recommend talking to your agent about this') &&
+           content.includes('do you want me to send over a message');
+  };
+
+  // Helper function to extract user question from conversation context
+  const getUserQuestionFromContext = (messageId: string): string => {
+    if (!currentConversation?.messages) return '';
+
+    const messageIndex = currentConversation.messages.findIndex(m => m.id === messageId);
+    if (messageIndex > 0) {
+      const previousMessage = currentConversation.messages[messageIndex - 1];
+      if (previousMessage.role === 'user') {
+        return previousMessage.content;
+      }
+    }
+    return '';
   };
 
   // Email functionality
@@ -687,12 +749,28 @@ ${finalBuyerName}`;
                                 sources={message.sources || []}
                                 webSearch={message.webSearch}
                               />
-                              
-                              {/* Contact Agent Button - Show if AI suggests contacting agent */}
+
+                              {/* Show confirmation prompt if this message is waiting for agent contact confirmation */}
+                              {pendingAgentContact && pendingAgentContact.messageId === message.id && (
+                                <div className="mt-4 pt-4 border-t border-blue-100">
+                                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                    <div className="flex items-center gap-2 text-blue-700">
+                                      <Mail className="h-4 w-4" />
+                                      <span className="text-sm font-medium">Waiting for confirmation...</span>
+                                    </div>
+                                    <p className="text-xs text-blue-600 mt-1">
+                                      Type "Yes" or "Y" to send your question to your agent automatically.
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Contact Agent Button - Show if AI suggests contacting agent but not using the new flow */}
                               {message.content.toLowerCase().includes('contact') &&
                                (message.content.toLowerCase().includes('agent') ||
                                 message.content.toLowerCase().includes('real estate') ||
-                                message.content.toLowerCase().includes('professional')) && (
+                                message.content.toLowerCase().includes('professional')) &&
+                               !detectAgentContactSuggestion(message.content) && (
                                 <div className="mt-4 pt-4 border-t border-gray-200">
                                   <Button
                                     onClick={() => {
@@ -770,9 +848,13 @@ ${finalBuyerName}`;
                value={inputText}
                onChange={(e) => setInputText(e.target.value)}
                onKeyPress={handleKeyPress}
-               placeholder="Ask me anything about real estate..."
+               placeholder={pendingAgentContact ? "Type 'Yes' to send message to your agent..." : "Ask me anything about real estate..."}
                disabled={isSending}
-               className="flex-1 bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:bg-white focus:border-blue-500 focus:ring-blue-500 focus:ring-2 focus:ring-offset-0 focus:outline-none"
+               className={`flex-1 bg-white text-gray-900 placeholder-gray-500 focus:bg-white focus:ring-2 focus:ring-offset-0 focus:outline-none ${
+                 pendingAgentContact
+                   ? 'border-blue-500 ring-blue-100 ring-2 focus:border-blue-600 focus:ring-blue-200'
+                   : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
+               }`}
              />
             <Button
               onClick={handleSendMessage}
