@@ -1,5 +1,5 @@
 
-import { MessageSquare, Search, LayoutDashboard, User } from 'lucide-react';
+import { MessageSquare, Search, LayoutDashboard, User, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface HeaderProps {
@@ -8,7 +8,15 @@ interface HeaderProps {
 }
 
 const Header = ({ activeTab, onTabChange }: HeaderProps) => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
   const NavButton = ({ icon: Icon, label, tabKey, count = 0 }) => (
     <button
       onClick={() => onTabChange(tabKey)}
@@ -36,7 +44,7 @@ const Header = ({ activeTab, onTabChange }: HeaderProps) => {
           <div className="flex items-center space-x-3">
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
               <span className="text-white font-bold text-xl">
-                {(user?.name?.charAt(0) || user?.email?.charAt(0) || 'D').toUpperCase()}
+                {'D'.toUpperCase()}
               </span>
             </div>
             <span className="text-xl font-bold text-black">Dom AI</span>
@@ -64,6 +72,16 @@ const Header = ({ activeTab, onTabChange }: HeaderProps) => {
               label="Profile"
               tabKey="profile"
             />
+
+            {/* Logout Button */}
+            <button
+              onClick={handleLogout}
+              className="flex items-center space-x-2 px-4 py-2 rounded-full transition-all duration-200 text-gray-600 hover:text-red-600 hover:bg-red-50 ml-2"
+              title="Sign Out"
+            >
+              <LogOut size={20} />
+              <span className="font-medium">Logout</span>
+            </button>
           </nav>
         </div>
       </div>
