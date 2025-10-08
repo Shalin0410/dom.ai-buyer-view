@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Heart, X, Bookmark, Calendar, TrendingUp, Loader2, Star, MapPin, Info } from 'lucide-react';
+import { Heart, X, Bookmark, Calendar, Loader2, Star, MapPin, Home } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useProperties } from '@/hooks/useProperties';
 import { Property, PropertyStatus } from '@/services/api/types';
 import { toast } from '@/hooks/use-toast';
+import { handlePropertyInteraction, PropertyAction } from '@/services/properties/interactions';
+import { ViewingScheduleModal } from '@/components/ViewingScheduleModal';
 
 // UI extension for property swiping
 interface SwipeProperty extends Omit<Property, 'status'> {
@@ -16,27 +18,23 @@ interface SwipeProperty extends Omit<Property, 'status'> {
   baths: number;
   sqft: number;
   address: string;
-  insights: {
-    whySuggested: string;
-    profileDeviation?: string;
-    appreciation: string;
-  };
   features: string[];
   neighborhood: string;
   daysOnMarket: number;
 }
 
 interface PropertySwipingProps {
-  userProfile: { id: string };
+  userProfile: { id: string; name?: string; email?: string };
   onPropertyAction: (propertyId: string, action: 'like' | 'dislike' | 'save') => void;
   onOpenChat: () => void;
+  agentEmail?: string;
 }
 
-const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: PropertySwipingProps) => {
+const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat, agentEmail = 'agent@example.com' }: PropertySwipingProps) => {
   // State management - all hooks must be called unconditionally at the top level
   const [currentPropertyIndex, setCurrentPropertyIndex] = useState(0);
-  const [showInsights, setShowInsights] = useState(true);
   const [swipeProperties, setSwipeProperties] = useState<SwipeProperty[]>([]);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   
   // Get buyer ID from user profile
   const buyerId = userProfile?.id;
@@ -44,44 +42,139 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
   // Fetch available properties
   const { properties: availableProperties, loading, error } = useProperties(
     buyerId,
-    { status: ['researching'] as PropertyStatus[] },
+    {}, // Remove status filter to show all properties for this buyer
     'available'
   );
 
   // Memoized event handlers - must be defined before any conditional returns
-  const handleAction = useCallback((action: 'like' | 'dislike' | 'save') => {
+  const handleAction = useCallback(async (action: 'like' | 'dislike' | 'save') => {
     const currentProperty = swipeProperties[currentPropertyIndex];
-    if (!currentProperty) return;
+    if (!currentProperty || !buyerId) return;
     
-    onPropertyAction(currentProperty.id, action);
+    // Map UI actions to database actions
+    let dbAction: PropertyAction;
+    let toastMessage = '';
     
-    const nextIndex = currentPropertyIndex < (swipeProperties.length - 1) 
-      ? currentPropertyIndex + 1 
-      : 0;
-      
-    setCurrentPropertyIndex(nextIndex);
+    switch (action) {
+      case 'dislike':
+        dbAction = 'pass';
+        toastMessage = 'Property passed';
+        break;
+      case 'save':
+        dbAction = 'save';
+        toastMessage = 'Property saved for later';
+        break;
+      case 'like':
+        dbAction = 'love';
+        toastMessage = 'Property added to your favorites!';
+        break;
+      default:
+        return;
+    }
     
-    if (nextIndex === 0 && swipeProperties.length > 0) {
+    // Handle the property interaction
+    const success = await handlePropertyInteraction({
+      buyerId,
+      propertyId: currentProperty.id,
+      action: dbAction
+    });
+    
+    if (success) {
       toast({
-        title: "You've seen all properties!",
-        description: "Starting over from the beginning.",
+        title: "Done!",
+        description: toastMessage,
+      });
+      
+      // Remove property from current list for 'pass' and 'love' actions
+      if (action === 'dislike' || action === 'like') {
+        const updatedProperties = swipeProperties.filter((_, index) => index !== currentPropertyIndex);
+        setSwipeProperties(updatedProperties);
+        
+        // Adjust current index if needed
+        if (currentPropertyIndex >= updatedProperties.length && updatedProperties.length > 0) {
+          setCurrentPropertyIndex(0);
+        }
+        
+        if (updatedProperties.length === 0) {
+          toast({
+            title: "All properties reviewed!",
+            description: "Check your dashboard for saved properties.",
+          });
+        }
+      } else {
+        // For 'save' action, just move to next property
+        const nextIndex = currentPropertyIndex < (swipeProperties.length - 1) 
+          ? currentPropertyIndex + 1 
+          : 0;
+        setCurrentPropertyIndex(nextIndex);
+      }
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to update property. Please try again.",
+        variant: "destructive"
       });
     }
-  }, [currentPropertyIndex, onPropertyAction, swipeProperties]);
+    
+    // Also call the original callback
+    onPropertyAction(currentProperty.id, action);
+  }, [currentPropertyIndex, buyerId, swipeProperties, onPropertyAction]);
 
   const handleScheduleTour = useCallback(() => {
-    toast({
-      title: "We are on it!",
-      description: "Your tour request has been sent to Kelsey.",
-    });
+    setIsScheduleModalOpen(true);
   }, []);
+
+  const handleScheduleConfirm = useCallback(async (schedulingData: {
+    propertyId: string;
+    selectedDates: Date[];
+    additionalInfo: string;
+  }) => {
+    if (!buyerId) return false;
+    
+    const success = await handlePropertyInteraction({
+      buyerId,
+      propertyId: schedulingData.propertyId,
+      action: 'schedule_tour'
+    });
+    
+    if (success) {
+      // Remove property from search list
+      const updatedProperties = swipeProperties.filter((_, index) => index !== currentPropertyIndex);
+      setSwipeProperties(updatedProperties);
+      
+      // Adjust current index if needed
+      if (currentPropertyIndex >= updatedProperties.length && updatedProperties.length > 0) {
+        setCurrentPropertyIndex(0);
+      }
+      
+      if (updatedProperties.length === 0) {
+        toast({
+          title: "All properties reviewed!",
+          description: "Check your dashboard for tour schedules.",
+        });
+      }
+      
+      return true;
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to schedule tour. Please try again.",
+        variant: "destructive"
+      });
+      return false;
+    }
+  }, [currentPropertyIndex, buyerId, swipeProperties]);
 
   // Transform properties when availableProperties changes
   useEffect(() => {
     if (availableProperties && availableProperties.length > 0) {
+      console.log('Available properties:', availableProperties);
       const transformed = availableProperties.map(property => {
+        console.log('Property photos:', property.photos);
         const primaryPhoto = property.photos?.find(p => p.is_primary) || property.photos?.[0];
-        const imageUrl = primaryPhoto?.url || '/placeholder-property.jpg';
+        console.log('Primary photo:', primaryPhoto);
+        const imageUrl = primaryPhoto?.url || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1973&q=80';
+        console.log('Image URL:', imageUrl);
         const formattedAddress = [property.address, property.city, property.state, property.zip_code]
           .filter(Boolean).join(', ');
         return {
@@ -93,19 +186,14 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
           baths: property.bathrooms || 0,
           sqft: property.square_feet || 0,
           address: formattedAddress,
-          insights: {
-            whySuggested: "This property matches your search criteria and preferences.",
-            appreciation: "Market appreciation rates vary. This property is in a desirable location with good growth potential.",
-            profileDeviation: undefined
-          },
           features: [
-            property.bedrooms ? `${property.bedrooms} Bed` : '',
-            property.bathrooms ? `${property.bathrooms} Bath` : '',
+            property.bedrooms ? `${property.bedrooms} Bed${property.bedrooms > 1 ? 's' : ''}` : '',
+            property.bathrooms ? `${property.bathrooms} Bath${property.bathrooms > 1 ? 's' : ''}` : '',
             property.square_feet ? `${property.square_feet.toLocaleString()} sqft` : '',
-            property.property_type ? property.property_type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : ''
+            property.property_type ? property.property_type.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : ''
           ].filter(Boolean) as string[],
           neighborhood: property.city || 'Unknown',
-          daysOnMarket: Math.floor(Math.random() * 30) + 1
+          daysOnMarket: property.days_on_market || Math.floor(Math.random() * 30) + 1
         } as SwipeProperty;
       });
       
@@ -128,6 +216,25 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
   
   // Show error state
   if (error) {
+    // Check if this is a "no properties" message (informational) vs actual error
+    const isNoPropertiesMessage = error.includes('No properties') || error.includes('No properties available');
+    
+    if (isNoPropertiesMessage) {
+      return (
+        <div className="text-center p-8">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-100 flex items-center justify-center">
+            <Home className="h-8 w-8 text-blue-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-blue-900 mb-2">No Properties Available</h3>
+          <p className="text-blue-700 mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-700 text-white">
+            Refresh
+          </Button>
+        </div>
+      );
+    }
+    
+    // Actual error
     return (
       <div className="text-center p-8 text-red-600">
         Error loading properties. Please try again later.
@@ -171,6 +278,9 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
                   src={currentProperty.image} 
                   alt={currentProperty.address}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.src = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1973&q=80';
+                  }}
                 />
                 <div className="absolute top-4 left-4">
                   <Badge className="bg-black text-white text-xs px-2 py-1 shadow-md">
@@ -195,7 +305,7 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
                 <div>
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="text-xl font-semibold text-gray-900">
-                      ${(currentProperty.price / 1000000).toFixed(2)}M
+                      ${currentProperty.price.toLocaleString()}
                     </h3>
                     <Badge className="bg-black text-white text-xs px-2 py-1 shadow-sm">{currentProperty.neighborhood}</Badge>
                   </div>
@@ -224,45 +334,7 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
                   </div>
                 </div>
 
-                {/* Insights */}
-                {showInsights && (
-                  <div className="space-y-3">
-                    <div className="p-3 rounded-lg shadow-sm bg-gray-50/50">
-                      <div className="flex items-start space-x-2">
-                        <Info size={14} className="text-blue-500 mt-0.5 flex-shrink-0" />
-                        <div>
-                          <h4 className="text-xs font-semibold text-gray-900 mb-1">
-                            Why this is suggested for you
-                          </h4>
-                          <p className="text-xs text-gray-700 leading-relaxed">
-                            {currentProperty.insights.whySuggested}
-                          </p>
-                          {currentProperty.insights.profileDeviation && (
-                            <div className="mt-2 p-2 border border-gray-200 rounded-md shadow-sm">
-                              <p className="text-xs text-gray-600">
-                                <strong>Note:</strong> {currentProperty.insights.profileDeviation}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
 
-                    <div className="p-3 rounded-lg shadow-sm bg-gray-50/50">
-                      <div className="flex items-start space-x-2">
-                        <TrendingUp size={14} className="text-green-500 mt-0.5 flex-shrink-0" />
-                        <div>
-                          <h4 className="text-xs font-semibold text-gray-900 mb-1">
-                            Property Appreciation Outlook
-                          </h4>
-                          <p className="text-xs text-gray-700 leading-relaxed">
-                            {currentProperty.insights.appreciation}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* Action Buttons */}
                 <div className="flex space-x-2 pt-2">
@@ -301,7 +373,7 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
                   className="w-full bg-blue-600 hover:bg-blue-700 py-2 text-xs shadow-md"
                 >
                   <Calendar size={14} className="mr-1" />
-                  Schedule Tour (Auto-booking in progress...)
+                  Schedule Viewing
                 </Button>
               </CardContent>
             </Card>
@@ -327,6 +399,19 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat }: Property
           )}
         </div>
       </div>
+
+      {/* Viewing Schedule Modal */}
+      {currentProperty && (
+        <ViewingScheduleModal
+          isOpen={isScheduleModalOpen}
+          onClose={() => setIsScheduleModalOpen(false)}
+          property={currentProperty}
+          buyerName={userProfile?.name || 'Buyer'}
+          buyerEmail={userProfile?.email || ''}
+          agentEmail={agentEmail}
+          onScheduleConfirm={handleScheduleConfirm}
+        />
+      )}
     </div>
   );
 };

@@ -1,5 +1,5 @@
 // Data Service Interface
-import { ApiResponse, PaginatedResponse, Buyer, Agent, Property, PropertyFilter, PropertyActivity, PropertySummary, ApiError } from './types';
+import { ApiResponse, PaginatedResponse, Buyer, Agent, Property, PropertyFilter, PropertyActivity, PropertySummary, ActionItem, ApiError } from './types';
 
 export interface DataService {
   // Buyer operations
@@ -8,6 +8,8 @@ export interface DataService {
   getBuyerByEmail(email: string): Promise<ApiResponse<Buyer>>;
   createBuyer(buyer: Omit<Buyer, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<Buyer>>;
   updateBuyer(id: string, updates: Partial<Buyer>): Promise<ApiResponse<Buyer>>;
+  updateBuyerProfile(personId: string, profileData: any): Promise<ApiResponse<any>>;
+  updateBuyerComplete(id: string, personUpdates: any, profileUpdates: any): Promise<ApiResponse<Buyer>>;
   deleteBuyer(id: string): Promise<ApiResponse<null>>;
 
   // Agent operations
@@ -31,10 +33,22 @@ export interface DataService {
   getPropertyActivities(propertyId: string): Promise<ApiResponse<PropertyActivity[]>>;
   addPropertyActivity(activity: Omit<PropertyActivity, 'id' | 'created_at'>): Promise<ApiResponse<PropertyActivity>>;
   getPropertySummary(buyerId: string): Promise<ApiResponse<PropertySummary>>;
+  getActionItems(buyerId: string): Promise<ApiResponse<ActionItem[]>>;
+  createActionItem(actionItem: Omit<ActionItem, 'id' | 'last_activity_at'>): Promise<ApiResponse<ActionItem>>;
+  updateActionItem(actionItemId: string, updates: Partial<ActionItem>): Promise<ApiResponse<ActionItem>>;
   
   // Buyer-Property relationship operations
-  addPropertyToBuyer(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;
+  addPropertyToBuyer(buyerId: string, propertyId: string, options?: {
+    initialStage?: 'interested' | 'loved' | 'viewing_scheduled' | 'under_contract' | 'pending';
+    timelinePhase?: 'pre_escrow' | 'escrow' | 'post_escrow';
+    fubStage?: 'lead' | 'hot_prospect' | 'nurture' | 'active_client' | 'pending' | 'closed';
+  }): Promise<ApiResponse<any>>;
   updateBuyerProperty(buyerId: string, propertyId: string, updates: any): Promise<ApiResponse<any>>;
+  
+  // Property workflow actions
+  loveProperty(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;
+  passProperty(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;
+  scheduleViewing(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;
 }
 
 // Abstract base class for data service implementations
@@ -68,10 +82,22 @@ export abstract class BaseDataService implements DataService {
   abstract getPropertyActivities(propertyId: string): Promise<ApiResponse<PropertyActivity[]>>;
   abstract addPropertyActivity(activity: Omit<PropertyActivity, 'id' | 'created_at'>): Promise<ApiResponse<PropertyActivity>>;
   abstract getPropertySummary(buyerId: string): Promise<ApiResponse<PropertySummary>>;
+  abstract getActionItems(buyerId: string): Promise<ApiResponse<ActionItem[]>>;
+  abstract createActionItem(actionItem: Omit<ActionItem, 'id' | 'last_activity_at'>): Promise<ApiResponse<ActionItem>>;
+  abstract updateActionItem(actionItemId: string, updates: Partial<ActionItem>): Promise<ApiResponse<ActionItem>>;
   
   // Buyer-Property relationship operations
-  abstract addPropertyToBuyer(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;
+  abstract addPropertyToBuyer(buyerId: string, propertyId: string, options?: {
+    initialStage?: 'interested' | 'loved' | 'viewing_scheduled' | 'under_contract' | 'pending';
+    timelinePhase?: 'pre_escrow' | 'escrow' | 'post_escrow';
+    fubStage?: 'lead' | 'hot_prospect' | 'nurture' | 'active_client' | 'pending' | 'closed';
+  }): Promise<ApiResponse<any>>;
   abstract updateBuyerProperty(buyerId: string, propertyId: string, updates: any): Promise<ApiResponse<any>>;
+  
+  // Property workflow actions
+  abstract loveProperty(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;
+  abstract passProperty(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;
+  abstract scheduleViewing(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;
 
   protected handleError(error: any): ApiError {
     if (error instanceof ApiError) {

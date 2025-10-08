@@ -44,7 +44,7 @@ export type BuyingStage =
 export type ActionRequired = 
   | 'schedule_viewing'
   | 'submit_offer'
-  | 'review_documents'
+  | 'review_disclosures_reports'
   | 'inspection'
   | 'appraisal'
   | 'final_walkthrough'
@@ -70,29 +70,36 @@ export interface PropertyActivity {
 
 export interface Property {
   id: string;
-  buyer_id: string;
+  // Core property info from properties table
   address: string;
   city: string;
   state: string;
   zip_code: string;
   listing_price: number;
-  purchase_price?: number;
   bedrooms: number;
   bathrooms: number;
   square_feet?: number;
   lot_size?: number;
   year_built?: number;
   property_type: 'single_family' | 'condo' | 'townhouse' | 'multi_family' | 'other';
+  mls_number?: string;
+  listing_url?: string;
+  created_at: string;
+  updated_at: string;
+
+  // Buyer-specific property info from buyer_properties table
+  buyer_id?: string;
   status: PropertyStatus;
   buying_stage: BuyingStage;
   action_required: ActionRequired;
-  mls_number?: string;
-  listing_url?: string;
   notes?: string;
-  photos: PropertyPhoto[];
+  purchase_price?: number;
+  offer_date?: string;
+  closing_date?: string;
   last_activity_at: string;
-  created_at: string;
-  updated_at: string;
+
+  // Related data
+  photos: PropertyPhoto[];
   buyer?: Buyer;
 }
 
@@ -115,9 +122,27 @@ export interface PropertySummary {
   requiring_action: number;
 }
 
+export interface ActionItem {
+  id: string;
+  property_id: string;
+  buyer_id: string;
+  title: string;
+  description: string;
+  property_address: string;
+  action_required: ActionRequired;
+  status: PropertyStatus;
+  buying_stage: BuyingStage;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  due_date: string;
+  last_activity_at: string;
+  offer_date?: string;
+  closing_date?: string;
+}
+
 export interface AuthUser {
   id: string;
   email: string;
+  organization_id?: string;
   created_at?: string;
   last_sign_in_at?: string;
 }

@@ -61,11 +61,10 @@ const PropertyDetailModal = ({ property, isOpen, onClose }: PropertyDetailModalP
         </DialogHeader>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="process">Process</TabsTrigger>
             <TabsTrigger value="financials">Net Sheet</TabsTrigger>
-            <TabsTrigger value="ai-review">AI Review</TabsTrigger>
             <TabsTrigger value="communication">Communication</TabsTrigger>
           </TabsList>
 
@@ -192,44 +191,7 @@ const PropertyDetailModal = ({ property, isOpen, onClose }: PropertyDetailModalP
             </Card>
           </TabsContent>
 
-          <TabsContent value="ai-review" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Bot size={20} />
-                  <span>AI Disclosure Analysis</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-green-800 mb-2">Overall Assessment: Good</h4>
-                  <p className="text-green-700 text-sm">
-                    This property shows well-maintained condition with standard disclosures. No major red flags identified.
-                  </p>
-                </div>
-                
-                <div className="space-y-3">
-                  <div className="border-l-4 border-gray-400 pl-4">
-                    <h5 className="font-semibold text-gray-600">Points to Discuss</h5>
-                    <ul className="text-sm text-gray-600 mt-1 space-y-1">
-                      <li>• HVAC system is 8 years old - consider inspection timeline</li>
-                      <li>• Minor foundation settling noted - typical for area</li>
-                      <li>• Roof replaced 3 years ago - good condition</li>
-                    </ul>
-                  </div>
-                  
-                  <div className="border-l-4 border-blue-400 pl-4">
-                    <h5 className="font-semibold text-blue-800">Positive Highlights</h5>
-                    <ul className="text-sm text-blue-700 mt-1 space-y-1">
-                      <li>• Recently updated electrical system</li>
-                      <li>• No history of major repairs</li>
-                      <li>• Energy-efficient windows installed</li>
-                    </ul>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+
 
           <TabsContent value="communication" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

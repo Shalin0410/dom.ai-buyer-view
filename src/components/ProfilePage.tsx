@@ -4,47 +4,69 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAgent } from '@/hooks/useAgent';
-import { Buyer } from '@/services/api/types';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { UserData } from '@/types/user';
+import { AgentMessageModal } from '@/components/AgentMessageModal';
+import { EditProfileModal } from '@/components/EditProfileModal';
 
 interface ProfilePageProps {
-  userData: Buyer & {
-    // Allow for any additional properties that might be present
-    [key: string]: any;
-  };
+  userData: UserData;
 }
 
 const ProfilePage = ({ userData }: ProfilePageProps) => {
   const [editMode, setEditMode] = useState(false);
-  
-  // Fetch agent data using the agent_id from userData
-  const { data: agent, isLoading: isLoadingAgent } = useAgent(userData.agent_id || null);
-  
-  // Log agent data for debugging
-  useEffect(() => {
-    console.log('Agent data:', agent);
-    console.log('Agent ID from userData:', userData.agent_id);
-  }, [agent, userData.agent_id]);
+  const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
+  const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
 
-  // Mock profile data extracted from user preferences
+  // Fetch full user profile data from database
+  const { data: userProfile, isLoading: isLoadingProfile, error: profileError, refetch: refetchProfile } = useUserProfile(userData.email);
+  
+  // Fetch agent data using the agent_id from user profile
+  const { data: agent, isLoading: isLoadingAgent } = useAgent(userProfile?.agent_id || null);
+  
+
+  // Extract buyer_profiles data (comes from the database query)
+  // Note: Supabase returns buyer_profiles as an object, not an array
+  const buyerProfile = userProfile?.buyer_profiles || null;
+
+
+  // Create profile data utilizing both persons table and buyer_profiles table
   const profileData = {
-    bedrooms: 3,
-    bathrooms: 2,
-    minSquareFootage: 1800,
-    propertyType: 'Single-family',
-    location: 'San Francisco, CA',
-    priceRange: { min: 400000, max: 650000 },
-    amenities: ['Garage', 'Backyard', 'Near CalTrain'],
-    interiorFeatures: ['Updated Kitchen', 'Hardwood Floors'],
-    exteriorFeatures: ['Private Yard', 'Deck'],
-    schoolDistrict: 'Good schools nearby',
-    commutePreferences: 'Close to CalTrain and freeway',
-    petPreferences: 'Dog-friendly with yard',
-    lifestyle: ['Walkable', 'Near restaurants', 'City living'],
-    mustHaves: ['3+ bedrooms', 'Private backyard', 'Pet-friendly'],
-    niceToHaves: ['Updated kitchen', 'Garage', 'View']
+    // Price range - only from buyer_profiles table
+    priceRange: {
+      min: buyerProfile?.price_min || null,
+      max: buyerProfile?.price_max || null
+    },
+    // Budget and financing info - only from buyer_profiles table
+    budgetApproved: buyerProfile?.budget_approved ?? null,
+    preApprovalAmount: buyerProfile?.pre_approval_amount || null,
+    preApprovalExpiry: buyerProfile?.pre_approval_expiry || null,
+    downPaymentAmount: buyerProfile?.down_payment_amount || null,
+    // Buyer preferences - only from buyer_profiles table
+    buyerNeeds: buyerProfile?.buyer_needs || null,
+    preferredAreas: buyerProfile?.preferred_areas || [],
+    propertyTypePreferences: buyerProfile?.property_type_preferences || [],
+    mustHaveFeatures: buyerProfile?.must_have_features || [],
+    niceToHaveFeatures: buyerProfile?.nice_to_have_features || [],
+    bathrooms: buyerProfile?.bathrooms || null,
+    bedrooms: buyerProfile?.bedrooms || null,
+    idealMoveInDate: buyerProfile?.ideal_move_in_date || null,
+    urgencyLevel: buyerProfile?.urgency_level || null,
+    // Activity info - from persons table
+    lastContactDate: userProfile?.last_contact_date || null,
+    nextFollowupDate: userProfile?.next_followup_date || null
   };
 
-  console.log('Profile userData:', userData);
+  if (isLoadingProfile) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <span className="ml-3 text-gray-600">Loading profile...</span>
+      </div>
+    );
+  }
+
+
 
   const ProfileSection = ({ title, children, icon: Icon }) => (
     <Card className="border-0 bg-white/80 backdrop-blur-sm shadow-sm">
@@ -88,11 +110,11 @@ const ProfilePage = ({ userData }: ProfilePageProps) => {
             <div className="space-y-2 text-sm">
               <div className="flex items-center space-x-2">
                 <Phone size={14} className="text-gray-500" />
-                <span>{userData?.phone || 'No phone number provided'}</span>
+                <span>{userProfile?.phone || userData?.phone || 'No phone number provided'}</span>
               </div>
               <div className="flex items-center space-x-2">
-                <Home size={14} className="text-gray-500" />
-                <span>{userData?.address || 'No address provided'}</span>
+                <Calendar size={14} className="text-gray-500" />
+                <span>Member since {new Date(userProfile?.created_at || Date.now()).toLocaleDateString()}</span>
               </div>
             </div>
           </div>
@@ -106,44 +128,47 @@ const ProfilePage = ({ userData }: ProfilePageProps) => {
               <p className="text-sm text-gray-600">Loading agent information...</p>
             </div>
           ) : agent ? (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-gray-900">Your Agent</h3>
-                <Button variant="ghost" size="sm" className="text-blue-600 hover:bg-blue-50">
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  Message
-                </Button>
-              </div>
-              
-              <div className="flex items-center space-x-4">
-                <div className="flex-shrink-0 h-12 w-12 rounded-full bg-blue-600 flex items-center justify-center">
-                  <span className="text-white font-semibold text-xl">
-                    {agent.first_name?.charAt(0) || 'A'}
-                  </span>
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900">
-                    {agent.first_name || 'Agent'} {agent.last_name || ''}
-                  </p>
-                  <p className="text-sm text-gray-600">Real Estate Agent</p>
-                </div>
-              </div>
-              
-              <div className="space-y-2 text-sm">
-                {agent.email && (
-                  <div className="flex items-center space-x-2">
-                    <Mail size={14} className="text-gray-500 flex-shrink-0" />
-                    <span className="truncate">{agent.email}</span>
-                  </div>
-                )}
-                {agent.phone && (
-                  <div className="flex items-center space-x-2">
-                    <Phone size={14} className="text-gray-500 flex-shrink-0" />
-                    <span>{agent.phone}</span>
-                  </div>
-                )}
-              </div>
-            </div>
+                         <div className="space-y-3">
+               <div className="flex items-center justify-between">
+                 <div className="flex items-center space-x-3">
+                   <div className="flex-shrink-0 h-12 w-12 rounded-full bg-blue-600 flex items-center justify-center">
+                     <span className="text-white font-semibold text-xl">
+                       {agent.first_name?.charAt(0) || 'A'}
+                     </span>
+                   </div>
+                   <div>
+                     <p className="font-semibold text-gray-900">
+                       {agent.first_name || 'Agent'} {agent.last_name || ''}
+                     </p>
+                     <p className="text-sm text-gray-600">Real Estate Agent</p>
+                   </div>
+                 </div>
+                 <Button
+                   variant="ghost"
+                   size="sm"
+                   className="text-blue-600 hover:bg-blue-50"
+                   onClick={() => setIsMessageModalOpen(true)}
+                 >
+                   <MessageSquare className="mr-2 h-4 w-4" />
+                   Message
+                 </Button>
+               </div>
+               
+               <div className="space-y-1.5 text-sm">
+                 {agent.email && (
+                   <div className="flex items-center space-x-2">
+                     <Mail size={14} className="text-gray-500 flex-shrink-0" />
+                     <span className="truncate text-amber-600">{agent.email}</span>
+                   </div>
+                 )}
+                 {agent.phone && (
+                   <div className="flex items-center space-x-2">
+                     <Phone size={14} className="text-gray-500 flex-shrink-0" />
+                     <span className="text-amber-600">{agent.phone}</span>
+                   </div>
+                 )}
+               </div>
+             </div>
           ) : (
             <div className="text-center py-6">
               <UserX className="mx-auto h-10 w-10 text-gray-400" />
@@ -158,111 +183,152 @@ const ProfilePage = ({ userData }: ProfilePageProps) => {
           )}
         </ProfileSection>
 
-        {/* Basic Requirements */}
-        <ProfileSection title="Property Requirements" icon={Home}>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs text-gray-600">Bedrooms</p>
-              <p className="font-semibold">{profileData.bedrooms}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-600">Bathrooms</p>
-              <p className="font-semibold">{profileData.bathrooms}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-600">Min Square Footage</p>
-              <p className="font-semibold">{profileData.minSquareFootage} sq ft</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-600">Property Type</p>
-              <p className="font-semibold">{profileData.propertyType}</p>
-            </div>
+        {/* Price Range */}
+        <ProfileSection title="Price Range" icon={DollarSign}>
+          <div className="space-y-3">
+            {(profileData.priceRange.min || profileData.priceRange.max) ? (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-gray-600">Min Price</p>
+                  <p className="font-semibold">
+                    {profileData.priceRange.min ? `$${profileData.priceRange.min.toLocaleString()}` : 'Not specified'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-600">Max Price</p>
+                  <p className="font-semibold">
+                    {profileData.priceRange.max ? `$${profileData.priceRange.max.toLocaleString()}` : 'Not specified'}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-sm text-gray-500">No price range specified</p>
+              </div>
+            )}
           </div>
         </ProfileSection>
 
-        {/* Location & Budget */}
-        <ProfileSection title="Location & Budget" icon={MapPin}>
+
+        {/* Location & Area Preferences */}
+        <ProfileSection title="Location & Area Preferences" icon={MapPin}>
           <div className="space-y-3">
             <div>
-              <p className="text-xs text-gray-600">Preferred Location</p>
-              <p className="font-semibold">{profileData.location}</p>
+              <p className="text-xs text-gray-600 mb-2">Preferred Areas</p>
+              {profileData.preferredAreas && profileData.preferredAreas.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {profileData.preferredAreas.map((area, index) => (
+                    <Badge key={index} variant="secondary" className="text-xs bg-blue-50 text-blue-700">
+                      {area}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No preferred areas specified</p>
+              )}
             </div>
             <div>
-              <p className="text-xs text-gray-600">Price Range</p>
-              <p className="font-semibold">
-                ${profileData.priceRange.min.toLocaleString()} - ${profileData.priceRange.max.toLocaleString()}
+              <p className="text-xs text-gray-600 mb-2">Buyer Needs & Requirements</p>
+              <p className="text-sm text-gray-800 leading-relaxed">
+                {profileData.buyerNeeds || 'No specific requirements provided'}
               </p>
             </div>
           </div>
         </ProfileSection>
 
-        {/* Lifestyle Preferences */}
-        <ProfileSection title="Lifestyle & Preferences" icon={Star}>
+        {/* Property Preferences */}
+        <ProfileSection title="Property Preferences" icon={Home}>
           <div className="space-y-3">
             <div>
-              <p className="text-xs text-gray-600 mb-2">Lifestyle</p>
-              <div className="flex flex-wrap gap-1">
-                {profileData.lifestyle.map((item, index) => (
-                  <Badge key={index} variant="secondary" className="text-xs bg-blue-50 text-blue-700">
-                    {item}
-                  </Badge>
-                ))}
+              <p className="text-xs text-gray-600 mb-2">Property Types</p>
+              {profileData.propertyTypePreferences.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {profileData.propertyTypePreferences.map((type, index) => (
+                    <Badge key={index} variant="secondary" className="text-xs bg-green-50 text-green-700">
+                      {type}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No property types specified</p>
+              )}
+            </div>
+
+            <div>
+              <p className="text-xs text-gray-600 mb-2">Must-Have Features</p>
+              {profileData.mustHaveFeatures.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {profileData.mustHaveFeatures.map((feature, index) => (
+                    <Badge key={index} variant="secondary" className="text-xs bg-red-50 text-red-700">
+                      {feature}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No must-have features specified</p>
+              )}
+            </div>
+
+            <div>
+              <p className="text-xs text-gray-600 mb-2">Nice-to-Have Features</p>
+              {profileData.niceToHaveFeatures.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {profileData.niceToHaveFeatures.map((feature, index) => (
+                    <Badge key={index} variant="outline" className="text-xs">
+                      {feature}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No nice-to-have features specified</p>
+              )}
+            </div>
+
+            {/* Bedrooms and Bathrooms */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-gray-600">Bedrooms</p>
+                <p className="font-semibold">
+                  {profileData.bedrooms ? `${profileData.bedrooms} ${profileData.bedrooms === 1 ? 'bedroom' : 'bedrooms'}` : 'Not specified'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Bathrooms</p>
+                <p className="font-semibold">
+                  {profileData.bathrooms ? `${profileData.bathrooms} ${profileData.bathrooms === 1 ? 'bathroom' : 'bathrooms'}` : 'Not specified'}
+                </p>
               </div>
             </div>
-            <div>
-              <p className="text-xs text-gray-600 mb-2">Amenities</p>
-              <div className="flex flex-wrap gap-1">
-                {profileData.amenities.map((item, index) => (
-                  <Badge key={index} variant="outline" className="text-xs">
-                    {item}
-                  </Badge>
-                ))}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-gray-600">Ideal Move-in Date</p>
+                <p className="font-semibold">
+                  {profileData.idealMoveInDate ? new Date(profileData.idealMoveInDate).toLocaleDateString() : 'Not specified'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">Urgency Level</p>
+                <p className="font-semibold capitalize">
+                  {profileData.urgencyLevel || 'Not specified'}
+                </p>
               </div>
             </div>
           </div>
         </ProfileSection>
 
-        {/* Must-Haves vs Nice-to-Haves */}
-        <ProfileSection title="Flexibility" icon={Settings}>
-          <div className="space-y-3">
-            <div>
-              <p className="text-xs text-gray-600 mb-2">Must-Haves</p>
-              <div className="flex flex-wrap gap-1">
-                {profileData.mustHaves.map((item, index) => (
-                  <Badge key={index} className="text-xs bg-red-100 text-red-800 hover:bg-red-100">
-                    {item}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="text-xs text-gray-600 mb-2">Nice-to-Haves</p>
-              <div className="flex flex-wrap gap-1">
-                {profileData.niceToHaves.map((item, index) => (
-                  <Badge key={index} className="text-xs bg-green-100 text-green-800 hover:bg-green-100">
-                    {item}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          </div>
-        </ProfileSection>
 
-        {/* Additional Details */}
-        <ProfileSection title="Additional Details" icon={DollarSign}>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-600">School District:</span>
-              <span className="font-medium">{profileData.schoolDistrict}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Commute:</span>
-              <span className="font-medium">{profileData.commutePreferences}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Pet Requirements:</span>
-              <span className="font-medium">{profileData.petPreferences}</span>
-            </div>
+        {/* Quick Actions */}
+        <ProfileSection title="Quick Actions" icon={Settings}>
+          <div className="space-y-3">
+            <Button
+              className="w-full"
+              variant="outline"
+              onClick={() => setIsEditProfileModalOpen(true)}
+            >
+              <Edit2 className="h-4 w-4 mr-2" />
+              Update Preferences
+            </Button>
           </div>
         </ProfileSection>
 
@@ -286,6 +352,26 @@ const ProfilePage = ({ userData }: ProfilePageProps) => {
           </ProfileSection>
         )}
       </div>
+
+      {/* Agent Message Modal */}
+      {agent && (
+        <AgentMessageModal
+          isOpen={isMessageModalOpen}
+          onClose={() => setIsMessageModalOpen(false)}
+          agentName={`${agent.first_name || 'Agent'} ${agent.last_name || ''}`.trim()}
+          agentEmail={agent.email || ''}
+          buyerName={userData?.name || 'User'}
+          buyerEmail={userData?.email || ''}
+        />
+      )}
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        isOpen={isEditProfileModalOpen}
+        onClose={() => setIsEditProfileModalOpen(false)}
+        userProfile={userProfile}
+        onProfileUpdate={refetchProfile}
+      />
     </div>
   );
 };

@@ -1,21 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { useProperties } from '@/hooks/useProperties';
+import { useProperties, usePropertySummary } from '@/hooks/useProperties';
 import { useAuth } from '@/hooks/useAuth';
 import { Property, PropertyFilter, PropertyStatus, BuyingStage, ActionRequired } from '@/services/api/types';
 import { PropertyCard } from './PropertyCard';
 import { PropertyFilters } from './PropertyFilters';
-import { PropertySummary } from './PropertySummary';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Search, Plus, Filter } from 'lucide-react';
+import { Loader2, Search, Plus, Filter, Home, Clock, AlertCircle, TrendingUp } from 'lucide-react';
 import { dataService } from '@/services';
 
 interface PropertyListProps {
   onPropertySelect?: (property: Property) => void;
   onAddProperty?: () => void;
-  mode?: 'tracked' | 'browse'; // New prop to switch between modes
+  mode?: 'tracked' | 'browse';
 }
 
 export const PropertyList: React.FC<PropertyListProps> = ({
@@ -29,10 +28,12 @@ export const PropertyList: React.FC<PropertyListProps> = ({
   const [filter, setFilter] = useState<PropertyFilter>({});
   
   const { properties, loading, error, updateFilter, refreshProperties } = useProperties(
-    mode === 'tracked' ? user?.id : undefined, // Filter by buyer only in tracked mode
+    mode === 'tracked' ? user?.id : undefined,
     filter,
     mode === 'browse' ? 'available' : 'tracked'
   );
+
+  const { summary, loading: summaryLoading } = usePropertySummary(user?.id || '');
 
   const handleFilterChange = (newFilter: PropertyFilter) => {
     setFilter(newFilter);
@@ -48,9 +49,7 @@ export const PropertyList: React.FC<PropertyListProps> = ({
     try {
       const response = await dataService.addPropertyToBuyer(user.id, propertyId);
       if (response.success) {
-        // Refresh properties to show updated state
         refreshProperties();
-        // You could also show a success message here
         console.log('Property added to interested list');
       } else {
         console.error('Failed to add property:', response.error);
@@ -71,93 +70,66 @@ export const PropertyList: React.FC<PropertyListProps> = ({
     );
   });
 
-  // Fetch property metadata from the database
-  const [propertyMetadata, setPropertyMetadata] = useState<{
-    statuses: { value: PropertyStatus; label: string }[];
-    buyingStages: { value: BuyingStage; label: string }[];
-    actionRequired: { value: ActionRequired; label: string }[];
-  } | null>(null);
-
-  useEffect(() => {
-    // In a real app, you would fetch these from your API
-    // This is a placeholder that matches the database schema
-    const fetchMetadata = async () => {
-      // These would normally come from an API endpoint
-      const statuses = [
-        { value: 'researching' as PropertyStatus, label: 'Researching' },
-        { value: 'viewing' as PropertyStatus, label: 'Viewing' },
-        { value: 'offer_submitted' as PropertyStatus, label: 'Offer Submitted' },
-        { value: 'under_contract' as PropertyStatus, label: 'Under Contract' },
-        { value: 'in_escrow' as PropertyStatus, label: 'In Escrow' },
-        { value: 'closed' as PropertyStatus, label: 'Closed' },
-        { value: 'withdrawn' as PropertyStatus, label: 'Withdrawn' },
-      ];
-
-      const buyingStages = [
-        { value: 'initial_research' as BuyingStage, label: 'Initial Research' },
-        { value: 'active_search' as BuyingStage, label: 'Active Search' },
-        { value: 'offer_negotiation' as BuyingStage, label: 'Offer Negotiation' },
-        { value: 'under_contract' as BuyingStage, label: 'Under Contract' },
-        { value: 'closing' as BuyingStage, label: 'Closing' },
-      ];
-
-      const actionRequired = [
-        { value: 'schedule_viewing' as ActionRequired, label: 'Schedule Viewing' },
-        { value: 'submit_offer' as ActionRequired, label: 'Submit Offer' },
-        { value: 'review_documents' as ActionRequired, label: 'Review Documents' },
-        { value: 'inspection' as ActionRequired, label: 'Inspection' },
-        { value: 'appraisal' as ActionRequired, label: 'Appraisal' },
-        { value: 'final_walkthrough' as ActionRequired, label: 'Final Walkthrough' },
-        { value: 'none' as ActionRequired, label: 'No Action Required' },
-      ];
-
-      setPropertyMetadata({
-        statuses,
-        buyingStages,
-        actionRequired,
-      });
-    };
-
-    fetchMetadata();
-  }, []);
-
-  const getStatusColor = (status: string) => {
-    const statusMeta = propertyMetadata?.statuses.find(s => s.value === status);
-    if (!statusMeta) return 'bg-gray-100 text-gray-800';
-    
-    switch (status) {
-      case 'researching': return 'bg-blue-100 text-blue-800';
-      case 'viewing': return 'bg-yellow-100 text-yellow-800';
-      case 'offer_submitted': return 'bg-orange-100 text-orange-800';
-      case 'under_contract': return 'bg-purple-100 text-purple-800';
-      case 'in_escrow': return 'bg-indigo-100 text-indigo-800';
-      case 'closed': return 'bg-green-100 text-green-800';
-      case 'withdrawn': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const getStatusText = (status: string) => {
-    const statusMeta = propertyMetadata?.statuses.find(s => s.value === status);
-    return statusMeta?.label || status;
+    const statusLabels = {
+      'researching': 'Researching',
+      'viewing': 'Viewing',
+      'offer_submitted': 'Offer Submitted',
+      'under_contract': 'Under Contract',
+      'in_escrow': 'In Escrow',
+      'closed': 'Closed',
+      'withdrawn': 'Withdrawn'
+    };
+    return statusLabels[status as keyof typeof statusLabels] || status;
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading properties...</span>
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <span className="ml-3 text-gray-600">Loading properties...</span>
       </div>
     );
   }
 
   if (error) {
+    // Check if this is a "no properties" message (informational) vs actual error
+    const isNoPropertiesMessage = error.includes('No properties') || error.includes('No properties available');
+    
+    if (isNoPropertiesMessage) {
+      return (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-blue-100 flex items-center justify-center">
+                <Home className="h-6 w-6 text-blue-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-blue-900 mb-2">
+                {mode === 'tracked' ? 'No Properties Found' : 'No Properties Available'}
+              </h3>
+              <p className="text-blue-700 mb-4">{error}</p>
+              {mode === 'tracked' && (
+                <Button onClick={onAddProperty} className="bg-blue-600 hover:bg-blue-700 text-white">
+                  Add Your First Property
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+    
+    // Actual error - show red error card
     return (
-      <Card>
+      <Card className="border-red-200 bg-red-50">
         <CardContent className="pt-6">
           <div className="text-center">
-            <p className="text-red-600 mb-4">{error}</p>
-            <Button onClick={refreshProperties} variant="outline">
+            <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+              <AlertCircle className="h-6 w-6 text-red-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-red-900 mb-2">Something went wrong</h3>
+            <p className="text-red-700 mb-4">{error}</p>
+            <Button onClick={refreshProperties} variant="outline" className="border-red-300 text-red-700 hover:bg-red-100">
               Try Again
             </Button>
           </div>
@@ -167,28 +139,90 @@ export const PropertyList: React.FC<PropertyListProps> = ({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
             {mode === 'tracked' ? 'My Properties' : 'Browse Properties'}
           </h1>
-          <p className="text-gray-600 mt-1">
+          <p className="text-gray-600">
             {mode === 'tracked' 
               ? 'Track and manage properties you\'re considering'
               : 'Discover available properties in your area'
             }
           </p>
         </div>
-        <Button onClick={onAddProperty} className="flex items-center gap-2">
+        <Button onClick={onAddProperty} className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2">
           <Plus className="h-4 w-4" />
           {mode === 'tracked' ? 'Add Property' : 'Browse Properties'}
         </Button>
       </div>
 
-      {/* Summary - Disabled until buyer-property relationship is established */}
-      {/* {user?.id && <PropertySummary buyerId={user.id} />} */}
+      {/* Summary Cards for Tracked Mode */}
+      {mode === 'tracked' && user?.id && summary && !summaryLoading && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-blue-700">Total Properties</p>
+                  <p className="text-3xl font-bold text-blue-900">{summary.total_properties}</p>
+                </div>
+                <div className="p-3 bg-blue-200 rounded-full">
+                  <Home className="h-6 w-6 text-blue-700" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-amber-700">Active Search</p>
+                  <p className="text-3xl font-bold text-amber-900">
+                    {summary.by_stage.active_search + summary.by_stage.initial_research}
+                  </p>
+                </div>
+                <div className="p-3 bg-amber-200 rounded-full">
+                  <Search className="h-6 w-6 text-amber-700" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-green-700">Under Contract</p>
+                  <p className="text-3xl font-bold text-green-900">
+                    {summary.by_status.under_contract + summary.by_status.in_escrow}
+                  </p>
+                </div>
+                <div className="p-3 bg-green-200 rounded-full">
+                  <TrendingUp className="h-6 w-6 text-green-700" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-red-700">Action Required</p>
+                  <p className="text-3xl font-bold text-red-900">{summary.requiring_action}</p>
+                </div>
+                <div className="p-3 bg-red-200 rounded-full">
+                  <AlertCircle className="h-6 w-6 text-red-700" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
@@ -198,18 +232,18 @@ export const PropertyList: React.FC<PropertyListProps> = ({
             placeholder="Search by address, city, or ZIP code..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
         <Button
           variant="outline"
           onClick={() => setShowFilters(!showFilters)}
-          className="flex items-center gap-2"
+          className={`flex items-center gap-2 ${Object.keys(filter).length > 0 ? 'border-blue-500 text-blue-700 bg-blue-50' : ''}`}
         >
           <Filter className="h-4 w-4" />
           Filters
           {Object.keys(filter).length > 0 && (
-            <Badge variant="secondary" className="ml-1">
+            <Badge variant="secondary" className="ml-1 bg-blue-100 text-blue-700">
               {Object.keys(filter).length}
             </Badge>
           )}
@@ -227,34 +261,26 @@ export const PropertyList: React.FC<PropertyListProps> = ({
 
       {/* Properties Grid */}
       {filteredProperties.length === 0 ? (
-        <Card>
+        <Card className="border-gray-200">
           <CardContent className="pt-6">
             <div className="text-center py-12">
-              <div className="text-gray-400 mb-4">
-                <svg
-                  className="mx-auto h-12 w-12"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h3M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                  />
-                </svg>
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                <Home className="h-8 w-8 text-gray-400" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 No properties found
               </h3>
-              <p className="text-gray-600 mb-4">
+              <p className="text-gray-600 mb-6">
                 {searchTerm || Object.keys(filter).length > 0
                   ? "Try adjusting your search or filters"
-                  : "Start tracking properties you're interested in"}
+                  : mode === 'tracked' 
+                    ? "Start tracking properties you're interested in"
+                    : "No properties available at the moment"
+                }
               </p>
-              {!searchTerm && Object.keys(filter).length === 0 && (
-                <Button onClick={onAddProperty}>
+              {!searchTerm && Object.keys(filter).length === 0 && mode === 'tracked' && (
+                <Button onClick={onAddProperty} className="bg-blue-600 hover:bg-blue-700 text-white">
+                  <Plus className="h-4 w-4 mr-2" />
                   Add Your First Property
                 </Button>
               )}
@@ -262,34 +288,40 @@ export const PropertyList: React.FC<PropertyListProps> = ({
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProperties.map((property) => {
-            // Create a new object with the original status and add statusText for display
-            const propertyWithStatus = {
-              ...property,
-              statusText: getStatusText(property.status),
-              action_required: property.action_required || 'none',
-              buying_stage: property.buying_stage || 'initial_research',
-            };
-            
-            return (
-              <PropertyCard 
-                key={property.id} 
-                property={propertyWithStatus}
-                onClick={() => onPropertySelect?.(property)}
-                mode={mode}
-                onAddToInterested={mode === 'browse' ? handleAddToInterested : undefined}
-              />
-            );
-          })}
-        </div>
-      )}
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {filteredProperties.map((property) => {
+              const propertyWithStatus = {
+                ...property,
+                statusText: getStatusText(property.status),
+                action_required: property.action_required || 'none',
+                buying_stage: property.buying_stage || 'initial_research',
+              };
+              
+              return (
+                <PropertyCard 
+                  key={property.id} 
+                  property={propertyWithStatus}
+                  onClick={() => onPropertySelect?.(property)}
+                  mode={mode}
+                  onAddToInterested={mode === 'browse' ? handleAddToInterested : undefined}
+                />
+              );
+            })}
+          </div>
 
-      {/* Results Summary */}
-      {filteredProperties.length > 0 && (
-        <div className="text-sm text-gray-600 text-center">
-          Showing {filteredProperties.length} of {properties.length} properties
-        </div>
+          {/* Results Summary */}
+          <div className="text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-full text-sm text-gray-600">
+              <span>Showing {filteredProperties.length} of {properties.length} properties</span>
+              {Object.keys(filter).length > 0 && (
+                <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                  Filtered
+                </Badge>
+              )}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

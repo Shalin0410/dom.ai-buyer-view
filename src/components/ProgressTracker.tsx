@@ -7,84 +7,167 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { useState } from 'react';
 
-const ProgressTracker = ({ showDetailed = false }) => {
+const ProgressTracker = ({ showDetailed = false, property = null }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const steps = [
-    {
-      id: 1,
-      title: "Tour",
-      description: "Schedule and complete property tour",
-      status: "completed",
-      date: "2024-01-15"
-    },
-    {
-      id: 2,
-      title: "Review Disclosures", 
-      description: "Review property disclosures and reports",
-      status: "completed",
-      date: "2024-01-18"
-    },
-    {
-      id: 3,
-      title: "Write Offer",
-      description: "Prepare and submit your offer",
-      status: "in_progress",
-      date: "In Progress"
-    },
-    {
-      id: 4,
-      title: "Negotiate Terms",
-      description: "Negotiate price and contract terms", 
-      status: "upcoming",
-      date: "Upcoming"
-    },
-    {
-      id: 5,
-      title: "Offer Accepted",
-      description: "Celebrate your accepted offer",
-      status: "upcoming", 
-      date: "Upcoming"
-    },
-    {
-      id: 6,
-      title: "Home Inspection",
-      description: "Professional property inspection",
-      status: "upcoming", 
-      date: "Upcoming"
-    },
-    {
-      id: 7,
-      title: "Appraisal",
-      description: "Lender orders property appraisal",
-      status: "upcoming", 
-      date: "Upcoming"
-    },
-    {
-      id: 8,
-      title: "Remove Contingencies",
-      description: "Remove inspection and appraisal contingencies",
-      status: "upcoming", 
-      date: "Upcoming"
-    },
-    {
-      id: 9,
-      title: "Final Walkthrough",
-      description: "Final property inspection before closing",
-      status: "upcoming", 
-      date: "Upcoming"
-    },
-    {
-      id: 10,
-      title: "Closing",
-      description: "Sign documents and get your keys!",
-      status: "upcoming", 
-      date: "Upcoming"
-    }
-  ];
+  // Map database status to timeline steps
+  const generateTimelineSteps = () => {
+    const baseSteps = [
+      {
+        id: 1,
+        title: "Research",
+        description: "Initial property research and evaluation",
+        status: "researching",
+        stageName: "initial_research"
+      },
+      {
+        id: 2,
+        title: "Schedule Tour",
+        description: "Schedule and complete property viewing",
+        status: "viewing", 
+        stageName: "active_search"
+      },
+      {
+        id: 3,
+        title: "Review Disclosures",
+        description: "Review property disclosures and reports",
+        status: "viewing",
+        stageName: "active_search"
+      },
+      {
+        id: 4,
+        title: "Write Offer",
+        description: "Prepare and submit your offer",
+        status: "offer_submitted",
+        stageName: "offer_negotiation"
+      },
+      {
+        id: 5,
+        title: "Negotiate Terms",
+        description: "Negotiate price and contract terms",
+        status: "offer_submitted",
+        stageName: "offer_negotiation"
+      },
+      {
+        id: 6,
+        title: "Under Contract",
+        description: "Offer accepted, contract signed",
+        status: "under_contract",
+        stageName: "under_contract"
+      },
+      {
+        id: 7,
+        title: "Home Inspection",
+        description: "Professional property inspection",
+        status: "under_contract",
+        stageName: "under_contract"
+      },
+      {
+        id: 8,
+        title: "Appraisal",
+        description: "Lender orders property appraisal",
+        status: "under_contract",
+        stageName: "under_contract"
+      },
+      {
+        id: 9,
+        title: "In Escrow",
+        description: "Remove contingencies and prepare for closing",
+        status: "in_escrow",
+        stageName: "closing"
+      },
+      {
+        id: 10,
+        title: "Final Walkthrough",
+        description: "Final property inspection before closing",
+        status: "in_escrow",
+        stageName: "closing"
+      },
+      {
+        id: 11,
+        title: "Closing",
+        description: "Sign documents and get your keys!",
+        status: "closed",
+        stageName: "closing"
+      }
+    ];
 
-  const currentStep = steps.findIndex(step => step.status === 'in_progress') + 1;
-  const progressPercentage = ((currentStep - 1) / (steps.length - 1)) * 100;
+    if (!property) {
+      return baseSteps.map(step => ({ ...step, status: "upcoming", date: "Upcoming" }));
+    }
+
+    const currentStatus = property.status;
+    const currentStage = property.buying_stage;
+    
+    return baseSteps.map(step => {
+      let stepStatus = "upcoming";
+      let date = "Upcoming";
+      
+      // Mark steps as completed based on current property status
+      if (currentStatus === "closed") {
+        stepStatus = "completed";
+        date = step.id === 11 ? (property.closing_date || "Completed") : "Completed";
+      } else if (currentStatus === "in_escrow") {
+        if (step.id <= 9) {
+          stepStatus = "completed";
+          date = "Completed";
+        } else if (step.id === 10) {
+          stepStatus = property.action_required === "final_walkthrough" ? "in_progress" : "upcoming";
+          date = stepStatus === "in_progress" ? "In Progress" : "Upcoming";
+        }
+      } else if (currentStatus === "under_contract") {
+        if (step.id <= 6) {
+          stepStatus = "completed";
+          date = step.id === 6 ? (property.contract_date || property.offer_date || "Completed") : "Completed";
+        } else if (step.id === 7 && property.action_required === "inspection") {
+          stepStatus = "in_progress";
+          date = "In Progress";
+        } else if (step.id === 8 && property.action_required === "appraisal") {
+          stepStatus = "in_progress";
+          date = "In Progress";
+        }
+      } else if (currentStatus === "offer_submitted") {
+        if (step.id <= 4) {
+          stepStatus = "completed";
+          date = step.id === 4 ? (property.offer_date || "Completed") : "Completed";
+        } else if (step.id === 5) {
+          stepStatus = "in_progress";
+          date = "In Progress";
+        }
+      } else if (currentStatus === "viewing") {
+        if (step.id <= 2) {
+          stepStatus = "completed";
+          date = "Completed";
+        } else if ((step.id === 3 && property.action_required === "review_disclosures_reports") || 
+                   (step.id === 4 && property.action_required === "submit_offer")) {
+          stepStatus = "in_progress";
+          date = "In Progress";
+        }
+      } else if (currentStatus === "researching") {
+        if (step.id === 1) {
+          stepStatus = "in_progress";
+          date = "In Progress";
+        } else if (step.id === 2 && property.action_required === "schedule_viewing") {
+          stepStatus = "in_progress";
+          date = "In Progress";
+        }
+      }
+      
+      return { ...step, status: stepStatus, date };
+    });
+  };
+
+  const steps = generateTimelineSteps();
+
+  const currentStepIndex = steps.findIndex(step => step.status === 'in_progress');
+  const completedStepsCount = steps.filter(step => step.status === 'completed').length;
+  
+  // If there's an in-progress step, use its position for display purposes
+  const currentStep = currentStepIndex >= 0 ? currentStepIndex + 1 : completedStepsCount + 1;
+  
+  // Calculate progress based on completed steps, plus partial credit for in-progress
+  const progressValue = currentStepIndex >= 0 ? completedStepsCount + 0.5 : completedStepsCount;
+  const progressPercentage = Math.max(0, (progressValue / steps.length) * 100);
 
   const getStepIcon = (status, index) => {
     switch (status) {
@@ -256,20 +339,59 @@ const ProgressTracker = ({ showDetailed = false }) => {
                 </div>
                 <div className="flex-1">
                   <h4 className="font-semibold text-gray-900 mb-3">Up Next</h4>
-                  <p className="text-gray-700 mb-4 leading-relaxed">
-                    You're currently working on writing your offer. Make sure to review the property disclosures and prepare your financing documentation.
-                  </p>
-                  <div className="border border-gray-200 rounded-lg p-4 bg-blue-50">
-                    <div className="flex items-start space-x-3">
-                      <span className="text-xl">💡</span>
-                      <div>
-                        <span className="font-medium text-gray-900 text-sm">Pro Tip: </span>
-                        <span className="text-gray-700 text-sm">
-                          Consider including an escalation clause in your offer to stay competitive in this market.
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+{(() => {
+                    const currentInProgressStep = steps.find(s => s.status === 'in_progress');
+                    const nextStep = steps.find(s => s.status === 'upcoming');
+                    
+                    if (!currentInProgressStep && !nextStep) {
+                      return (
+                        <p className="text-gray-700 mb-4 leading-relaxed">
+                          Congratulations! You've completed all the major steps in the home buying process.
+                        </p>
+                      );
+                    }
+                    
+                    const step = currentInProgressStep || nextStep;
+                    const actionMessages = {
+                      'schedule_viewing': 'Schedule a property tour to see the home in person and evaluate its condition.',
+                      'review_disclosures_reports': 'Review all property disclosures, reports, and documentation carefully.',
+                      'submit_offer': 'Prepare and submit your offer with appropriate terms and pricing strategy.',
+                      'inspection': 'Schedule and complete a professional home inspection to identify any issues.',
+                      'appraisal': 'Your lender will order an appraisal to determine the property\'s market value.',
+                      'final_walkthrough': 'Complete your final walkthrough to ensure the property is in agreed-upon condition.',
+                      'none': `Focus on ${step?.title?.toLowerCase()} to continue your home buying journey.`
+                    };
+                    
+                    const tips = {
+                      'schedule_viewing': 'Bring a list of questions and look for potential issues during your tour.',
+                      'review_disclosures_reports': 'Pay special attention to any disclosures about repairs, renovations, or known issues.',
+                      'submit_offer': 'Consider including an escalation clause to stay competitive in this market.',
+                      'inspection': 'Accompany the inspector and ask questions about any concerns they identify.',
+                      'appraisal': 'Ensure the property appraises for at least your offer amount to secure financing.',
+                      'final_walkthrough': 'Verify that any negotiated repairs have been completed satisfactorily.',
+                      'none': 'Stay in communication with your agent and lender throughout the process.'
+                    };
+                    
+                    return (
+                      <>
+                        <p className="text-gray-700 mb-4 leading-relaxed">
+                          {property ? actionMessages[property.action_required] || actionMessages.none : 
+                           `You're currently working on: ${step?.title}. ${step?.description}`}
+                        </p>
+                        <div className="border border-gray-200 rounded-lg p-4 bg-blue-50">
+                          <div className="flex items-start space-x-3">
+                            <span className="text-xl">💡</span>
+                            <div>
+                              <span className="font-medium text-gray-900 text-sm">Pro Tip: </span>
+                              <span className="text-gray-700 text-sm">
+                                {property ? tips[property.action_required] || tips.none : tips.none}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </CardContent>
