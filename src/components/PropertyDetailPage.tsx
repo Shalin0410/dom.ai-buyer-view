@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import ProgressTracker from './ProgressTracker';
+import ProgressTrackerLive from './ProgressTrackerLive';
 import { useProperty, usePropertyActivities } from '@/hooks/useProperties';
 import { useActionItems } from '@/hooks/useActionItems';
 import { useAuth } from '@/contexts/AuthContext';
@@ -340,7 +341,12 @@ const PropertyDetailPage = ({ propertyId, onBack }: PropertyDetailPageProps) => 
           {/* Process Section */}
           <section id="process" className="space-y-6">
             <h2 className="text-xl font-bold text-gray-900">Buying Process</h2>
-            <ProgressTracker showDetailed={true} property={property} />
+            {/* Use ProgressTrackerLive to show real-time timeline from database */}
+            {user?.id ? (
+              <ProgressTrackerLive personId={user.id} showDetailed={true} />
+            ) : (
+              <ProgressTracker showDetailed={true} property={property} />
+            )}
           </section>
 
           {/* Action Items Section */}
