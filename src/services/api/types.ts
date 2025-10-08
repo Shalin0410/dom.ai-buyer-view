@@ -1,4 +1,8 @@
 // API Types - Define all data structures used by the frontend
+
+// Re-export timeline types
+export * from './timeline-types';
+
 export interface Buyer {
   id: string;
   first_name: string;
