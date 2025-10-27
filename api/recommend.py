@@ -130,7 +130,8 @@ def fetch_properties_from_supabase(
     properties = []
     for prop in response.data:
         normalized = {
-            "zpid": prop.get("zillow_property_id") or prop["id"],
+            "id": prop["id"],  # Database UUID (for adding to buyer_properties)
+            "zpid": prop.get("zillow_property_id") or prop["id"],  # Display ID
             "address": prop.get("address", ""),
             "city": prop.get("city", ""),
             "state": prop.get("state", ""),
@@ -372,7 +373,8 @@ def recommend_hybrid(
     results = []
     for i, listing in enumerate(listings):
         result = {
-            "zpid": listing.get("zpid", ""),
+            "id": listing.get("id", ""),  # Database UUID
+            "zpid": listing.get("zpid", ""),  # Display ID
             "address": listing.get("address", ""),
             "city": listing.get("city", ""),
             "state": listing.get("state", ""),

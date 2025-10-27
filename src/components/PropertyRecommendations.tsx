@@ -6,7 +6,8 @@ import { Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from './ui/alert';
 
 interface RecommendedProperty {
-  zpid: string;
+  id: string;  // Database UUID
+  zpid: string;  // Display ID
   address: string;
   city: string;
   state: string;
