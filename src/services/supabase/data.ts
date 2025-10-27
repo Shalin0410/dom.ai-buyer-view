@@ -956,42 +956,53 @@ export class SupabaseDataService extends BaseDataService {
       }
 
       // 2. Get timeline history for this buyer-property relationship
-      const { data: timelineHistory } = await client
-        .from('timeline_history')
-        .select(`
-          id,
-          step_name,
-          status,
-          notes,
-          completed_at,
-          created_by,
-          timeline:timelines!timeline_history_timeline_id_fkey (
-            buyer_property_id
-          )
-        `)
-        .eq('timeline.buyer_property_id', buyerPropertyData.id)
-        .order('completed_at', { ascending: false });
+      // First get the timeline for this buyer-property
+      const { data: timeline } = await client
+        .from('timelines')
+        .select('id')
+        .eq('buyer_property_id', buyerPropertyData.id)
+        .maybeSingle();
+
+      let timelineHistory: any[] = [];
+
+      if (timeline) {
+        // Then get history for that timeline
+        const { data } = await client
+          .from('timeline_history')
+          .select(`
+            id,
+            changed_from,
+            changed_to,
+            fub_stage_from,
+            fub_stage_to,
+            change_reason,
+            created_at,
+            created_by
+          `)
+          .eq('timeline_id', timeline.id)
+          .order('created_at', { ascending: false });
+
+        timelineHistory = data || [];
+      }
 
       // Add timeline activities
-      (timelineHistory || []).forEach(history => {
-        if (history.completed_at) {
-          activities.push({
-            id: `timeline_${history.id}`,
-            property_id: propertyId,
-            type: 'milestone',
-            title: history.step_name,
-            description: history.notes || `${history.step_name} ${history.status}`,
-            created_at: history.completed_at,
-            created_by: history.created_by
-          });
-        }
+      timelineHistory.forEach(history => {
+        activities.push({
+          id: `timeline_history_${history.id}`,
+          property_id: propertyId,
+          type: 'milestone',
+          title: `Phase changed: ${history.changed_from} → ${history.changed_to}`,
+          description: history.change_reason || `FUB stage: ${history.fub_stage_from || 'N/A'} → ${history.fub_stage_to || 'N/A'}`,
+          created_at: history.created_at,
+          created_by: history.created_by
+        });
       });
 
       // 3. Get action items related to this property
       const { data: actionItems } = await client
         .from('action_items')
         .select('*')
-        .eq('buyer_id', buyerPropertyData.buyer_id)
+        .eq('assigned_buyer_id', buyerPropertyData.buyer_id)
         .ilike('title', `%property%`)
         .order('created_at', { ascending: false });
 
@@ -1012,7 +1023,7 @@ export class SupabaseDataService extends BaseDataService {
       const { data: documents } = await client
         .from('documents')
         .select('*')
-        .eq('buyer_id', buyerPropertyData.buyer_id)
+        .eq('buyer_property_id', buyerPropertyData.id)
         .order('created_at', { ascending: false });
 
       // Add document activities  
