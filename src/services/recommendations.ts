@@ -9,7 +9,8 @@
 import { dataService } from '@/services';
 
 export interface RecommendedProperty {
-  zpid: string;
+  id: string;  // Database UUID (use this for addPropertyToBuyer)
+  zpid: string;  // Display ID (Zillow ID or fallback to database ID)
   address: string;
   city: string;
   state: string;
@@ -129,8 +130,8 @@ export async function loadRecommendationsToSearchTab(
     // Step 2: Add each property to buyer_properties table
     for (const recommendation of data.recommendations) {
       try {
-        // The zpid from recommendations is the property ID in our database
-        const propertyId = recommendation.zpid;
+        // Use the database UUID (id) for adding to buyer_properties
+        const propertyId = recommendation.id;
 
         // Use the existing service to add property to buyer
         // This creates the buyer_properties relationship with:
