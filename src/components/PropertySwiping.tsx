@@ -8,6 +8,8 @@ import { Property, PropertyStatus } from '@/services/api/types';
 import { toast } from '@/hooks/use-toast';
 import { handlePropertyInteraction, PropertyAction } from '@/services/properties/interactions';
 import { ViewingScheduleModal } from '@/components/ViewingScheduleModal';
+import { LoadRecommendationsButton, LoadRecommendationsCompact } from '@/components/LoadRecommendationsButton';
+import { useAuth } from '@/contexts/AuthContext';
 
 // UI extension for property swiping
 interface SwipeProperty extends Omit<Property, 'status'> {
@@ -35,9 +37,13 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat, agentEmail
   const [currentPropertyIndex, setCurrentPropertyIndex] = useState(0);
   const [swipeProperties, setSwipeProperties] = useState<SwipeProperty[]>([]);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-  
+
+  // Get auth context for organization_id
+  const { user } = useAuth();
+
   // Get buyer ID from user profile
   const buyerId = userProfile?.id;
+  const organizationId = user?.organization_id || '';
 
   // Fetch available properties
   const { properties: availableProperties, loading, error } = useProperties(
@@ -242,13 +248,44 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat, agentEmail
     );
   }
   
-  // Show empty state
+  // Show empty state with AI recommendations option
   if (swipeProperties.length === 0 && !loading) {
     return (
-      <div className="text-center p-8">
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No properties found</h3>
-        <p className="text-gray-600 mb-4">We couldn't find any properties matching your criteria.</p>
-        <Button onClick={() => window.location.reload()}>Refresh</Button>
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-6">
+        <div className="max-w-2xl mx-auto pt-12 space-y-8">
+          <div className="text-center">
+            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-blue-100 flex items-center justify-center">
+              <Home className="h-10 w-10 text-blue-600" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-3">No Properties to Swipe</h3>
+            <p className="text-gray-600 mb-8 max-w-md mx-auto">
+              Your agent hasn't added any properties yet, or you've reviewed them all.
+              Try loading AI-powered recommendations based on your preferences!
+            </p>
+          </div>
+
+          {/* AI Recommendations Button */}
+          <LoadRecommendationsButton
+            buyerId={buyerId}
+            organizationId={organizationId}
+            buyerProfileId={buyerId}
+            onPropertiesLoaded={() => {
+              // Refresh the property list
+              window.location.reload();
+            }}
+          />
+
+          <div className="text-center">
+            <p className="text-sm text-gray-500 mb-4">or</p>
+            <Button
+              onClick={() => window.location.reload()}
+              variant="outline"
+              className="px-8"
+            >
+              Refresh to Check for New Properties
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -263,6 +300,12 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat, agentEmail
               <h1 className="text-lg font-semibold text-gray-900">Your Property Matches</h1>
               <p className="text-xs text-gray-600 mt-1">Discover properties curated just for you</p>
             </div>
+            <LoadRecommendationsCompact
+              buyerId={buyerId}
+              organizationId={organizationId}
+              buyerProfileId={buyerId}
+              onPropertiesLoaded={() => window.location.reload()}
+            />
           </div>
         </div>
       </div>

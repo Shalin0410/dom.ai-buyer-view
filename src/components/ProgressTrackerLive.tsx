@@ -16,7 +16,7 @@ interface ProgressTrackerProps {
 
 const ProgressTrackerLive = ({ personId, showDetailed = false }: ProgressTrackerProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const { timeline, summary, isLoading, error, toggleStepCompletion } = useTimelineOperations(personId);
+  const { timeline, summary, isLoading, error } = useTimelineOperations(personId);
 
   if (isLoading) {
     return (
@@ -40,81 +40,112 @@ const ProgressTrackerLive = ({ personId, showDetailed = false }: ProgressTracker
     );
   }
 
-  const steps = timeline.steps || [];
-  const currentStepIndex = steps.findIndex((step: TimelineStep) => !step.is_completed);
-  const progressPercentage = summary.progress_percentage;
+  // Map agent's detailed timeline steps to buyer-friendly simplified steps
+  const buyerFriendlySteps = [
+    { id: 1, title: "Tour", description: "Schedule and complete property tour", agentSteps: ["tour", "viewing", "showings"] },
+    { id: 2, title: "Review Disclosures", description: "Review property disclosures and reports", agentSteps: ["disclosures", "seller disclosures"] },
+    { id: 3, title: "Write Offer", description: "Prepare and submit your offer", agentSteps: ["offer", "prepare offer"] },
+    { id: 4, title: "Negotiate Terms", description: "Negotiate price and contract terms", agentSteps: ["negotiate", "counteroffers"] },
+    { id: 5, title: "Offer Accepted", description: "Celebrate your accepted offer", agentSteps: ["open escrow", "earnest money", "wire earnest"] },
+    { id: 6, title: "Home Inspection", description: "Professional property inspection", agentSteps: ["inspection", "begin inspections"] },
+    { id: 7, title: "Appraisal", description: "Lender orders property appraisal", agentSteps: ["appraisal"] },
+    { id: 8, title: "Remove Contingencies", description: "Remove inspection and appraisal contingencies", agentSteps: ["contingenc", "loan underwritten", "loan approved", "removes"] },
+    { id: 9, title: "Final Walkthrough", description: "Final property inspection before closing", agentSteps: ["walkthrough", "final walkthrough"] },
+    { id: 10, title: "Closing", description: "Sign documents and get your keys!", agentSteps: ["closing disclosure", "buyer signs", "escrow closes", "receives keys", "close"] }
+  ];
 
-  const getStepStatus = (step: TimelineStep) => {
-    if (step.is_completed) return 'completed';
-    if (currentStepIndex >= 0 && step.id === steps[currentStepIndex].id) return 'in_progress';
-    return 'upcoming';
-  };
+  const agentSteps = timeline.steps || [];
 
-  const getStepIcon = (step: TimelineStep, index: number) => {
-    const status = getStepStatus(step);
+  // Calculate which buyer-friendly steps are complete based on agent's timeline
+  const steps = buyerFriendlySteps.map(buyerStep => {
+    // Check if any agent steps matching this buyer step are completed
+    const matchingAgentSteps = agentSteps.filter((agentStep: TimelineStep) =>
+      buyerStep.agentSteps.some(keyword =>
+        agentStep.custom_step_name?.toLowerCase().includes(keyword.toLowerCase()) ||
+        agentStep.template_name?.toLowerCase().includes(keyword.toLowerCase())
+      )
+    );
 
+    const isCompleted = matchingAgentSteps.length > 0 &&
+                       matchingAgentSteps.some((s: TimelineStep) => s.is_completed);
+
+    const completedDate = isCompleted
+      ? matchingAgentSteps.find((s: TimelineStep) => s.completed_date)?.completed_date
+      : null;
+
+    // Determine status
+    let status = 'upcoming';
+    if (isCompleted) {
+      status = 'completed';
+    }
+
+    return {
+      ...buyerStep,
+      status,
+      date: completedDate ? format(new Date(completedDate), 'MMM dd, yyyy') : (isCompleted ? 'Completed' : 'Upcoming'),
+      is_completed: isCompleted
+    };
+  });
+
+  // Find first incomplete step for "in_progress" status
+  const firstIncompleteIndex = steps.findIndex(s => s.status === 'upcoming');
+  if (firstIncompleteIndex !== -1) {
+    steps[firstIncompleteIndex].status = 'in_progress';
+    steps[firstIncompleteIndex].date = 'In Progress';
+  }
+
+  // Calculate progress: count completed steps
+  const completedCount = steps.filter(s => s.status === 'completed').length;
+  const currentStep = completedCount + 1; // Next step after completed ones
+  const progressPercentage = (completedCount / steps.length) * 100;
+
+  const getStepIcon = (status: string, index: number) => {
     switch (status) {
       case 'completed':
         return (
-          <div className="w-3 h-3 bg-green-500 rounded-full flex items-center justify-center text-white shadow-md border-2 border-white relative z-10">
-            <CheckCircle size={8} />
+          <div className="w-3 h-3 bg-primary rounded-full flex items-center justify-center border-2 border-white relative z-10">
+            <CheckCircle size={8} className="text-white" />
           </div>
         );
       case 'in_progress':
         return (
-          <div className="w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center text-white shadow-md border-2 border-white relative z-10">
-            <div className="w-1 h-1 bg-white rounded-full animate-pulse"></div>
+          <div className="w-3 h-3 bg-accent rounded-full flex items-center justify-center border-2 border-white relative z-10">
+            <div className="w-1 h-1 bg-white rounded-full"></div>
           </div>
         );
       default:
         return (
-          <div className="w-3 h-3 bg-white rounded-full flex items-center justify-center text-gray-600 shadow-sm border-2 border-gray-300 relative z-10">
-            <span className="text-[8px] font-medium">{index + 1}</span>
+          <div className="w-3 h-3 bg-white rounded-full flex items-center justify-center border-2 border-muted relative z-10">
+            <span className="text-[8px] font-medium text-muted-foreground">{index + 1}</span>
           </div>
         );
     }
   };
 
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'Not set';
-    try {
-      return format(new Date(dateString), 'MMM dd, yyyy');
-    } catch {
-      return dateString;
-    }
-  };
-
-  const currentStep = summary.next_step;
-
   if (!showDetailed) {
     return (
-      <div className="border border-gray-200 shadow-lg bg-white/80 backdrop-blur-sm rounded-lg">
+      <div className="card-modern">
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center justify-between text-gray-900">
+          <CardTitle className="text-lg flex items-center justify-between text-foreground">
             Your Progress
-            <Badge className="bg-blue-500 text-white border-0 shadow-sm">
-              {summary.completed_steps} of {summary.total_steps}
+            <Badge className="bg-primary text-primary-foreground border-0 shadow-sm">
+              {currentStep} of {steps.length}
             </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">Overall Progress</span>
-              <span className="font-medium text-gray-900">{progressPercentage}%</span>
+              <span className="text-muted-foreground">Overall Progress</span>
+              <span className="font-medium text-foreground">{Math.round(progressPercentage)}%</span>
             </div>
             <Progress
               value={progressPercentage}
-              className="w-full h-2 bg-gray-200 rounded-full overflow-hidden"
+              className="w-full h-2 bg-muted rounded-full overflow-hidden"
             />
-            {currentStep && (
-              <div className="flex items-center text-sm text-gray-600">
-                <Clock size={16} className="mr-2 text-blue-500" />
-                Currently: {currentStep.template_name || currentStep.custom_step_name}
-              </div>
-            )}
-            <div className="text-xs text-gray-500 pt-2 border-t border-gray-200">
-              Phase: {summary.current_phase_name}
+            <div className="flex items-center text-sm text-muted-foreground">
+              <Clock size={16} className="mr-2" />
+              Currently: {steps.find(s => s.status === 'in_progress')?.title || 'Completed'}
             </div>
           </div>
         </CardContent>
@@ -125,20 +156,14 @@ const ProgressTrackerLive = ({ personId, showDetailed = false }: ProgressTracker
   return (
     <div className="space-y-4">
       {/* Compact Progress Line */}
-      <div className="border border-gray-200 shadow-lg bg-white/80 backdrop-blur-sm rounded-lg">
+      <div className="card-modern">
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">
-                {timeline.timeline_name || 'Home Buying Progress'}
-              </h2>
-              <p className="text-sm text-gray-600">{summary.current_phase_name}</p>
-            </div>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setIsExpanded(!isExpanded)}
-              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-300"
+              className="flex items-center space-x-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-all duration-300"
             >
               <span className="text-sm">Details</span>
               {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -148,25 +173,25 @@ const ProgressTrackerLive = ({ personId, showDetailed = false }: ProgressTracker
           {/* Single Line Progress */}
           <div className="relative px-2">
             {/* Background Line */}
-            <div className="absolute top-[6px] left-4 right-4 h-0.5 bg-gray-300 rounded-full"></div>
+            <div className="absolute top-[6px] left-4 right-4 h-0.5 bg-muted rounded-full"></div>
 
             {/* Progress Line */}
             <div
-              className="absolute top-[6px] left-4 h-0.5 bg-gradient-to-r from-green-500 to-blue-500 rounded-full transition-all duration-1000 ease-out shadow-sm"
+              className="absolute top-[6px] left-4 h-0.5 bg-primary rounded-full transition-all duration-1000 ease-out"
               style={{ width: `calc(${progressPercentage}% * 0.9)` }}
             ></div>
 
             {/* Progress Steps - Single Line */}
             <div className="flex justify-between items-start">
-              {steps.slice(0, 10).map((step: TimelineStep, index: number) => (
+              {steps.map((step, index) => (
                 <div key={step.id} className="flex flex-col items-center">
-                  {getStepIcon(step, index)}
+                  {getStepIcon(step.status, index)}
                   <span className={`text-[10px] mt-1 font-medium text-center max-w-[40px] leading-tight ${
-                    step.is_completed ? 'text-green-600' :
-                    getStepStatus(step) === 'in_progress' ? 'text-blue-600' :
-                    'text-gray-500'
+                    step.status === 'completed' ? 'text-primary' :
+                    step.status === 'in_progress' ? 'text-accent' :
+                    'text-muted-foreground'
                   }`}>
-                    {(step.template_name || step.custom_step_name || '').slice(0, 15)}
+                    {step.title}
                   </span>
                 </div>
               ))}
@@ -177,20 +202,18 @@ const ProgressTrackerLive = ({ personId, showDetailed = false }: ProgressTracker
           <div className="flex justify-center mt-6">
             <div className="flex items-center space-x-6 text-sm">
               <div className="text-center">
-                <div className="text-lg font-bold text-gray-900">{currentStepIndex + 1}</div>
-                <div className="text-gray-600 text-xs">Current</div>
+                <div className="text-lg font-bold text-foreground">{currentStep}</div>
+                <div className="text-muted-foreground text-xs">Current</div>
               </div>
-              <div className="w-px h-8 bg-gray-300"></div>
+              <div className="w-px h-8 bg-border"></div>
               <div className="text-center">
-                <div className="text-lg font-bold text-blue-600">{progressPercentage}%</div>
-                <div className="text-gray-600 text-xs">Complete</div>
+                <div className="text-lg font-bold text-foreground">{Math.round(progressPercentage)}%</div>
+                <div className="text-muted-foreground text-xs">Complete</div>
               </div>
-              <div className="w-px h-8 bg-gray-300"></div>
+              <div className="w-px h-8 bg-border"></div>
               <div className="text-center">
-                <div className="text-lg font-bold text-gray-900">
-                  {summary.total_steps - summary.completed_steps}
-                </div>
-                <div className="text-gray-600 text-xs">Remaining</div>
+                <div className="text-lg font-bold text-foreground">{steps.length - currentStep + 1}</div>
+                <div className="text-muted-foreground text-xs">Remaining</div>
               </div>
             </div>
           </div>
@@ -199,109 +222,47 @@ const ProgressTrackerLive = ({ personId, showDetailed = false }: ProgressTracker
 
       {/* Expandable Details */}
       {isExpanded && (
-        <div className="space-y-4 animate-fade-in">
+        <div className="space-y-3 animate-fade-in mt-6">
           {/* Detailed Timeline */}
-          <div className="border border-gray-200 shadow-lg bg-white/80 backdrop-blur-sm rounded-lg">
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-4 text-gray-900">Detailed Timeline</h3>
-              <div className="space-y-4">
-                {steps.map((step: TimelineStep, index: number) => {
-                  const status = getStepStatus(step);
-                  return (
-                    <div
-                      key={step.id}
-                      className="flex items-start space-x-4 p-4 rounded-lg hover:bg-gray-50 transition-all duration-300 group"
-                    >
-                      {getStepIcon(step, index)}
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <h4 className={`font-medium ${
-                            step.is_completed ? 'text-green-600' :
-                            status === 'in_progress' ? 'text-blue-600' :
-                            'text-gray-900'
-                          }`}>
-                            {step.template_name || step.custom_step_name}
-                          </h4>
-                          <span className="text-sm text-gray-600">
-                            {step.is_completed ? formatDate(step.completed_date) : formatDate(step.due_date)}
-                          </span>
-                        </div>
-                        {step.template_description && (
-                          <p className="text-sm text-gray-600 mt-1">{step.template_description}</p>
-                        )}
-                        {step.notes && (
-                          <p className="text-sm text-gray-500 mt-2 italic">Note: {step.notes}</p>
-                        )}
-                        {status === 'in_progress' && (
-                          <Badge className="mt-3 bg-blue-500 text-white text-xs border-0 shadow-sm">
-                            Current Step
+          {steps.map((step, index) => (
+            <div key={step.id} className="card-modern p-4 transition-all duration-200 hover:shadow-floating">
+              <div className="flex items-start gap-4">
+                {/* Step Icon */}
+                <div className="mt-1">
+                  {getStepIcon(step.status, index)}
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h4 className={`font-semibold text-foreground mb-1 ${
+                        step.status === 'completed' ? 'line-through text-muted-foreground' : ''
+                      }`}>
+                        {step.title}
+                      </h4>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {step.description}
+                      </p>
+
+                      {/* Status and Date */}
+                      <div className="flex items-center gap-3">
+                        {step.status === 'in_progress' && (
+                          <Badge variant="outline" className="text-xs bg-accent/10 text-accent border-accent/20">
+                            IN PROGRESS
                           </Badge>
                         )}
-                        {step.is_completed && step.completion_notes && (
-                          <p className="text-sm text-green-600 mt-2">✓ {step.completion_notes}</p>
-                        )}
+                        <span className="text-xs text-muted-foreground flex items-center">
+                          <Clock size={12} className="mr-1" />
+                          {step.date}
+                        </span>
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                </div>
               </div>
-            </CardContent>
-          </div>
-
-          {/* Up Next Card */}
-          {currentStep && (
-            <div className="border border-gray-200 shadow-lg bg-white/90 backdrop-blur-sm rounded-lg">
-              <CardContent className="p-6">
-                <div className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg">
-                    <Clock size={20} className="text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-gray-900 mb-3">Up Next</h4>
-                    <p className="text-gray-700 mb-4 leading-relaxed">
-                      You're currently working on: <strong>{currentStep.template_name || currentStep.custom_step_name}</strong>
-                    </p>
-                    {currentStep.template_description && (
-                      <p className="text-gray-600 text-sm mb-4">{currentStep.template_description}</p>
-                    )}
-                    {currentStep.due_date && (
-                      <div className="border border-gray-200 rounded-lg p-4 bg-blue-50">
-                        <div className="flex items-start space-x-3">
-                          <span className="text-xl">📅</span>
-                          <div>
-                            <span className="font-medium text-gray-900 text-sm">Due Date: </span>
-                            <span className="text-gray-700 text-sm">
-                              {formatDate(currentStep.due_date)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
             </div>
-          )}
-
-          {/* Recent Completions */}
-          {summary.recent_completions.length > 0 && (
-            <div className="border border-gray-200 shadow-lg bg-white/90 backdrop-blur-sm rounded-lg">
-              <CardContent className="p-6">
-                <h4 className="font-semibold text-gray-900 mb-4">Recently Completed</h4>
-                <div className="space-y-3">
-                  {summary.recent_completions.map((step: TimelineStep) => (
-                    <div key={step.id} className="flex items-center space-x-3 text-sm">
-                      <CheckCircle size={16} className="text-green-500 flex-shrink-0" />
-                      <span className="text-gray-700 flex-1">
-                        {step.template_name || step.custom_step_name}
-                      </span>
-                      <span className="text-gray-500">{formatDate(step.completed_date)}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </div>
-          )}
+          ))}
         </div>
       )}
     </div>

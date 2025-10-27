@@ -1,5 +1,5 @@
 // Timeline Data Service - Supabase Implementation
-import { supabase } from '@/lib/supabaseClient';
+import { supabase, supabaseAdmin } from '@/lib/supabaseClient';
 import {
   Timeline,
   TimelineStep,
@@ -17,7 +17,18 @@ export class TimelineDataService {
    */
   async getTimelineByPersonId(personId: string): Promise<ApiResponse<Timeline>> {
     try {
-      const { data, error } = await supabase
+      // Use admin client to bypass RLS (buyer view uses mock auth)
+      // First, try to get timeline via buyer_property (this will have timeline_steps)
+      const { data: buyerProperty } = await supabaseAdmin
+        .from('buyer_properties')
+        .select('id')
+        .eq('buyer_id', personId)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let query = supabaseAdmin
         .from('timelines')
         .select(`
           *,
@@ -29,27 +40,43 @@ export class TimelineDataService {
             )
           )
         `)
-        .eq('person_id', personId)
         .eq('is_active', true)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+        .limit(1);
+
+      // If buyer_property exists, prioritize timeline by buyer_property_id
+      if (buyerProperty) {
+        query = query.eq('buyer_property_id', buyerProperty.id);
+      } else {
+        // Fallback to person_id for legacy timelines
+        query = query.eq('person_id', personId);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching timeline:', error);
         return { data: null, error: error.message, success: false };
       }
 
+      // Handle no results
+      if (!data || data.length === 0) {
+        return { data: null, error: null, success: true };
+      }
+
+      // Get first result
+      const timeline = data[0];
+
       // Enrich steps with template information
-      if (data && data.steps) {
-        data.steps = data.steps.map((step: any) => ({
+      if (timeline && timeline.steps) {
+        timeline.steps = timeline.steps.map((step: any) => ({
           ...step,
           template_name: step.template?.name || step.custom_step_name,
           template_description: step.template?.description,
         })).sort((a: any, b: any) => a.step_order - b.step_order);
       }
 
-      return { data, error: null, success: true };
+      return { data: timeline, error: null, success: true };
     } catch (error: any) {
       console.error('Error in getTimelineByPersonId:', error);
       return { data: null, error: error.message, success: false };
