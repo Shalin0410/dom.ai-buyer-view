@@ -106,7 +106,7 @@ export async function loadRecommendationsToSearchTab(
       requestBody.preferred_areas = preferredAreas;
     }
 
-    const response = await fetch('/api/recommend.py', {
+    const response = await fetch('/api/recommend', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -202,7 +202,7 @@ export async function fetchRecommendations(
       requestBody.preferred_areas = preferredAreas;
     }
 
-    const response = await fetch('/api/recommend.py', {
+    const response = await fetch('/api/recommend', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
