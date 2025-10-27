@@ -1,9 +1,25 @@
-# Core dependencies for ML recommendation system
+# ============================================================================
+# LIGHTWEIGHT VERSION (Default - for Vercel)
+# Total size: ~50MB (under 250MB limit)
+# Scoring: 70% LLM + 30% Rules
+# ============================================================================
 openai>=1.0.0
 supabase>=2.0.0
-numpy>=1.24.0
-pandas>=2.0.0
-scikit-learn>=1.3.0
 
-# Optional: for better performance
-requests>=2.31.0
+# ============================================================================
+# FULL ML VERSION (Uncomment when deploying to larger infrastructure)
+# Total size: ~250MB (exceeds Vercel's 250MB limit)
+# Scoring: 50% LLM + 30% ML + 20% Rules
+# ============================================================================
+# numpy>=1.24.0
+# pandas>=2.0.0
+# scikit-learn>=1.3.0
+
+# ============================================================================
+# To enable Full ML version:
+# 1. Uncomment the ML libraries above
+# 2. Rename api/recommend.py to api/recommend_lightweight.py
+# 3. Rename api/recommend_full_ml.py to api/recommend.py
+# 4. Update vercel.json builds.src to "api/recommend.py"
+# 5. Deploy to AWS Lambda / Google Cloud Functions / DigitalOcean
+# ============================================================================

@@ -1,20 +1,22 @@
 """
-Vercel Serverless Function: Lightweight Property Recommendation API
-LIGHTWEIGHT VERSION: LLM (70%) + Rules (30%) - No ML libraries
-For Full ML version, see recommend_full_ml.py
+Vercel Serverless Function: Hybrid Property Recommendation API
+Adapted from smart_home_hybrid_vc_demo.py to work with Supabase data
 """
 
 from http.server import BaseHTTPRequestHandler
 import json
 import os
 from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
+import numpy as np
+import pandas as pd
 from openai import OpenAI
 
 # Supabase connection
 try:
     from supabase import create_client, Client
 except ImportError:
+    # For local development without supabase-py
     Client = None
 
 # Initialize clients
@@ -54,7 +56,9 @@ class Preferences:
 
 
 def parse_prefs_llm(user_text: str) -> Preferences:
-    """Parse free-form buyer preferences using OpenAI LLM"""
+    """
+    Parse free-form buyer preferences using OpenAI LLM
+    """
     prompt = f"""
 You are a real estate assistant. Extract structured preferences from this buyer's description.
 
@@ -83,6 +87,7 @@ Only output valid JSON, nothing else.
     )
 
     result_text = response.choices[0].message.content.strip()
+    # Remove markdown code blocks if present
     if result_text.startswith("```"):
         lines = result_text.split("\n")
         result_text = "\n".join(lines[1:-1])
@@ -100,10 +105,13 @@ def fetch_properties_from_supabase(
     property_types: List[str] = None,
     limit: int = 100
 ) -> List[Dict[str, Any]]:
-    """Fetch properties from Supabase database with filters"""
+    """
+    Fetch properties from Supabase database with filters
+    """
     if not supabase:
         return []
 
+    # Build query
     query = supabase.table("properties").select(
         "id, address, city, state, zip_code, coordinates, "
         "listing_price, bedrooms, bathrooms, square_feet, lot_size, "
@@ -111,6 +119,7 @@ def fetch_properties_from_supabase(
         "zillow_property_id, data_source"
     )
 
+    # Apply filters
     if min_price > 0:
         query = query.gte("listing_price", min_price)
     if max_price < 999999999:
@@ -119,16 +128,23 @@ def fetch_properties_from_supabase(
         query = query.gte("bedrooms", min_beds)
     if min_baths > 0:
         query = query.gte("bathrooms", min_baths)
+
+    # Property type filter
     if property_types:
         query = query.in_("property_type", property_types)
+
+    # Area filter
     if preferred_areas:
         query = query.in_("city", preferred_areas)
 
     query = query.limit(limit)
+
     response = query.execute()
 
+    # Convert to list of dicts
     properties = []
     for prop in response.data:
+        # Normalize structure to match original ML code expectations
         normalized = {
             "zpid": prop.get("zillow_property_id") or prop["id"],
             "address": prop.get("address", ""),
@@ -154,19 +170,29 @@ def fetch_properties_from_supabase(
 
 
 def enrich_with_schools_data(listing: Dict[str, Any]) -> Dict[str, Any]:
-    """Use schools data already stored in the database"""
+    """
+    Use schools data already stored in the database
+    """
     schools = listing.get("schools", [])
+
+    # Calculate average school rating if available
     ratings = [s.get("rating", 0) for s in schools if s.get("rating")]
     listing["avg_school_rating"] = sum(ratings) / len(ratings) if ratings else 0
+
+    # Find closest school distance
     distances = [s.get("distance", 999) for s in schools if s.get("distance")]
     listing["closest_school_miles"] = min(distances) if distances else None
+
     return listing
 
 
 def rule_score(listing: Dict[str, Any], prefs: Preferences) -> Tuple[float, List[str]]:
-    """Rule-based scoring based on budget fit, property features, and schools"""
+    """
+    Rule-based scoring based on budget fit, property features, and schools
+    """
     score = 0.0
     reasons = []
+
     price = listing.get("price", 0)
 
     # Budget fit (0-40 points)
@@ -179,10 +205,12 @@ def rule_score(listing: Dict[str, Any], prefs: Preferences) -> Tuple[float, List
         budget_score = 0
         reasons.append("Over budget")
     else:
+        # Score higher for properties in the middle of budget range
         budget_range = prefs.budget_max - prefs.budget_min
         if budget_range > 0:
             distance_from_min = price - prefs.budget_min
             ratio = distance_from_min / budget_range
+            # Peak score at 40-60% of budget range
             if ratio < 0.4:
                 budget_score = 30 + (ratio / 0.4) * 10
             elif ratio < 0.6:
@@ -198,10 +226,12 @@ def rule_score(listing: Dict[str, Any], prefs: Preferences) -> Tuple[float, List
     # Bedrooms/bathrooms (0-20 points)
     beds = listing.get("bedrooms", 0)
     baths = listing.get("bathrooms", 0)
+
     if beds >= prefs.min_beds:
         score += 10
         if beds > prefs.min_beds:
             reasons.append(f"{beds} bedrooms (more than required)")
+
     if baths >= prefs.min_baths:
         score += 10
         if baths > prefs.min_baths:
@@ -232,10 +262,12 @@ def rule_score(listing: Dict[str, Any], prefs: Preferences) -> Tuple[float, List
     # Must-have features (0-10 points)
     description_lower = listing.get("description", "").lower()
     property_type_lower = listing.get("propertyType", "").lower()
+
     must_have_matches = 0
     for must in prefs.must_haves:
         if must.lower() in description_lower or must.lower() in property_type_lower:
             must_have_matches += 1
+
     if prefs.must_haves:
         must_have_ratio = must_have_matches / len(prefs.must_haves)
         score += must_have_ratio * 10
@@ -246,10 +278,13 @@ def rule_score(listing: Dict[str, Any], prefs: Preferences) -> Tuple[float, List
 
 
 def llm_score_batch(prefs: Preferences, listings: List[Dict[str, Any]]) -> Dict[str, float]:
-    """Score all listings in a single LLM call for efficiency"""
+    """
+    Score all listings in a single LLM call for efficiency
+    """
     if not listings:
         return {}
 
+    # Create summary for each listing
     summaries = []
     for i, listing in enumerate(listings):
         summary = f"""
@@ -300,6 +335,8 @@ Return ONLY a JSON object mapping property index to score:
         result_text = "\n".join(lines[1:-1])
 
     scores_by_index = json.loads(result_text)
+
+    # Map back to zpid
     scores = {}
     for i, listing in enumerate(listings):
         zpid = listing.get("zpid", "")
@@ -309,27 +346,57 @@ Return ONLY a JSON object mapping property index to score:
     return scores
 
 
+def fit_ml_and_predict(X: pd.DataFrame, y_llm: np.ndarray) -> np.ndarray:
+    """
+    Train Ridge regression to mimic LLM scores
+    """
+    from sklearn.linear_model import Ridge
+    from sklearn.preprocessing import StandardScaler
+
+    # Handle missing values
+    X_filled = X.fillna(0)
+
+    # Scale features
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X_filled)
+
+    # Train Ridge regression
+    model = Ridge(alpha=1.0)
+    model.fit(X_scaled, y_llm)
+
+    # Predict
+    y_pred = model.predict(X_scaled)
+
+    # Clip to 0-100 range
+    y_pred = np.clip(y_pred, 0, 100)
+
+    return y_pred
+
+
 def recommend_hybrid(
     user_prefs_text: str = None,
     prefs: Preferences = None,
     preferred_areas: List[str] = None,
     limit: int = 50,
-    w_llm: float = 0.7,  # Increased from 0.5
-    w_rule: float = 0.3   # Increased from 0.2
-) -> List[Dict[str, Any]]:
+    w_llm: float = 0.5,
+    w_ml: float = 0.3,
+    w_rule: float = 0.2
+) -> pd.DataFrame:
     """
-    LIGHTWEIGHT VERSION: LLM (70%) + Rules (30%)
-    For Full ML version with Ridge regression, see recommend_full_ml.py
+    Main recommendation function using hybrid scoring
     """
+    # Parse preferences if text provided
     if user_prefs_text and not prefs:
         prefs = parse_prefs_llm(user_prefs_text)
 
     if not prefs:
         raise ValueError("Must provide either user_prefs_text or prefs object")
 
+    # Use preferred_areas from prefs if not provided
     if not preferred_areas and prefs.preferred_areas:
         preferred_areas = prefs.preferred_areas
 
+    # Fetch properties from Supabase
     listings = fetch_properties_from_supabase(
         preferred_areas=preferred_areas,
         min_price=prefs.budget_min,
@@ -341,8 +408,9 @@ def recommend_hybrid(
     )
 
     if not listings:
-        return []
+        return pd.DataFrame()
 
+    # Enrich with schools data
     for listing in listings:
         enrich_with_schools_data(listing)
 
@@ -352,23 +420,46 @@ def recommend_hybrid(
     for listing in listings:
         score, reasons = rule_score(listing, prefs)
         rule_scores.append(score)
-        rule_reasons.append("; ".join(reasons[:3]))
+        rule_reasons.append("; ".join(reasons[:3]))  # Top 3 reasons
 
     # Calculate LLM scores (batch)
     llm_scores_dict = llm_score_batch(prefs, listings)
     llm_scores = [llm_scores_dict.get(listing.get("zpid", ""), 50) for listing in listings]
 
-    # Normalize rule scores to 0-100
-    max_rule = max(rule_scores) if rule_scores else 1
-    rule_scores_norm = [(s / max_rule) * 100 for s in rule_scores]
+    # Prepare features for ML model
+    features_list = []
+    for listing in listings:
+        features = {
+            "price": listing.get("price", 0),
+            "bedrooms": listing.get("bedrooms", 0),
+            "bathrooms": listing.get("bathrooms", 0),
+            "sqft": listing.get("livingArea", 0),
+            "lot_size": listing.get("lotSize", 0),
+            "year_built": listing.get("yearBuilt", 0) or 0,
+            "avg_school_rating": listing.get("avg_school_rating", 0),
+            "price_per_sqft": listing.get("price", 0) / listing.get("livingArea", 1) if listing.get("livingArea", 0) > 0 else 0
+        }
+        features_list.append(features)
 
-    # Calculate hybrid score (LLM 70% + Rules 30%)
-    hybrid_scores = [
-        w_llm * llm_scores[i] + w_rule * rule_scores_norm[i]
-        for i in range(len(listings))
-    ]
+    X = pd.DataFrame(features_list)
+    y_llm = np.array(llm_scores)
 
-    # Create results
+    # Train ML model and predict
+    ml_scores = fit_ml_and_predict(X, y_llm)
+
+    # Normalize all scores to 0-100
+    rule_scores_norm = np.array(rule_scores)
+    max_rule = rule_scores_norm.max() if rule_scores_norm.max() > 0 else 1
+    rule_scores_norm = (rule_scores_norm / max_rule) * 100
+
+    # Calculate hybrid score
+    hybrid_scores = (
+        w_llm * np.array(llm_scores) +
+        w_ml * ml_scores +
+        w_rule * rule_scores_norm
+    )
+
+    # Create results DataFrame
     results = []
     for i, listing in enumerate(listings):
         result = {
@@ -386,32 +477,38 @@ def recommend_hybrid(
             "avg_school_rating": listing.get("avg_school_rating", 0),
             "hybrid_score": hybrid_scores[i],
             "llm_score": llm_scores[i],
-            "ml_score": 0,  # Not used in lightweight version
+            "ml_score": ml_scores[i],
             "rule_score": rule_scores_norm[i],
             "match_reasons": rule_reasons[i]
         }
         results.append(result)
 
-    # Sort by hybrid score
-    results.sort(key=lambda x: x["hybrid_score"], reverse=True)
-    return results
+    df = pd.DataFrame(results)
+    df = df.sort_values("hybrid_score", ascending=False).reset_index(drop=True)
+
+    return df
 
 
 class handler(BaseHTTPRequestHandler):
-    """Vercel serverless function handler"""
+    """
+    Vercel serverless function handler
+    """
 
     def do_POST(self):
         """Handle POST requests for property recommendations"""
         try:
+            # Parse request body
             content_length = int(self.headers.get('Content-Length', 0))
             body = self.rfile.read(content_length).decode('utf-8')
             data = json.loads(body)
 
+            # Extract parameters
             user_prefs_text = data.get("preferences_text")
             buyer_profile_id = data.get("buyer_profile_id")
             preferred_areas = data.get("preferred_areas")
             limit = data.get("limit", 50)
 
+            # If buyer_profile_id provided, fetch from database
             prefs = None
             if buyer_profile_id and supabase:
                 profile_response = supabase.table("buyer_profiles").select("*").eq("person_id", buyer_profile_id).execute()
@@ -425,27 +522,33 @@ class handler(BaseHTTPRequestHandler):
                         preferred_areas=profile.get("preferred_areas", []),
                         property_types=profile.get("property_type_preferences", [])
                     )
+                    # Use raw_background for LLM parsing if available
                     if not user_prefs_text and profile.get("raw_background"):
                         user_prefs_text = profile.get("raw_background")
 
-            recommendations = recommend_hybrid(
+            # Get recommendations
+            df = recommend_hybrid(
                 user_prefs_text=user_prefs_text,
                 prefs=prefs,
                 preferred_areas=preferred_areas,
                 limit=limit
             )
 
+            # Convert to JSON
+            recommendations = df.to_dict(orient="records")
+
+            # Send response
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps({
                 "success": True,
                 "count": len(recommendations),
-                "recommendations": recommendations,
-                "version": "lightweight"  # Indicate which version is running
+                "recommendations": recommendations
             }).encode('utf-8'))
 
         except Exception as e:
+            # Error response
             self.send_response(500)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
@@ -461,6 +564,5 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps({
             "status": "ok",
-            "message": "Property Recommendation API is running",
-            "version": "lightweight (LLM 70% + Rules 30%)"
+            "message": "Property Recommendation API is running"
         }).encode('utf-8'))
