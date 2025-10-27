@@ -76,7 +76,7 @@ export function PropertyRecommendations({
         requestBody.preferred_areas = preferredAreas;
       }
 
-      const response = await fetch('/api/recommend.py', {
+      const response = await fetch('/api/recommend', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -292,7 +292,7 @@ export function usePropertyRecommendations(
         requestBody.preferred_areas = preferredAreas;
       }
 
-      const response = await fetch('/api/recommend.py', {
+      const response = await fetch('/api/recommend', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
