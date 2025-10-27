@@ -12,12 +12,7 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/((?!api|_next|.*\\..*).*)", "destination": "/" }
-  ],
-  "env": {
-    "OPENAI_API_KEY": "@openai_api_key",
-    "SUPABASE_URL": "@supabase_url",
-    "SUPABASE_SERVICE_ROLE_KEY": "@supabase_service_role_key"
-  }
+  ]
 }
 
 
