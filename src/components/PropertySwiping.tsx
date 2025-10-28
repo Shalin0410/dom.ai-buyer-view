@@ -220,30 +220,14 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat, agentEmail
     );
   }
   
-  // Show error state
+  // Show error state (only for real errors, not empty results)
   if (error) {
-    // Check if this is a "no properties" message (informational) vs actual error
-    const isNoPropertiesMessage = error.includes('No properties') || error.includes('No properties available');
-    
-    if (isNoPropertiesMessage) {
-      return (
-        <div className="text-center p-8">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-100 flex items-center justify-center">
-            <Home className="h-8 w-8 text-blue-600" />
-          </div>
-          <h3 className="text-lg font-semibold text-blue-900 mb-2">No Properties Available</h3>
-          <p className="text-blue-700 mb-4">{error}</p>
-          <Button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-700 text-white">
-            Refresh
-          </Button>
-        </div>
-      );
-    }
-    
-    // Actual error
     return (
       <div className="text-center p-8 text-red-600">
-        Error loading properties. Please try again later.
+        Error loading properties: {error}
+        <Button onClick={() => window.location.reload()} className="mt-4">
+          Retry
+        </Button>
       </div>
     );
   }
