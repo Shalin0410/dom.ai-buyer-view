@@ -22,19 +22,10 @@ export const useProperties = (buyerId?: string, initialFilter?: PropertyFilter, 
       }
       
       if (response.success) {
-        // Set properties (empty array is valid)
+        // Set properties (empty array is valid - don't set error for empty results)
         setProperties(response.data || []);
         // Clear any previous errors
         setError(null);
-        
-        // Show appropriate message for no properties
-        if (response.data?.length === 0) {
-          if (mode === 'available') {
-            setError('No properties available for browsing at this time. Please check back later or contact your agent.');
-          } else {
-            setError('No properties found. Start by adding properties to your list.');
-          }
-        }
       } else {
         setError(response.error || 'Failed to fetch properties');
         setProperties([]);
