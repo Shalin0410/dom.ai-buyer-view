@@ -98,6 +98,15 @@ export interface Property {
   closing_date?: string;
   last_activity_at: string;
 
+  // ML Scoring fields from buyer_properties table
+  hybrid_score?: number;
+  llm_score?: number;
+  ml_score?: number;
+  rule_score?: number;
+  match_reasons?: string;
+  recommended_at?: string;
+  recommendation_source?: string;
+
   // Related data
   photos: PropertyPhoto[];
   buyer?: Buyer;

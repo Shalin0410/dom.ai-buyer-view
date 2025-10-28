@@ -137,10 +137,18 @@ export async function loadRecommendationsToSearchTab(
         // This creates the buyer_properties relationship with:
         // - interest_level='interested'
         // - is_active=true
-        // - relationship_type='home_buyer'
+        // - ML scoring data for ranking and display
         const addResponse = await dataService.addPropertyToBuyer(
           buyerId,
-          propertyId
+          propertyId,
+          {
+            hybridScore: recommendation.hybrid_score,
+            llmScore: recommendation.llm_score,
+            mlScore: recommendation.ml_score,
+            ruleScore: recommendation.rule_score,
+            matchReasons: recommendation.match_reasons,
+            recommendationSource: 'ml_api'
+          }
         );
 
         if (addResponse.success) {
