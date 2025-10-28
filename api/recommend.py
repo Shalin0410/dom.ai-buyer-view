@@ -448,13 +448,23 @@ class handler(BaseHTTPRequestHandler):
             }).encode('utf-8'))
 
         except Exception as e:
+            import traceback
+            error_details = {
+                "success": False,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "traceback": traceback.format_exc(),
+                "env_check": {
+                    "has_openai_key": bool(os.environ.get("OPENAI_API_KEY")),
+                    "has_supabase_url": bool(os.environ.get("SUPABASE_URL")),
+                    "has_supabase_key": bool(os.environ.get("SUPABASE_SERVICE_ROLE_KEY")),
+                    "supabase_client_initialized": supabase is not None
+                }
+            }
             self.send_response(500)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps({
-                "success": False,
-                "error": str(e)
-            }).encode('utf-8'))
+            self.wfile.write(json.dumps(error_details).encode('utf-8'))
 
     def do_GET(self):
         """Handle GET requests for health check"""

@@ -116,7 +116,17 @@ export async function loadRecommendationsToSearchTab(
     });
 
     if (!response.ok) {
-      throw new Error(`ML API error: ${response.status}`);
+      // Try to get detailed error from API
+      let errorDetails = `ML API error: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        console.error('API Error Details:', errorData);
+        errorDetails = errorData.error || errorData.traceback || errorDetails;
+      } catch (e) {
+        // If response isn't JSON, use status text
+        errorDetails = response.statusText || errorDetails;
+      }
+      throw new Error(errorDetails);
     }
 
     const data: RecommendationResponse = await response.json();
