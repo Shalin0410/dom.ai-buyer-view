@@ -1971,7 +1971,7 @@ export class SupabaseDataService extends BaseDataService {
   async scheduleViewing(buyerId: string, propertyId: string): Promise<ApiResponse<any>> {
     try {
       const client = this.getClient();
-      
+
       // Update buyer_property interest_level to 'viewing_scheduled'
       // This will trigger the database trigger to create a timeline
       const { data, error } = await client
@@ -1994,6 +1994,69 @@ export class SupabaseDataService extends BaseDataService {
       return this.createResponse(data, null);
     } catch (error) {
       console.error('Error in scheduleViewing:', error);
+      const apiError = this.handleError(error);
+      return this.createResponse(null, apiError.message);
+    }
+  }
+
+  /**
+   * Get buyer's property interaction history for ML recommendation feedback
+   * Returns property IDs grouped by interaction type (loved, passed, etc.)
+   */
+  async getBuyerPropertyInteractions(buyerId: string): Promise<ApiResponse<{
+    loved: string[];
+    viewing_scheduled: string[];
+    saved: string[];
+    passed: string[];
+  }>> {
+    try {
+      const client = this.getClient();
+
+      // Fetch all property interactions for this buyer
+      const { data, error } = await client
+        .from('buyer_properties')
+        .select('property_id, interest_level')
+        .eq('buyer_id', buyerId);
+
+      if (error) {
+        console.error('Error fetching buyer property interactions:', error);
+        return this.createResponse(null, error.message);
+      }
+
+      // Group property IDs by interest level
+      const interactions = {
+        loved: [] as string[],
+        viewing_scheduled: [] as string[],
+        saved: [] as string[],
+        passed: [] as string[]
+      };
+
+      data?.forEach((item: any) => {
+        const propertyId = item.property_id;
+        const interestLevel = item.interest_level;
+
+        if (interestLevel === 'loved') {
+          interactions.loved.push(propertyId);
+        } else if (interestLevel === 'viewing_scheduled') {
+          interactions.viewing_scheduled.push(propertyId);
+        } else if (interestLevel === 'interested') {
+          // 'interested' with no further action = saved for later
+          interactions.saved.push(propertyId);
+        } else if (interestLevel === 'passed') {
+          interactions.passed.push(propertyId);
+        }
+      });
+
+      console.log(`Fetched interaction history for buyer ${buyerId}:`, {
+        loved: interactions.loved.length,
+        viewing_scheduled: interactions.viewing_scheduled.length,
+        saved: interactions.saved.length,
+        passed: interactions.passed.length
+      });
+
+      return this.createResponse(interactions, null);
+    } catch (error) {
+      console.error('Error in getBuyerPropertyInteractions:', error);
       const apiError = this.handleError(error);
       return this.createResponse(null, apiError.message);
     }

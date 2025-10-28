@@ -47,7 +47,7 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat, agentEmail
   const organizationId = user?.organization_id || '';
 
   // Fetch available properties
-  const { properties: availableProperties, loading, error } = useProperties(
+  const { properties: availableProperties, loading, error, refreshProperties } = useProperties(
     buyerId,
     {}, // Remove status filter to show all properties for this buyer
     'available'
@@ -304,9 +304,10 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat, agentEmail
             buyerId={buyerId}
             organizationId={organizationId}
             buyerProfileId={buyerId}
+            currentPropertyCount={availableProperties.length}
             onPropertiesLoaded={() => {
               // Refresh the property list
-              window.location.reload();
+              refreshProperties();
             }}
           />
 
@@ -339,7 +340,8 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat, agentEmail
               buyerId={buyerId}
               organizationId={organizationId}
               buyerProfileId={buyerId}
-              onPropertiesLoaded={() => window.location.reload()}
+              currentPropertyCount={swipeProperties.length}
+              onPropertiesLoaded={refreshProperties}
             />
           </div>
         </div>
