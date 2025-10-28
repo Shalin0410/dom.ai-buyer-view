@@ -2039,12 +2039,11 @@ export class SupabaseDataService extends BaseDataService {
           interactions.loved.push(propertyId);
         } else if (interestLevel === 'viewing_scheduled') {
           interactions.viewing_scheduled.push(propertyId);
-        } else if (interestLevel === 'interested') {
-          // 'interested' with no further action = saved for later
-          interactions.saved.push(propertyId);
         } else if (interestLevel === 'passed') {
           interactions.passed.push(propertyId);
         }
+        // REMOVED: Don't include 'interested' properties in saved
+        // These are still in search tab and should NOT be filtered out by ML API
       });
 
       console.log(`Fetched interaction history for buyer ${buyerId}:`, {

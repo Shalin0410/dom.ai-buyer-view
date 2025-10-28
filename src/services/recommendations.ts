@@ -60,6 +60,44 @@ export interface LoadRecommendationsResult {
 }
 
 /**
+ * Expire the oldest passed property to allow re-recommendation
+ * This helps capture evolving buyer preferences over time
+ */
+async function expireOldestPassedProperty(buyerId: string): Promise<void> {
+  try {
+    const { supabase } = await import('@/lib/supabaseClient');
+
+    // Find the oldest passed property
+    const { data: oldestPassed, error } = await supabase
+      .from('buyer_properties')
+      .select('id, property_id')
+      .eq('buyer_id', buyerId)
+      .eq('interest_level', 'passed')
+      .eq('is_active', true)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .single();
+
+    if (error || !oldestPassed) {
+      // No passed properties to expire
+      return;
+    }
+
+    // Soft delete by setting is_active = false
+    // This removes it from interaction history but keeps the record
+    await supabase
+      .from('buyer_properties')
+      .update({ is_active: false })
+      .eq('id', oldestPassed.id);
+
+    console.log(`[ExpirePassedProperty] Expired oldest passed property: ${oldestPassed.property_id}`);
+  } catch (err) {
+    console.error('[ExpirePassedProperty] Error:', err);
+    // Don't fail the whole recommendation flow if this fails
+  }
+}
+
+/**
  * Fetch ML recommendations and automatically add them to buyer_properties table
  *
  * This function:
@@ -93,6 +131,31 @@ export async function loadRecommendationsToSearchTab(
 
   try {
     console.log(`[LoadRecommendations] Starting for buyer ${buyerId}, limit: ${limit}`);
+
+    // Step 0: Probabilistic reset of oldest passed property (10% chance)
+    // This allows properties to be re-recommended as buyer preferences evolve
+    // BUT only after user has sufficient history to avoid data collection issues
+    const MIN_PASSED_FOR_EXPIRATION = 20;
+    const shouldResetOldPassed = Math.random() < 0.10; // 10% probability
+    if (shouldResetOldPassed) {
+      const { supabase } = await import('@/lib/supabaseClient');
+
+      // Count total passed properties first
+      const { count } = await supabase
+        .from('buyer_properties')
+        .select('id', { count: 'exact', head: true })
+        .eq('buyer_id', buyerId)
+        .eq('interest_level', 'passed')
+        .eq('is_active', true);
+
+      // Only expire if user has sufficient history
+      if (count && count >= MIN_PASSED_FOR_EXPIRATION) {
+        console.log(`[LoadRecommendations] User has ${count} passed properties, expiring oldest`);
+        await expireOldestPassedProperty(buyerId);
+      } else {
+        console.log(`[LoadRecommendations] User has ${count || 0} passed properties, need ${MIN_PASSED_FOR_EXPIRATION} before expiring`);
+      }
+    }
 
     // Step 1: Fetch user's interaction history to improve recommendations
     const interactionHistory = await dataService.getBuyerPropertyInteractions(buyerId);
