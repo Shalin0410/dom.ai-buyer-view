@@ -49,6 +49,14 @@ export interface DataService {
   loveProperty(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;
   passProperty(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;
   scheduleViewing(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;
+
+  // Property interaction history for ML feedback
+  getBuyerPropertyInteractions(buyerId: string): Promise<ApiResponse<{
+    loved: string[];
+    viewing_scheduled: string[];
+    saved: string[];
+    passed: string[];
+  }>>;
 }
 
 // Abstract base class for data service implementations
@@ -98,6 +106,14 @@ export abstract class BaseDataService implements DataService {
   abstract loveProperty(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;
   abstract passProperty(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;
   abstract scheduleViewing(buyerId: string, propertyId: string): Promise<ApiResponse<any>>;
+
+  // Property interaction history for ML feedback
+  abstract getBuyerPropertyInteractions(buyerId: string): Promise<ApiResponse<{
+    loved: string[];
+    viewing_scheduled: string[];
+    saved: string[];
+    passed: string[];
+  }>>;
 
   protected handleError(error: any): ApiError {
     if (error instanceof ApiError) {

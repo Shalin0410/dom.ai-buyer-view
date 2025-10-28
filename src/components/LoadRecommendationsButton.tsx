@@ -12,6 +12,7 @@ interface LoadRecommendationsButtonProps {
   buyerProfileId?: string;
   preferredAreas?: string[];
   onPropertiesLoaded?: () => void;
+  currentPropertyCount?: number; // Current number of properties in the swipe list
 }
 
 /**
@@ -24,12 +25,15 @@ interface LoadRecommendationsButtonProps {
  * 3. Properties appear in Search Tab with interest_level='interested'
  * 4. User can then swipe through them
  */
+const MAX_PROPERTIES_IN_LIST = 20;
+
 export function LoadRecommendationsButton({
   buyerId,
   organizationId,
   buyerProfileId,
   preferredAreas,
-  onPropertiesLoaded
+  onPropertiesLoaded,
+  currentPropertyCount = 0
 }: LoadRecommendationsButtonProps) {
   const [loading, setLoading] = useState(false);
   const [lastResult, setLastResult] = useState<{
@@ -40,16 +44,31 @@ export function LoadRecommendationsButton({
   const [error, setError] = useState<string | null>(null);
 
   const handleLoadRecommendations = async () => {
+    // Check if user has reached the limit
+    if (currentPropertyCount >= MAX_PROPERTIES_IN_LIST) {
+      setError(`You have ${currentPropertyCount} properties in your list. Please swipe through some properties first to make room for new recommendations. (Max: ${MAX_PROPERTIES_IN_LIST})`);
+      toast({
+        title: 'Property List Full',
+        description: `Please swipe through some properties first. Your list is limited to ${MAX_PROPERTIES_IN_LIST} properties.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
       setLastResult(null);
 
+      // Calculate how many properties we can add
+      const availableSlots = MAX_PROPERTIES_IN_LIST - currentPropertyCount;
+      const limitToFetch = Math.min(availableSlots, 30); // Fetch up to available slots, max 30
+
       const result = await loadRecommendationsToSearchTab({
         buyerId,
         buyerProfileId,
         preferredAreas,
-        limit: 30, // Load top 30 recommendations
+        limit: limitToFetch,
         organizationId
       });
 
@@ -120,7 +139,7 @@ export function LoadRecommendationsButton({
 
         <Button
           onClick={handleLoadRecommendations}
-          disabled={loading}
+          disabled={loading || currentPropertyCount >= MAX_PROPERTIES_IN_LIST}
           className="w-full"
           size="lg"
         >
@@ -132,13 +151,17 @@ export function LoadRecommendationsButton({
           ) : (
             <>
               <TrendingUp className="mr-2 h-4 w-4" />
-              Load AI Recommendations
+              {currentPropertyCount >= MAX_PROPERTIES_IN_LIST ? 'List Full - Swipe First' : 'Load AI Recommendations'}
             </>
           )}
         </Button>
 
         <div className="text-xs text-muted-foreground text-center">
-          This will add up to 30 recommended properties to your search tab
+          {currentPropertyCount >= MAX_PROPERTIES_IN_LIST ? (
+            <span className="text-orange-600">Your list is full ({currentPropertyCount}/{MAX_PROPERTIES_IN_LIST}). Swipe through properties to make room.</span>
+          ) : (
+            <span>You have {currentPropertyCount} of {MAX_PROPERTIES_IN_LIST} properties. {MAX_PROPERTIES_IN_LIST - currentPropertyCount} slots available.</span>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -153,19 +176,34 @@ export function LoadRecommendationsCompact({
   organizationId,
   buyerProfileId,
   preferredAreas,
-  onPropertiesLoaded
+  onPropertiesLoaded,
+  currentPropertyCount = 0
 }: LoadRecommendationsButtonProps) {
   const [loading, setLoading] = useState(false);
 
   const handleLoad = async () => {
+    // Check if user has reached the limit
+    if (currentPropertyCount >= MAX_PROPERTIES_IN_LIST) {
+      toast({
+        title: 'Property List Full',
+        description: `Please swipe through some properties first. Your list is limited to ${MAX_PROPERTIES_IN_LIST} properties.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       setLoading(true);
+
+      // Calculate how many properties we can add
+      const availableSlots = MAX_PROPERTIES_IN_LIST - currentPropertyCount;
+      const limitToFetch = Math.min(availableSlots, 30); // Fetch up to available slots, max 30
 
       const result = await loadRecommendationsToSearchTab({
         buyerId,
         buyerProfileId,
         preferredAreas,
-        limit: 30,
+        limit: limitToFetch,
         organizationId
       });
 
@@ -196,17 +234,21 @@ export function LoadRecommendationsCompact({
   return (
     <Button
       onClick={handleLoad}
-      disabled={loading}
+      disabled={loading || currentPropertyCount >= MAX_PROPERTIES_IN_LIST}
       variant="outline"
       size="sm"
       className="gap-2"
+      title={currentPropertyCount >= MAX_PROPERTIES_IN_LIST
+        ? `List full (${currentPropertyCount}/${MAX_PROPERTIES_IN_LIST}). Swipe through properties to make room.`
+        : `Load AI recommendations (${currentPropertyCount}/${MAX_PROPERTIES_IN_LIST} properties)`
+      }
     >
       {loading ? (
         <Loader2 className="h-3 w-3 animate-spin" />
       ) : (
         <Sparkles className="h-3 w-3" />
       )}
-      {loading ? 'Loading...' : 'Get AI Picks'}
+      {loading ? 'Loading...' : currentPropertyCount >= MAX_PROPERTIES_IN_LIST ? 'List Full' : 'Get AI Picks'}
     </Button>
   );
 }

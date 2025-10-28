@@ -92,7 +92,10 @@ export async function loadRecommendationsToSearchTab(
   };
 
   try {
-    // Step 1: Get ML recommendations
+    // Step 1: Fetch user's interaction history to improve recommendations
+    const interactionHistory = await dataService.getBuyerPropertyInteractions(buyerId);
+
+    // Step 2: Get ML recommendations with interaction feedback
     const requestBody: any = { limit };
 
     if (buyerProfileId) {
@@ -105,6 +108,25 @@ export async function loadRecommendationsToSearchTab(
 
     if (preferredAreas && preferredAreas.length > 0) {
       requestBody.preferred_areas = preferredAreas;
+    }
+
+    // Add interaction history for feedback loop
+    if (interactionHistory.success && interactionHistory.data) {
+      const interactions = interactionHistory.data;
+
+      // Send property IDs by interaction type
+      if (interactions.loved && interactions.loved.length > 0) {
+        requestBody.loved_property_ids = interactions.loved;
+      }
+      if (interactions.viewing_scheduled && interactions.viewing_scheduled.length > 0) {
+        requestBody.viewing_scheduled_property_ids = interactions.viewing_scheduled;
+      }
+      if (interactions.saved && interactions.saved.length > 0) {
+        requestBody.saved_property_ids = interactions.saved;
+      }
+      if (interactions.passed && interactions.passed.length > 0) {
+        requestBody.passed_property_ids = interactions.passed;
+      }
     }
 
     const response = await fetch('/api/recommend', {

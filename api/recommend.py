@@ -318,11 +318,17 @@ def recommend_hybrid(
     preferred_areas: List[str] = None,
     limit: int = 50,
     w_llm: float = 0.7,  # Increased from 0.5
-    w_rule: float = 0.3   # Increased from 0.2
+    w_rule: float = 0.3,   # Increased from 0.2
+    loved_property_ids: List[str] = None,
+    viewing_scheduled_property_ids: List[str] = None,
+    saved_property_ids: List[str] = None,
+    passed_property_ids: List[str] = None
 ) -> List[Dict[str, Any]]:
     """
     LIGHTWEIGHT VERSION: LLM (70%) + Rules (30%)
     For Full ML version with Ridge regression, see recommend_full_ml.py
+
+    Now includes interaction history for personalized recommendations
     """
     if user_prefs_text and not prefs:
         prefs = parse_prefs_llm(user_prefs_text)
@@ -333,6 +339,20 @@ def recommend_hybrid(
     if not preferred_areas and prefs.preferred_areas:
         preferred_areas = prefs.preferred_areas
 
+    # Collect all interacted property IDs to filter out
+    interacted_ids = set()
+    if loved_property_ids:
+        interacted_ids.update(loved_property_ids)
+    if viewing_scheduled_property_ids:
+        interacted_ids.update(viewing_scheduled_property_ids)
+    if saved_property_ids:
+        interacted_ids.update(saved_property_ids)
+    if passed_property_ids:
+        interacted_ids.update(passed_property_ids)
+
+    # Fetch more properties than needed to account for filtering
+    fetch_limit = limit * 3 if interacted_ids else limit
+
     listings = fetch_properties_from_supabase(
         preferred_areas=preferred_areas,
         min_price=prefs.budget_min,
@@ -340,11 +360,38 @@ def recommend_hybrid(
         min_beds=prefs.min_beds,
         min_baths=prefs.min_baths,
         property_types=prefs.property_types,
-        limit=limit
+        limit=fetch_limit
     )
 
     if not listings:
         return []
+
+    # Filter out properties user has already interacted with
+    filtered_listings = []
+    for listing in listings:
+        property_id = listing.get("id", "")
+        if property_id not in interacted_ids:
+            filtered_listings.append(listing)
+
+    filtered_count = len(listings) - len(filtered_listings)
+    if filtered_count > 0:
+        print(f"Filtered out {filtered_count} previously seen properties")
+
+    listings = filtered_listings[:limit * 2]  # Keep more for scoring
+
+    if not listings:
+        return []
+
+    # Fetch loved properties for similarity boosting
+    loved_properties = []
+    if loved_property_ids and supabase:
+        try:
+            loved_response = supabase.table("properties").select("*").in_("id", loved_property_ids).execute()
+            loved_properties = loved_response.data if loved_response.data else []
+            if loved_properties:
+                print(f"Boosting recommendations based on {len(loved_properties)} loved properties")
+        except Exception as e:
+            print(f"Error fetching loved properties: {e}")
 
     for listing in listings:
         enrich_with_schools_data(listing)
@@ -370,6 +417,48 @@ def recommend_hybrid(
         w_llm * llm_scores[i] + w_rule * rule_scores_norm[i]
         for i in range(len(listings))
     ]
+
+    # Apply feedback from interaction history
+    if loved_properties:
+        # Calculate average characteristics from loved properties
+        avg_price = sum(p.get("price", 0) for p in loved_properties) / len(loved_properties)
+        loved_cities = set(p.get("city", "").lower() for p in loved_properties if p.get("city"))
+        loved_types = set(p.get("propertyType", "").lower() for p in loved_properties if p.get("propertyType"))
+        avg_beds = sum(p.get("bedrooms", 0) for p in loved_properties) / len(loved_properties)
+        avg_baths = sum(p.get("bathrooms", 0) for p in loved_properties) / len(loved_properties)
+
+        # Boost properties similar to loved ones
+        for i, listing in enumerate(listings):
+            similarity_boost = 0
+
+            # Price similarity (within 20% gets +10 points)
+            listing_price = listing.get("price", 0)
+            if avg_price > 0 and 0.8 * avg_price <= listing_price <= 1.2 * avg_price:
+                similarity_boost += 10
+
+            # Same city as loved properties (+15 points)
+            listing_city = (listing.get("city") or "").lower()
+            if listing_city in loved_cities:
+                similarity_boost += 15
+
+            # Same property type (+10 points)
+            listing_type = (listing.get("propertyType") or "").lower()
+            if listing_type in loved_types:
+                similarity_boost += 10
+
+            # Bedroom similarity (+5 points)
+            listing_beds = listing.get("bedrooms", 0)
+            if abs(listing_beds - avg_beds) <= 1:
+                similarity_boost += 5
+
+            # Bathroom similarity (+5 points)
+            listing_baths = listing.get("bathrooms", 0)
+            if abs(listing_baths - avg_baths) <= 0.5:
+                similarity_boost += 5
+
+            # Apply boost (max +45 points possible)
+            if similarity_boost > 0:
+                hybrid_scores[i] = min(100, hybrid_scores[i] + similarity_boost)
 
     # Create results
     results = []
@@ -416,6 +505,17 @@ class handler(BaseHTTPRequestHandler):
             preferred_areas = data.get("preferred_areas")
             limit = data.get("limit", 50)
 
+            # Extract interaction history for personalized recommendations
+            loved_property_ids = data.get("loved_property_ids", [])
+            viewing_scheduled_property_ids = data.get("viewing_scheduled_property_ids", [])
+            saved_property_ids = data.get("saved_property_ids", [])
+            passed_property_ids = data.get("passed_property_ids", [])
+
+            # Log interaction history for debugging
+            total_interactions = len(loved_property_ids) + len(viewing_scheduled_property_ids) + len(saved_property_ids) + len(passed_property_ids)
+            if total_interactions > 0:
+                print(f"Using interaction history: {len(loved_property_ids)} loved, {len(viewing_scheduled_property_ids)} scheduled, {len(saved_property_ids)} saved, {len(passed_property_ids)} passed")
+
             prefs = None
             if buyer_profile_id and supabase:
                 profile_response = supabase.table("buyer_profiles").select("*").eq("person_id", buyer_profile_id).execute()
@@ -436,7 +536,11 @@ class handler(BaseHTTPRequestHandler):
                 user_prefs_text=user_prefs_text,
                 prefs=prefs,
                 preferred_areas=preferred_areas,
-                limit=limit
+                limit=limit,
+                loved_property_ids=loved_property_ids,
+                viewing_scheduled_property_ids=viewing_scheduled_property_ids,
+                saved_property_ids=saved_property_ids,
+                passed_property_ids=passed_property_ids
             )
 
             self.send_response(200)
