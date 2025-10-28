@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Heart, X, Bookmark, Calendar, Loader2, Star, MapPin, Home } from 'lucide-react';
+import { Heart, X, Bookmark, Calendar, Loader2, Star, MapPin, Home, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +37,7 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat, agentEmail
   const [currentPropertyIndex, setCurrentPropertyIndex] = useState(0);
   const [swipeProperties, setSwipeProperties] = useState<SwipeProperty[]>([]);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
   // Get auth context for organization_id
   const { user } = useAuth();
@@ -171,20 +172,70 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat, agentEmail
     }
   }, [currentPropertyIndex, buyerId, swipeProperties]);
 
+  // Reset photo index when property changes
+  useEffect(() => {
+    setCurrentPhotoIndex(0);
+  }, [currentPropertyIndex]);
+
+  // Photo navigation handlers with cycling
+  const handlePreviousPhoto = useCallback(() => {
+    const currentProperty = swipeProperties[currentPropertyIndex];
+    if (!currentProperty || !currentProperty.photos) return;
+
+    const photoCount = currentProperty.photos.length;
+    setCurrentPhotoIndex(prev => (prev === 0 ? photoCount - 1 : prev - 1));
+  }, [currentPropertyIndex, swipeProperties]);
+
+  const handleNextPhoto = useCallback(() => {
+    const currentProperty = swipeProperties[currentPropertyIndex];
+    if (!currentProperty || !currentProperty.photos) return;
+
+    const photoCount = currentProperty.photos.length;
+    setCurrentPhotoIndex(prev => (prev === photoCount - 1 ? 0 : prev + 1));
+  }, [currentPropertyIndex, swipeProperties]);
+
   // Transform properties when availableProperties changes
   useEffect(() => {
     if (availableProperties && availableProperties.length > 0) {
       console.log('Available properties:', availableProperties);
       const transformed = availableProperties.map(property => {
         console.log('Property photos:', property.photos);
-        const primaryPhoto = property.photos?.find(p => p.is_primary) || property.photos?.[0];
-        console.log('Primary photo:', primaryPhoto);
-        const imageUrl = primaryPhoto?.url || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1973&q=80';
-        console.log('Image URL:', imageUrl);
+
+        // Sort and organize photos properly
+        let sortedPhotos = property.photos && property.photos.length > 0
+          ? [...property.photos]
+          : [{
+              id: 'default',
+              url: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1973&q=80',
+              is_primary: true,
+              order: 0
+            }];
+
+        // Sort photos: primary photo first, then by display_order/order
+        sortedPhotos.sort((a, b) => {
+          // Primary photo (is_primary=true OR order=0) always comes first
+          const aIsPrimary = a.is_primary || a.order === 0;
+          const bIsPrimary = b.is_primary || b.order === 0;
+
+          if (aIsPrimary && !bIsPrimary) return -1;
+          if (!aIsPrimary && bIsPrimary) return 1;
+
+          // If both or neither are primary, sort by order
+          return (a.order || 0) - (b.order || 0);
+        });
+
+        // Filter out any photos with invalid URLs
+        const validPhotos = sortedPhotos.filter(p => p.url && p.url.trim() !== '');
+        const photos = validPhotos.length > 0 ? validPhotos : sortedPhotos;
+
+        const primaryPhoto = photos[0]; // First photo is now always primary
+        const imageUrl = primaryPhoto.url;
+        console.log('Sorted photos:', photos.length, 'Primary photo:', imageUrl);
         const formattedAddress = [property.address, property.city, property.state, property.zip_code]
           .filter(Boolean).join(', ');
         return {
           ...property,
+          photos: photos, // Use sorted photos array
           statusText: 'Available',
           image: imageUrl,
           price: property.listing_price || 0,
@@ -300,15 +351,51 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat, agentEmail
           {/* Property Image */}
           <div className="relative">
             <Card className="overflow-hidden border border-gray-200 shadow-lg">
-              <div className="aspect-[4/3] bg-gray-100 relative">
-                <img 
-                  src={currentProperty.image} 
-                  alt={currentProperty.address}
-                  className="w-full h-full object-cover"
+              <div className="aspect-[4/3] bg-gray-100 relative group">
+                <img
+                  src={currentProperty.photos?.[currentPhotoIndex]?.url || currentProperty.image}
+                  alt={`${currentProperty.address} - Photo ${currentPhotoIndex + 1}`}
+                  className="w-full h-full object-cover min-h-full"
+                  style={{ objectFit: 'cover' }}
+                  loading="eager"
                   onError={(e) => {
-                    e.currentTarget.src = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1973&q=80';
+                    // Fallback to default image if photo fails to load
+                    const target = e.currentTarget;
+                    if (target.src !== 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1973&q=80') {
+                      target.src = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1973&q=80';
+                    }
                   }}
                 />
+
+                {/* Photo Navigation Buttons */}
+                {currentProperty.photos && currentProperty.photos.length > 1 && (
+                  <>
+                    <button
+                      onClick={handlePreviousPhoto}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      aria-label="Previous photo"
+                    >
+                      <ChevronLeft size={24} />
+                    </button>
+                    <button
+                      onClick={handleNextPhoto}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      aria-label="Next photo"
+                    >
+                      <ChevronRight size={24} />
+                    </button>
+                  </>
+                )}
+
+                {/* Photo Counter */}
+                {currentProperty.photos && currentProperty.photos.length > 1 && (
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+                    <Badge className="bg-black/70 text-white text-xs px-3 py-1">
+                      {currentPhotoIndex + 1}/{currentProperty.photos.length}
+                    </Badge>
+                  </div>
+                )}
+
                 <div className="absolute top-4 left-4">
                   <Badge className="bg-black text-white text-xs px-2 py-1 shadow-md">
                     <Star size={10} className="mr-1" />
