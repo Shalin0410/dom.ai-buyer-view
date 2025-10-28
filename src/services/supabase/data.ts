@@ -1283,7 +1283,14 @@ export class SupabaseDataService extends BaseDataService {
         .select(`
           *,
           property:properties!buyer_properties_property_id_fkey (
-            *
+            *,
+            photos:property_photos (
+              id,
+              url,
+              caption,
+              is_primary,
+              display_order
+            )
           )
         `)
         .eq('buyer_id', buyerId)

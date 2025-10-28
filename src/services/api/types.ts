@@ -55,7 +55,7 @@ export interface PropertyPhoto {
   url: string;
   caption?: string;
   is_primary: boolean;
-  order: number;
+  display_order: number;
 }
 
 export interface PropertyActivity {
