@@ -365,6 +365,40 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat, agentEmail
                   </div>
                 </div>
 
+                {/* AI Match Score */}
+                {currentProperty.hybrid_score && (
+                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-semibold text-gray-900">AI Match Score</h4>
+                      <span className="text-lg font-bold text-blue-600">
+                        {currentProperty.hybrid_score.toFixed(0)}%
+                      </span>
+                    </div>
+                    <div className="relative h-2 bg-white rounded-full overflow-hidden mb-2">
+                      <div
+                        className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
+                        style={{ width: `${currentProperty.hybrid_score}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-gray-600 mb-2">
+                      {currentProperty.llm_score && (
+                        <span>LLM: {currentProperty.llm_score.toFixed(0)}</span>
+                      )}
+                      {currentProperty.ml_score && (
+                        <span>ML: {currentProperty.ml_score.toFixed(0)}</span>
+                      )}
+                      {currentProperty.rule_score && (
+                        <span>Rules: {currentProperty.rule_score.toFixed(0)}</span>
+                      )}
+                    </div>
+                    {currentProperty.match_reasons && (
+                      <p className="text-xs text-gray-700 italic">
+                        {currentProperty.match_reasons}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {/* Features */}
                 <div>
                   <h4 className="text-xs font-semibold text-gray-900 mb-2">Key Features</h4>

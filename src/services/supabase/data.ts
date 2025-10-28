@@ -1277,6 +1277,7 @@ export class SupabaseDataService extends BaseDataService {
       // 1. is_active = true (not passed)
       // 2. interest_level = 'interested' (not loved or viewing scheduled)
       // 3. property.status = 'active' (still available)
+      // Sort by hybrid_score DESC so best matches appear first
       let query = client
         .from('buyer_properties')
         .select(`
@@ -1288,7 +1289,8 @@ export class SupabaseDataService extends BaseDataService {
         .eq('buyer_id', buyerId)
         .eq('is_active', true)
         .eq('interest_level', 'interested')
-        .eq('property.status', 'active');
+        .eq('property.status', 'active')
+        .order('hybrid_score', { ascending: false, nullsFirst: false });
 
       const { data, error } = await query;
 
@@ -1298,11 +1300,19 @@ export class SupabaseDataService extends BaseDataService {
       }
 
       // Extract properties from the joined result if we're using buyer_properties
-      let properties = buyerId 
-        ? (data || []).map((item: any) => ({ 
-            ...item.property, 
-            buyer_status: item.status, 
-            buyer_stage: item.buying_stage 
+      // Include ML scoring fields for display and sorting
+      let properties = buyerId
+        ? (data || []).map((item: any) => ({
+            ...item.property,
+            buyer_status: item.status,
+            buyer_stage: item.buying_stage,
+            hybrid_score: item.hybrid_score,
+            llm_score: item.llm_score,
+            ml_score: item.ml_score,
+            rule_score: item.rule_score,
+            match_reasons: item.match_reasons,
+            recommended_at: item.recommended_at,
+            recommendation_source: item.recommendation_source
           }))
         : (data || []);
 
@@ -1402,6 +1412,13 @@ export class SupabaseDataService extends BaseDataService {
     initialStage?: 'interested' | 'loved' | 'viewing_scheduled' | 'under_contract' | 'pending';
     timelinePhase?: 'pre_escrow' | 'escrow' | 'post_escrow';
     fubStage?: 'lead' | 'hot_prospect' | 'nurture' | 'active_client' | 'pending' | 'closed';
+    // ML scoring parameters
+    hybridScore?: number;
+    llmScore?: number;
+    mlScore?: number;
+    ruleScore?: number;
+    matchReasons?: string;
+    recommendationSource?: string;
   }): Promise<ApiResponse<any>> {
     try {
       const client = this.getClient();
@@ -1473,16 +1490,29 @@ export class SupabaseDataService extends BaseDataService {
         .single();
 
       // Add new property to buyer's tracked properties
+      const insertData: any = {
+        organization_id: buyer?.organization_id,
+        buyer_id: buyerId,
+        property_id: propertyId,
+        interest_level: initialStage,
+        is_active: true,
+        last_activity_at: new Date().toISOString()
+      };
+
+      // Add ML scoring fields if provided
+      if (options?.hybridScore !== undefined) {
+        insertData.hybrid_score = options.hybridScore;
+        insertData.recommended_at = new Date().toISOString();
+      }
+      if (options?.llmScore !== undefined) insertData.llm_score = options.llmScore;
+      if (options?.mlScore !== undefined) insertData.ml_score = options.mlScore;
+      if (options?.ruleScore !== undefined) insertData.rule_score = options.ruleScore;
+      if (options?.matchReasons) insertData.match_reasons = options.matchReasons;
+      if (options?.recommendationSource) insertData.recommendation_source = options.recommendationSource;
+
       const { data, error } = await client
         .from('buyer_properties')
-        .insert({
-          organization_id: buyer?.organization_id,
-          buyer_id: buyerId,
-          property_id: propertyId,
-          interest_level: initialStage,
-          is_active: true,
-          last_activity_at: new Date().toISOString()
-        })
+        .insert(insertData)
         .select()
         .single();
 
