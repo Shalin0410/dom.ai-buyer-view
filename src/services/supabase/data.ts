@@ -1441,12 +1441,14 @@ export class SupabaseDataService extends BaseDataService {
         initialStage === 'pending' ? 'pending' : 'active_client'
       );
 
-      // Check if the buyer is already tracking this property
+      // Check if the buyer is already tracking this property (only active records)
+      // is_active = true ensures expired/soft-deleted properties can be re-recommended
       const { data: existing, error: existingError } = await client
         .from('buyer_properties')
         .select('id, interest_level')
         .eq('buyer_id', buyerId)
         .eq('property_id', propertyId)
+        .eq('is_active', true)
         .maybeSingle();
 
       if (existingError) {
@@ -2012,11 +2014,14 @@ export class SupabaseDataService extends BaseDataService {
     try {
       const client = this.getClient();
 
-      // Fetch all property interactions for this buyer
+      // Fetch all ACTIVE property interactions for this buyer
+      // Only active interactions should influence ML recommendations
+      // Expired (is_active = false) properties can be re-recommended
       const { data, error } = await client
         .from('buyer_properties')
         .select('property_id, interest_level')
-        .eq('buyer_id', buyerId);
+        .eq('buyer_id', buyerId)
+        .eq('is_active', true);
 
       if (error) {
         console.error('Error fetching buyer property interactions:', error);
