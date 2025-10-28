@@ -87,6 +87,22 @@ export function LoadRecommendationsButton({
 
         // Notify parent to refresh property list
         onPropertiesLoaded?.();
+      } else if (result.totalRecommendations === 0) {
+        // No recommendations returned from API
+        setError('No new properties available. The AI has filtered out all previously seen properties.');
+        toast({
+          title: 'No New Properties',
+          description: 'You\'ve already seen all available properties matching your criteria. Try adjusting your preferences or check back later!',
+          variant: 'default',
+        });
+      } else if (result.propertiesAdded === 0 && result.propertiesSkipped > 0) {
+        // Properties were returned but all were duplicates
+        setError(`All ${result.propertiesSkipped} recommended properties are already in your list.`);
+        toast({
+          title: 'No New Properties Added',
+          description: `Found ${result.propertiesSkipped} properties, but you're already tracking all of them!`,
+          variant: 'default',
+        });
       } else {
         setError(result.errors.join(', ') || 'Failed to load recommendations');
         toast({

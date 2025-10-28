@@ -10,9 +10,10 @@ export const useProperties = (buyerId?: string, initialFilter?: PropertyFilter, 
 
   const fetchProperties = useCallback(async () => {
     try {
+      console.log(`[useProperties] Fetching properties for buyer ${buyerId}, mode: ${mode}`);
       setLoading(true);
       setError(null);
-      
+
       let response;
       if (mode === 'available') {
         // Pass both the filter and buyerId to getAvailableProperties
@@ -20,19 +21,24 @@ export const useProperties = (buyerId?: string, initialFilter?: PropertyFilter, 
       } else {
         response = await dataService.getProperties(buyerId, filter);
       }
-      
+
+      console.log(`[useProperties] Response:`, { success: response.success, count: response.data?.length });
+
       if (response.success) {
         // Set properties (empty array is valid - don't set error for empty results)
         setProperties(response.data || []);
         // Clear any previous errors
         setError(null);
+        console.log(`[useProperties] Set ${response.data?.length || 0} properties`);
       } else {
         setError(response.error || 'Failed to fetch properties');
         setProperties([]);
+        console.error('[useProperties] Error:', response.error);
       }
     } catch (err) {
       setError('An unexpected error occurred');
       setProperties([]);
+      console.error('[useProperties] Exception:', err);
     } finally {
       setLoading(false);
     }
@@ -51,6 +57,7 @@ export const useProperties = (buyerId?: string, initialFilter?: PropertyFilter, 
   }, []);
 
   const refreshProperties = useCallback(() => {
+    console.log('[useProperties] refreshProperties called');
     fetchProperties();
   }, [fetchProperties]);
 
