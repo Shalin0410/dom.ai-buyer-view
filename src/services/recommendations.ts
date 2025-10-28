@@ -60,10 +60,13 @@ export interface LoadRecommendationsResult {
 }
 
 /**
- * Expire the oldest passed property to allow re-recommendation
+ * Delete the oldest passed property to allow re-recommendation
  * This helps capture evolving buyer preferences over time
+ *
+ * IMPORTANT: This performs a HARD DELETE (removes record completely from buyer_properties)
+ * so the property can be recommended again by AI if match score meets threshold
  */
-async function expireOldestPassedProperty(buyerId: string): Promise<void> {
+async function deleteOldestPassedProperty(buyerId: string): Promise<void> {
   try {
     const { supabase } = await import('@/lib/supabaseClient');
 
@@ -79,20 +82,20 @@ async function expireOldestPassedProperty(buyerId: string): Promise<void> {
       .single();
 
     if (error || !oldestPassed) {
-      // No passed properties to expire
+      // No passed properties to delete
       return;
     }
 
-    // Soft delete by setting is_active = false
-    // This removes it from interaction history but keeps the record
+    // HARD DELETE - completely remove the record from buyer_properties
+    // This allows the property to be re-recommended if it matches criteria again
     await supabase
       .from('buyer_properties')
-      .update({ is_active: false })
+      .delete()
       .eq('id', oldestPassed.id);
 
-    console.log(`[ExpirePassedProperty] Expired oldest passed property: ${oldestPassed.property_id}`);
+    console.log(`[DeletePassedProperty] Deleted oldest passed property: ${oldestPassed.property_id} (can now be re-recommended)`);
   } catch (err) {
-    console.error('[ExpirePassedProperty] Error:', err);
+    console.error('[DeletePassedProperty] Error:', err);
     // Don't fail the whole recommendation flow if this fails
   }
 }
@@ -132,36 +135,37 @@ export async function loadRecommendationsToSearchTab(
   try {
     console.log(`[LoadRecommendations] Starting for buyer ${buyerId}, limit: ${limit}`);
 
-    // Step 0: Probabilistic reset of oldest passed property (10% chance)
+    // Step 0: Probabilistic deletion of oldest passed property (10% chance)
     // This allows properties to be re-recommended as buyer preferences evolve
-    // BUT only after user has sufficient history to avoid data collection issues
-    const MIN_PASSED_FOR_EXPIRATION = 20;
-    const shouldResetOldPassed = Math.random() < 0.10; // 10% probability
-    if (shouldResetOldPassed) {
+    // BUT only after user has built a long interaction history (30-40+ properties)
+    const MIN_TOTAL_INTERACTIONS = 35;
+    const shouldDeleteOldPassed = Math.random() < 0.10; // 10% probability
+    if (shouldDeleteOldPassed) {
       const { supabase } = await import('@/lib/supabaseClient');
 
-      // Count total passed properties first
-      const { count } = await supabase
+      // Count TOTAL interaction history (all interest levels, active only)
+      const { count: totalInteractions } = await supabase
         .from('buyer_properties')
         .select('id', { count: 'exact', head: true })
         .eq('buyer_id', buyerId)
-        .eq('interest_level', 'passed')
         .eq('is_active', true);
 
-      // Only expire if user has sufficient history
-      if (count && count >= MIN_PASSED_FOR_EXPIRATION) {
-        console.log(`[LoadRecommendations] User has ${count} passed properties, expiring oldest`);
-        await expireOldestPassedProperty(buyerId);
+      // Only delete if user has sufficient interaction history
+      if (totalInteractions && totalInteractions >= MIN_TOTAL_INTERACTIONS) {
+        console.log(`[LoadRecommendations] User has ${totalInteractions} total interactions, deleting oldest passed property`);
+        await deleteOldestPassedProperty(buyerId);
       } else {
-        console.log(`[LoadRecommendations] User has ${count || 0} passed properties, need ${MIN_PASSED_FOR_EXPIRATION} before expiring`);
+        console.log(`[LoadRecommendations] User has ${totalInteractions || 0} total interactions, need ${MIN_TOTAL_INTERACTIONS} before deletion`);
       }
     }
 
-    // Step 1: Fetch user's interaction history to improve recommendations
+    // Step 1: Fetch loved properties for similarity boosting
+    // NOTE: The Python API now filters duplicates at the DATABASE level using buyer_id
+    // We only need to send loved_property_ids for similarity boosting (price, location matching)
     const interactionHistory = await dataService.getBuyerPropertyInteractions(buyerId);
     console.log('[LoadRecommendations] Interaction history:', interactionHistory);
 
-    // Step 2: Get ML recommendations with interaction feedback
+    // Step 2: Get ML recommendations with similarity boosting
     const requestBody: any = { limit };
 
     if (buyerProfileId) {
@@ -176,22 +180,13 @@ export async function loadRecommendationsToSearchTab(
       requestBody.preferred_areas = preferredAreas;
     }
 
-    // Add interaction history for feedback loop
+    // Send loved properties for similarity boosting
+    // Python API will automatically exclude ALL interacted properties using buyer_id
     if (interactionHistory.success && interactionHistory.data) {
       const interactions = interactionHistory.data;
 
-      // Send property IDs by interaction type
       if (interactions.loved && interactions.loved.length > 0) {
         requestBody.loved_property_ids = interactions.loved;
-      }
-      if (interactions.viewing_scheduled && interactions.viewing_scheduled.length > 0) {
-        requestBody.viewing_scheduled_property_ids = interactions.viewing_scheduled;
-      }
-      if (interactions.saved && interactions.saved.length > 0) {
-        requestBody.saved_property_ids = interactions.saved;
-      }
-      if (interactions.passed && interactions.passed.length > 0) {
-        requestBody.passed_property_ids = interactions.passed;
       }
     }
 

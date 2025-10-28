@@ -98,11 +98,32 @@ def fetch_properties_from_supabase(
     min_beds: int = 0,
     min_baths: float = 0,
     property_types: List[str] = None,
-    limit: int = 100
+    limit: int = 100,
+    buyer_id: str = None,
+    exclude_interacted: bool = True
 ) -> List[Dict[str, Any]]:
-    """Fetch properties from Supabase database with filters"""
+    """
+    Fetch properties from Supabase database with filters
+
+    OPTIMIZATION: If buyer_id is provided and exclude_interacted=True,
+    properties already in buyer_properties (where is_active=true) are
+    excluded at the DATABASE level (not in Python), making queries much faster.
+    """
     if not supabase:
         return []
+
+    # OPTIMIZATION: Fetch already-interacted property IDs to exclude them
+    excluded_property_ids = []
+    if buyer_id and exclude_interacted:
+        try:
+            interaction_response = supabase.table("buyer_properties").select("property_id").eq(
+                "buyer_id", buyer_id
+            ).eq("is_active", True).execute()
+
+            excluded_property_ids = [row["property_id"] for row in interaction_response.data]
+            print(f"[DB Filter] Excluding {len(excluded_property_ids)} already-interacted properties for buyer {buyer_id}")
+        except Exception as e:
+            print(f"[DB Filter] Warning: Could not fetch interactions: {e}")
 
     query = supabase.table("properties").select(
         "id, address, city, state, zip_code, coordinates, "
@@ -110,6 +131,10 @@ def fetch_properties_from_supabase(
         "property_type, year_built, description, schools, "
         "zillow_property_id, data_source"
     )
+
+    # OPTIMIZATION: Exclude already-interacted properties at SQL level
+    if excluded_property_ids:
+        query = query.not_.in_("id", excluded_property_ids)
 
     if min_price > 0:
         query = query.gte("listing_price", min_price)
@@ -319,6 +344,7 @@ def recommend_hybrid(
     limit: int = 50,
     w_llm: float = 0.7,  # Increased from 0.5
     w_rule: float = 0.3,   # Increased from 0.2
+    buyer_id: str = None,
     loved_property_ids: List[str] = None,
     viewing_scheduled_property_ids: List[str] = None,
     saved_property_ids: List[str] = None,
@@ -328,7 +354,11 @@ def recommend_hybrid(
     LIGHTWEIGHT VERSION: LLM (70%) + Rules (30%)
     For Full ML version with Ridge regression, see recommend_full_ml.py
 
-    Now includes interaction history for personalized recommendations
+    OPTIMIZATION: If buyer_id is provided, already-interacted properties are
+    excluded at the DATABASE level (SQL WHERE NOT IN), not in Python.
+    This makes queries much faster and reduces data transfer.
+
+    We still send loved_property_ids for similarity boosting (price, location, etc.)
     """
     if user_prefs_text and not prefs:
         prefs = parse_prefs_llm(user_prefs_text)
@@ -339,23 +369,10 @@ def recommend_hybrid(
     if not preferred_areas and prefs.preferred_areas:
         preferred_areas = prefs.preferred_areas
 
-    # Collect all interacted property IDs to filter out
-    interacted_ids = set()
-    if loved_property_ids:
-        interacted_ids.update(loved_property_ids)
-    if viewing_scheduled_property_ids:
-        interacted_ids.update(viewing_scheduled_property_ids)
-    if saved_property_ids:
-        interacted_ids.update(saved_property_ids)
-    if passed_property_ids:
-        interacted_ids.update(passed_property_ids)
+    print(f"[recommend_hybrid] Requested limit: {limit}, Buyer ID: {buyer_id}")
 
-    print(f"Requested limit: {limit}, Interacted properties to filter: {len(interacted_ids)}")
-
-    # Fetch more properties than needed to account for filtering
-    # But cap it so we don't fetch way more than needed
-    fetch_limit = min(limit * 3, 100) if interacted_ids else limit
-
+    # OPTIMIZATION: Pass buyer_id to database query for SQL-level filtering
+    # Properties already in buyer_properties (is_active=true) are excluded at DB level
     listings = fetch_properties_from_supabase(
         preferred_areas=preferred_areas,
         min_price=prefs.budget_min,
@@ -363,28 +380,16 @@ def recommend_hybrid(
         min_beds=prefs.min_beds,
         min_baths=prefs.min_baths,
         property_types=prefs.property_types,
-        limit=fetch_limit
+        limit=limit,
+        buyer_id=buyer_id,
+        exclude_interacted=True  # Enable SQL-level duplicate filtering
     )
 
     if not listings:
+        print("[recommend_hybrid] No properties returned from database after filtering")
         return []
 
-    # Filter out properties user has already interacted with
-    filtered_listings = []
-    for listing in listings:
-        property_id = listing.get("id", "")
-        if property_id not in interacted_ids:
-            filtered_listings.append(listing)
-
-    filtered_count = len(listings) - len(filtered_listings)
-    if filtered_count > 0:
-        print(f"Filtered out {filtered_count} previously seen properties")
-
-    # FIXED: Respect the exact limit requested by frontend
-    listings = filtered_listings[:limit]
-
-    if not listings:
-        return []
+    print(f"[recommend_hybrid] Fetched {len(listings)} properties from database (already filtered)")
 
     # Fetch loved properties for similarity boosting
     loved_properties = []
@@ -546,6 +551,7 @@ class handler(BaseHTTPRequestHandler):
                 prefs=prefs,
                 preferred_areas=preferred_areas,
                 limit=limit,
+                buyer_id=buyer_profile_id,  # Enable SQL-level duplicate filtering
                 loved_property_ids=loved_property_ids,
                 viewing_scheduled_property_ids=viewing_scheduled_property_ids,
                 saved_property_ids=saved_property_ids,
