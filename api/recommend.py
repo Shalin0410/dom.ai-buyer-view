@@ -377,7 +377,8 @@ def recommend_hybrid(
     if filtered_count > 0:
         print(f"Filtered out {filtered_count} previously seen properties")
 
-    listings = filtered_listings[:limit * 2]  # Keep more for scoring
+    # FIXED: Respect the exact limit requested by frontend
+    listings = filtered_listings[:limit]
 
     if not listings:
         return []
