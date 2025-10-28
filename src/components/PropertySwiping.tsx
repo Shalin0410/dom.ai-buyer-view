@@ -200,20 +200,42 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat, agentEmail
       console.log('Available properties:', availableProperties);
       const transformed = availableProperties.map(property => {
         console.log('Property photos:', property.photos);
-        // Keep all photos for navigation
-        const photos = property.photos && property.photos.length > 0 ? property.photos : [{
-          id: 'default',
-          url: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1973&q=80',
-          is_primary: true,
-          order: 0
-        }];
-        const primaryPhoto = photos.find(p => p.is_primary) || photos[0];
+
+        // Sort and organize photos properly
+        let sortedPhotos = property.photos && property.photos.length > 0
+          ? [...property.photos]
+          : [{
+              id: 'default',
+              url: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1973&q=80',
+              is_primary: true,
+              order: 0
+            }];
+
+        // Sort photos: primary photo first, then by display_order/order
+        sortedPhotos.sort((a, b) => {
+          // Primary photo (is_primary=true OR order=0) always comes first
+          const aIsPrimary = a.is_primary || a.order === 0;
+          const bIsPrimary = b.is_primary || b.order === 0;
+
+          if (aIsPrimary && !bIsPrimary) return -1;
+          if (!aIsPrimary && bIsPrimary) return 1;
+
+          // If both or neither are primary, sort by order
+          return (a.order || 0) - (b.order || 0);
+        });
+
+        // Filter out any photos with invalid URLs
+        const validPhotos = sortedPhotos.filter(p => p.url && p.url.trim() !== '');
+        const photos = validPhotos.length > 0 ? validPhotos : sortedPhotos;
+
+        const primaryPhoto = photos[0]; // First photo is now always primary
         const imageUrl = primaryPhoto.url;
-        console.log('Image URL:', imageUrl);
+        console.log('Sorted photos:', photos.length, 'Primary photo:', imageUrl);
         const formattedAddress = [property.address, property.city, property.state, property.zip_code]
           .filter(Boolean).join(', ');
         return {
           ...property,
+          photos: photos, // Use sorted photos array
           statusText: 'Available',
           image: imageUrl,
           price: property.listing_price || 0,
@@ -333,9 +355,15 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat, agentEmail
                 <img
                   src={currentProperty.photos?.[currentPhotoIndex]?.url || currentProperty.image}
                   alt={`${currentProperty.address} - Photo ${currentPhotoIndex + 1}`}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover min-h-full"
+                  style={{ objectFit: 'cover' }}
+                  loading="eager"
                   onError={(e) => {
-                    e.currentTarget.src = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1973&q=80';
+                    // Fallback to default image if photo fails to load
+                    const target = e.currentTarget;
+                    if (target.src !== 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1973&q=80') {
+                      target.src = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1973&q=80';
+                    }
                   }}
                 />
 
