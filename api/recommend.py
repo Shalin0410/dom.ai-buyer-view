@@ -113,12 +113,14 @@ def fetch_properties_from_supabase(
         return []
 
     # OPTIMIZATION: Fetch already-interacted property IDs to exclude them
+    # Exclude ALL properties in buyer_properties (active AND inactive)
+    # Only properties that were DELETED (hard delete) can be re-recommended
     excluded_property_ids = []
     if buyer_id and exclude_interacted:
         try:
             interaction_response = supabase.table("buyer_properties").select("property_id").eq(
                 "buyer_id", buyer_id
-            ).eq("is_active", True).execute()
+            ).execute()  # Removed .eq("is_active", True) - exclude ALL properties
 
             excluded_property_ids = [row["property_id"] for row in interaction_response.data]
             print(f"[DB Filter] Excluding {len(excluded_property_ids)} already-interacted properties for buyer {buyer_id}")
