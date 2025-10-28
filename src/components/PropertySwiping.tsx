@@ -208,20 +208,20 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat, agentEmail
               id: 'default',
               url: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1973&q=80',
               is_primary: true,
-              order: 0
+              display_order: 0
             }];
 
-        // Sort photos: primary photo first, then by display_order/order
+        // Sort photos: primary photo first, then by display_order
         sortedPhotos.sort((a, b) => {
-          // Primary photo (is_primary=true OR order=0) always comes first
-          const aIsPrimary = a.is_primary || a.order === 0;
-          const bIsPrimary = b.is_primary || b.order === 0;
+          // Primary photo (is_primary=true OR display_order=0) always comes first
+          const aIsPrimary = a.is_primary || a.display_order === 0;
+          const bIsPrimary = b.is_primary || b.display_order === 0;
 
           if (aIsPrimary && !bIsPrimary) return -1;
           if (!aIsPrimary && bIsPrimary) return 1;
 
-          // If both or neither are primary, sort by order
-          return (a.order || 0) - (b.order || 0);
+          // If both or neither are primary, sort by display_order
+          return (a.display_order || 0) - (b.display_order || 0);
         });
 
         // Filter out any photos with invalid URLs
