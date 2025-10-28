@@ -92,8 +92,11 @@ export async function loadRecommendationsToSearchTab(
   };
 
   try {
+    console.log(`[LoadRecommendations] Starting for buyer ${buyerId}, limit: ${limit}`);
+
     // Step 1: Fetch user's interaction history to improve recommendations
     const interactionHistory = await dataService.getBuyerPropertyInteractions(buyerId);
+    console.log('[LoadRecommendations] Interaction history:', interactionHistory);
 
     // Step 2: Get ML recommendations with interaction feedback
     const requestBody: any = { limit };
@@ -152,12 +155,14 @@ export async function loadRecommendationsToSearchTab(
     }
 
     const data: RecommendationResponse = await response.json();
+    console.log('[LoadRecommendations] API response:', { success: data.success, count: data.recommendations?.length });
 
     if (!data.success) {
       throw new Error(data.error || 'Failed to get recommendations');
     }
 
     result.totalRecommendations = data.recommendations.length;
+    console.log(`[LoadRecommendations] Received ${result.totalRecommendations} recommendations from API`);
 
     // Step 2: Add each property to buyer_properties table
     for (const recommendation of data.recommendations) {
@@ -191,9 +196,11 @@ export async function loadRecommendationsToSearchTab(
             propertyId: propertyId,
             score: recommendation.hybrid_score
           });
+          console.log(`[LoadRecommendations] ✓ Added: ${recommendation.address}`);
         } else {
           // Property might already be added, or other error
           result.propertiesSkipped++;
+          console.log(`[LoadRecommendations] ✗ Skipped: ${recommendation.address} - ${addResponse.error}`);
           if (addResponse.error && !addResponse.error.includes('already exists')) {
             result.errors.push(`${recommendation.address}: ${addResponse.error}`);
           }
@@ -208,9 +215,17 @@ export async function loadRecommendationsToSearchTab(
 
     result.success = result.propertiesAdded > 0;
 
+    console.log('[LoadRecommendations] Final result:', {
+      success: result.success,
+      added: result.propertiesAdded,
+      skipped: result.propertiesSkipped,
+      errors: result.errors.length
+    });
+
     return result;
 
   } catch (error) {
+    console.error('[LoadRecommendations] Error:', error);
     result.errors.push(
       error instanceof Error ? error.message : 'Failed to load recommendations'
     );
