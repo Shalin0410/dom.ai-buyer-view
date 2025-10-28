@@ -350,8 +350,11 @@ def recommend_hybrid(
     if passed_property_ids:
         interacted_ids.update(passed_property_ids)
 
+    print(f"Requested limit: {limit}, Interacted properties to filter: {len(interacted_ids)}")
+
     # Fetch more properties than needed to account for filtering
-    fetch_limit = limit * 3 if interacted_ids else limit
+    # But cap it so we don't fetch way more than needed
+    fetch_limit = min(limit * 3, 100) if interacted_ids else limit
 
     listings = fetch_properties_from_supabase(
         preferred_areas=preferred_areas,
@@ -486,9 +489,14 @@ def recommend_hybrid(
         }
         results.append(result)
 
-    # Sort by hybrid score
+    # Sort by hybrid score and return only the requested limit
     results.sort(key=lambda x: x["hybrid_score"], reverse=True)
-    return results
+
+    # IMPORTANT: Return exactly the requested number of properties
+    limited_results = results[:limit]
+    print(f"Returning {len(limited_results)} properties (requested limit: {limit})")
+
+    return limited_results
 
 
 class handler(BaseHTTPRequestHandler):

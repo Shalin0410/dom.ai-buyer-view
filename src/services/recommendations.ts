@@ -164,8 +164,15 @@ export async function loadRecommendationsToSearchTab(
     result.totalRecommendations = data.recommendations.length;
     console.log(`[LoadRecommendations] Received ${result.totalRecommendations} recommendations from API`);
 
+    // FRONTEND PROTECTION: Only take the first 'limit' properties
+    // This ensures we never exceed the 20-property max, even if API returns more
+    const recommendationsToAdd = data.recommendations.slice(0, limit);
+    if (recommendationsToAdd.length < data.recommendations.length) {
+      console.log(`[LoadRecommendations] Limiting to ${limit} properties (API returned ${data.recommendations.length})`);
+    }
+
     // Step 2: Add each property to buyer_properties table
-    for (const recommendation of data.recommendations) {
+    for (const recommendation of recommendationsToAdd) {
       try {
         // Use the database UUID (id) for adding to buyer_properties
         const propertyId = recommendation.id;
