@@ -1441,8 +1441,8 @@ export class SupabaseDataService extends BaseDataService {
         initialStage === 'pending' ? 'pending' : 'active_client'
       );
 
-      // Check if the buyer is already tracking this property (only active records)
-      // is_active = true ensures expired/soft-deleted properties can be re-recommended
+      // Check if the buyer is already tracking this property (active records only)
+      // Note: Passed properties that were deleted won't appear here and can be re-recommended
       const { data: existing, error: existingError } = await client
         .from('buyer_properties')
         .select('id, interest_level')
@@ -1457,7 +1457,7 @@ export class SupabaseDataService extends BaseDataService {
       }
 
       if (existing) {
-        // Update existing property if agent is adding at a more advanced stage
+        // Property is already being tracked - check if stage upgrade needed
         if (this.shouldUpdateStage(existing.interest_level, initialStage)) {
           const { data: updated, error: updateError } = await client
             .from('buyer_properties')
@@ -1485,6 +1485,7 @@ export class SupabaseDataService extends BaseDataService {
           });
         }
 
+        // Property is already tracked and no upgrade needed
         return this.createResponse(
           { id: existing.id, message: 'You are already tracking this property' },
           null
