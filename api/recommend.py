@@ -132,21 +132,21 @@ def fetch_properties_from_supabase(
         normalized = {
             "id": prop["id"],  # Database UUID (for adding to buyer_properties)
             "zpid": prop.get("zillow_property_id") or prop["id"],  # Display ID
-            "address": prop.get("address", ""),
-            "city": prop.get("city", ""),
-            "state": prop.get("state", ""),
-            "zipcode": prop.get("zip_code", ""),
-            "price": prop.get("listing_price", 0),
-            "bedrooms": prop.get("bedrooms", 0),
-            "bathrooms": prop.get("bathrooms", 0),
-            "livingArea": prop.get("square_feet", 0),
-            "lotSize": prop.get("lot_size", 0),
-            "propertyType": prop.get("property_type", ""),
-            "yearBuilt": prop.get("year_built", None),
-            "description": prop.get("description", ""),
+            "address": prop.get("address") or "",
+            "city": prop.get("city") or "",
+            "state": prop.get("state") or "",
+            "zipcode": prop.get("zip_code") or "",
+            "price": prop.get("listing_price") or 0,
+            "bedrooms": prop.get("bedrooms") or 0,
+            "bathrooms": prop.get("bathrooms") or 0,
+            "livingArea": prop.get("square_feet") or 0,
+            "lotSize": prop.get("lot_size") or 0,
+            "propertyType": prop.get("property_type") or "",
+            "yearBuilt": prop.get("year_built"),
+            "description": prop.get("description") or "",
             "latitude": prop.get("coordinates", {}).get("lat") if isinstance(prop.get("coordinates"), dict) else None,
             "longitude": prop.get("coordinates", {}).get("lng") if isinstance(prop.get("coordinates"), dict) else None,
-            "schools": prop.get("schools", []),
+            "schools": prop.get("schools") or [],
             "_raw": prop
         }
         properties.append(normalized)
@@ -231,11 +231,13 @@ def rule_score(listing: Dict[str, Any], prefs: Preferences) -> Tuple[float, List
         score += 5
 
     # Must-have features (0-10 points)
-    description_lower = listing.get("description", "").lower()
-    property_type_lower = listing.get("propertyType", "").lower()
+    # Use 'or ""' to handle None values from database
+    description_lower = (listing.get("description") or "").lower()
+    property_type_lower = (listing.get("propertyType") or "").lower()
     must_have_matches = 0
     for must in prefs.must_haves:
-        if must.lower() in description_lower or must.lower() in property_type_lower:
+        must_lower = (must or "").lower()
+        if must_lower and (must_lower in description_lower or must_lower in property_type_lower):
             must_have_matches += 1
     if prefs.must_haves:
         must_have_ratio = must_have_matches / len(prefs.must_haves)
