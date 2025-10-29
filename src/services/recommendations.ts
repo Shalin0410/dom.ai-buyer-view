@@ -71,12 +71,13 @@ async function deleteOldestPassedProperty(buyerId: string): Promise<void> {
     const { supabase } = await import('@/lib/supabaseClient');
 
     // Find the oldest passed property
+    // Passed properties have is_active = false
     const { data: oldestPassed, error } = await supabase
       .from('buyer_properties')
       .select('id, property_id')
       .eq('buyer_id', buyerId)
       .eq('interest_level', 'passed')
-      .eq('is_active', true)
+      .eq('is_active', false)
       .order('created_at', { ascending: true })
       .limit(1)
       .single();
