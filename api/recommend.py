@@ -6,10 +6,12 @@ For Full ML version, see recommend_full_ml.py
 
 from http.server import BaseHTTPRequestHandler
 import json
+import math
 import os
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
 from openai import OpenAI
+import requests
 
 # Supabase connection
 try:
@@ -28,6 +30,112 @@ if Client and supabase_url and supabase_key:
     supabase = create_client(supabase_url, supabase_key)
 
 
+# ------------------- Utility Functions -------------------
+def haversine_miles(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate distance between two points in miles using Haversine formula"""
+    R = 3958.7613  # Earth radius in miles
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
+    return 2 * R * math.asin(math.sqrt(a))
+
+
+def kw_in(text: str, *words) -> bool:
+    """Check if any of the keywords exist in text (case-insensitive)"""
+    t = (text or "").lower()
+    return any(w in t for w in words)
+
+
+# ------------------- Google Places API Integration -------------------
+PLACES_TYPES = {
+    "school": {"includedTypes": ["school"], "radius_miles": 2.0},
+    "supermarket": {"includedTypes": ["supermarket", "grocery_or_supermarket"], "radius_miles": 2.0},
+    "park": {"includedTypes": ["park"], "radius_miles": 1.2},
+    "transit": {"includedTypes": ["transit_station", "subway_station", "train_station"], "radius_miles": 1.0},
+}
+
+
+def places_nearby(lat: float, lon: float, included_types: List[str],
+                  radius_miles: float, max_results: int = 8) -> List[Dict[str, Any]]:
+    """
+    Search for nearby places using Google Places API (New)
+    Returns list of places within radius, sorted by distance
+    """
+    api_key = os.environ.get("GOOGLE_PLACES_API_KEY")
+    if not api_key:
+        print("[Places API] Warning: GOOGLE_PLACES_API_KEY not configured, skipping POI enrichment")
+        return []
+
+    url = "https://places.googleapis.com/v1/places:searchNearby"
+    body = {
+        "includedTypes": included_types,
+        "maxResultCount": max_results,
+        "rankPreference": "DISTANCE",
+        "locationRestriction": {
+            "circle": {
+                "center": {"latitude": lat, "longitude": lon},
+                "radius": float(radius_miles) * 1609.34,  # Convert miles to meters
+            }
+        },
+    }
+    headers = {
+        "X-Goog-Api-Key": api_key,
+        "X-Goog-FieldMask": "places.id,places.displayName,places.location",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        resp = requests.post(url, headers=headers, json=body, timeout=10)
+        if resp.status_code != 200:
+            print(f"[Places API] Error {resp.status_code}: {resp.text[:200]}")
+            return []
+        return (resp.json() or {}).get("places", []) or []
+    except Exception as e:
+        print(f"[Places API] Exception: {e}")
+        return []
+
+
+def enrich_with_places(listing: Dict[str, Any], poi_keys: List[str] = None) -> Dict[str, Any]:
+    """
+    Enrich listing with nearby POI distances using Google Places API
+    Returns dict with poi_min_miles and poi_counts
+    """
+    if poi_keys is None:
+        poi_keys = ["school", "supermarket", "park", "transit"]
+
+    lat, lon = listing.get("latitude"), listing.get("longitude")
+    if lat is None or lon is None:
+        return {"poi_min_miles": {}, "poi_counts": {}}
+
+    poi_min, poi_counts = {}, {}
+
+    for k in poi_keys:
+        if k not in PLACES_TYPES:
+            continue
+
+        spec = PLACES_TYPES[k]
+        places = places_nearby(lat, lon, spec["includedTypes"], spec.get("radius_miles", 2.0), max_results=8)
+
+        dists = []
+        for p in places:
+            loc = p.get("location", {}) or {}
+            plat = loc.get("latitude")
+            plon = loc.get("longitude")
+
+            if plat is not None and plon is not None:
+                try:
+                    dist = haversine_miles(lat, lon, float(plat), float(plon))
+                    dists.append(dist)
+                except Exception:
+                    pass
+
+        poi_min[k] = min(dists) if dists else None
+        poi_counts[k] = len(places)
+
+    return {"poi_min_miles": poi_min, "poi_counts": poi_counts}
+
+
 @dataclass
 class Preferences:
     """Structured buyer preferences"""
@@ -41,6 +149,8 @@ class Preferences:
     nice_to_haves: List[str] = None
     preferred_areas: List[str] = None
     property_types: List[str] = None
+    school_priority: str = "medium"  # "low", "medium", "high"
+    commute_address: str = None  # Optional commute destination
 
     def __post_init__(self):
         if self.must_haves is None:
@@ -192,87 +302,119 @@ def enrich_with_schools_data(listing: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def rule_score(listing: Dict[str, Any], prefs: Preferences) -> Tuple[float, List[str]]:
-    """Rule-based scoring based on budget fit, property features, and schools"""
+    """
+    Enhanced rule-based scoring with:
+    - Distance-based amenity scoring (Google Places)
+    - Must-have penalties for missing features
+    - School priority levels
+    - Budget penalties for over-budget properties
+    """
     score = 0.0
     reasons = []
     price = listing.get("price", 0)
 
-    # Budget fit (0-40 points)
+    # Budget fit with progressive penalty for over-budget (0-30 points)
     if price == 0:
         budget_score = 0
-    elif price < prefs.budget_min:
-        budget_score = 20
-        reasons.append("Below minimum budget")
-    elif price > prefs.budget_max:
-        budget_score = 0
-        reasons.append("Over budget")
+    elif price <= prefs.budget_max:
+        score += 30
+        reasons.append("within budget")
+        # Bonus for being above minimum budget
+        if prefs.budget_min and price >= prefs.budget_min:
+            score += 5
     else:
-        budget_range = prefs.budget_max - prefs.budget_min
-        if budget_range > 0:
-            distance_from_min = price - prefs.budget_min
-            ratio = distance_from_min / budget_range
-            if ratio < 0.4:
-                budget_score = 30 + (ratio / 0.4) * 10
-            elif ratio < 0.6:
-                budget_score = 40
-            else:
-                budget_score = 40 - ((ratio - 0.6) / 0.4) * 10
-        else:
-            budget_score = 40
-        reasons.append(f"Good budget fit (${price:,})")
+        # Progressive penalty for over-budget
+        over = (price - prefs.budget_max) / max(1.0, prefs.budget_max)
+        penalty = min(25, 100 * over * 0.5)
+        score -= penalty
+        reasons.append("over budget")
 
-    score += budget_score
+    # Bedrooms/bathrooms (0-18 points)
+    beds = listing.get("bedrooms", 0) or 0
+    baths = listing.get("bathrooms", 0) or 0.0
+    sqft = listing.get("square_feet", 0) or listing.get("livingArea", 0) or 0
 
-    # Bedrooms/bathrooms (0-20 points)
-    beds = listing.get("bedrooms", 0)
-    baths = listing.get("bathrooms", 0)
-    if beds >= prefs.min_beds:
+    if prefs.min_beds and beds >= prefs.min_beds:
         score += 10
-        if beds > prefs.min_beds:
-            reasons.append(f"{beds} bedrooms (more than required)")
-    if baths >= prefs.min_baths:
-        score += 10
-        if baths > prefs.min_baths:
-            reasons.append(f"{baths} bathrooms (more than required)")
+        reasons.append("meets bedroom need")
+    if prefs.min_baths and baths >= prefs.min_baths:
+        score += 8
+        reasons.append("meets bathroom need")
 
-    # Square footage (0-10 points)
-    sqft = listing.get("livingArea", 0)
-    if sqft >= prefs.min_sqft:
-        score += 10
-        if sqft > prefs.min_sqft * 1.2:
-            reasons.append(f"{sqft:,} sqft (spacious)")
+    # Square footage (0-8 points)
+    if prefs.min_sqft and sqft and sqft >= prefs.min_sqft:
+        score += 8
+        reasons.append("meets size need")
 
-    # Lot size (0-10 points)
-    lot_size = listing.get("lotSize", 0)
-    if lot_size >= prefs.min_lot_size:
-        score += 10
-        if lot_size > prefs.min_lot_size * 1.5:
-            reasons.append(f"{lot_size:,} sqft lot (large)")
+    # POI Distance-Based Amenity Scoring (uses Google Places API data)
+    poi = listing.get("poi_min_miles") or {}
 
-    # Schools (0-10 points)
-    avg_rating = listing.get("avg_school_rating", 0)
-    if avg_rating >= 8:
-        score += 10
-        reasons.append(f"Excellent schools (avg {avg_rating:.1f}/10)")
-    elif avg_rating >= 6:
-        score += 5
+    def boost(distance, cap, cutoff):
+        """Calculate proximity boost: closer = higher score"""
+        if distance is None:
+            return 0.0
+        return max(0.0, cap * (1 - min(distance / cutoff, 1.0)))
 
-    # Must-have features (0-10 points)
-    # Use 'or ""' to handle None values from database
-    description_lower = (listing.get("description") or "").lower()
-    property_type_lower = (listing.get("propertyType") or "").lower()
-    must_have_matches = 0
-    for must in prefs.must_haves:
-        must_lower = (must or "").lower()
-        if must_lower and (must_lower in description_lower or must_lower in property_type_lower):
-            must_have_matches += 1
+    # School proximity with priority levels
+    school_weights = {"low": 2, "medium": 6, "high": 10}
+    school_w = school_weights.get(prefs.school_priority or "medium", 6)
+    school_boost = boost(poi.get("school"), school_w, 2.0)  # Within 2 miles
+    if school_boost > 0:
+        score += school_boost
+        dist = poi.get("school")
+        if dist and dist < 0.5:
+            reasons.append(f"school nearby ({dist:.1f}mi)")
+
+    # Supermarket proximity
+    market_boost = boost(poi.get("supermarket"), 6, 2.0)
+    if market_boost > 0:
+        score += market_boost
+
+    # Park proximity
+    park_boost = boost(poi.get("park"), 5, 1.2)
+    if park_boost > 0:
+        score += park_boost
+
+    # Transit proximity
+    transit_boost = boost(poi.get("transit"), 6, 1.0)
+    if transit_boost > 0:
+        score += transit_boost
+
+    # Must-haves with PENALTIES for missing features
+    text = (listing.get("description") or "").lower() + " " + (listing.get("address") or "").lower()
+
     if prefs.must_haves:
-        must_have_ratio = must_have_matches / len(prefs.must_haves)
-        score += must_have_ratio * 10
-        if must_have_matches > 0:
-            reasons.append(f"Has {must_have_matches}/{len(prefs.must_haves)} must-haves")
+        # EV Charger
+        if any(w in prefs.must_haves for w in ["ev", "ev charger", "charger", "charging"]):
+            if kw_in(text, "ev", "charger", "charging", "electric vehicle"):
+                score += 4
+                reasons.append("EV-ready mentioned")
+            else:
+                score -= 3
+                reasons.append("EV not mentioned")
 
-    return score, reasons
+        # Yard/Garden
+        if any(w in prefs.must_haves for w in ["yard", "garden", "backyard", "outdoor space"]):
+            if kw_in(text, "yard", "garden", "backyard", "outdoor", "patio"):
+                score += 3
+                reasons.append("yard mentioned")
+            else:
+                score -= 3
+                reasons.append("yard not mentioned")
+
+        # Garage
+        if any(w in prefs.must_haves for w in ["garage", "two car", "2-car", "parking"]):
+            if kw_in(text, "garage", "two car", "2-car", "parking"):
+                score += 3
+                reasons.append("garage mentioned")
+            else:
+                score -= 2
+                reasons.append("garage not mentioned")
+
+    # Clamp score to 0-100 range, centered at 50
+    final_score = max(0.0, min(100.0, 50 + score))
+
+    return final_score, reasons[:4]  # Return top 4 reasons
 
 
 def llm_score_batch(prefs: Preferences, listings: List[Dict[str, Any]]) -> Dict[str, float]:
@@ -404,8 +546,24 @@ def recommend_hybrid(
         except Exception as e:
             print(f"Error fetching loved properties: {e}")
 
+    # Enrich with schools data
     for listing in listings:
         enrich_with_schools_data(listing)
+
+    # Enrich with Google Places POI data (schools, markets, parks, transit)
+    # Only if GOOGLE_PLACES_API_KEY is configured
+    if os.environ.get("GOOGLE_PLACES_API_KEY"):
+        print(f"[recommend_hybrid] Enriching {len(listings)} properties with POI data...")
+        for listing in listings:
+            poi_data = enrich_with_places(listing, poi_keys=["school", "supermarket", "park", "transit"])
+            listing.update(poi_data)
+        print(f"[recommend_hybrid] POI enrichment complete")
+    else:
+        print("[recommend_hybrid] Skipping POI enrichment (GOOGLE_PLACES_API_KEY not configured)")
+        # Set empty POI data so rule_score doesn't fail
+        for listing in listings:
+            listing["poi_min_miles"] = {}
+            listing["poi_counts"] = {}
 
     # Calculate rule scores
     rule_scores = []
