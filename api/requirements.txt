@@ -5,6 +5,7 @@
 # ============================================================================
 openai>=1.0.0
 supabase>=2.0.0
+requests>=2.31.0  # For Google Places API integration
 
 # ============================================================================
 # FULL ML VERSION (Uncomment when deploying to larger infrastructure)
