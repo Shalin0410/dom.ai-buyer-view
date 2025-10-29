@@ -2015,14 +2015,13 @@ export class SupabaseDataService extends BaseDataService {
     try {
       const client = this.getClient();
 
-      // Fetch all ACTIVE property interactions for this buyer
-      // Only active interactions should influence ML recommendations
-      // Expired (is_active = false) properties can be re-recommended
+      // Fetch ALL property interactions for this buyer (including passed)
+      // This interaction history is sent to ML API to improve recommendations
+      // The ML API uses this to avoid recommending already-seen properties
       const { data, error } = await client
         .from('buyer_properties')
         .select('property_id, interest_level')
-        .eq('buyer_id', buyerId)
-        .eq('is_active', true);
+        .eq('buyer_id', buyerId);
 
       if (error) {
         console.error('Error fetching buyer property interactions:', error);
@@ -2047,9 +2046,9 @@ export class SupabaseDataService extends BaseDataService {
           interactions.viewing_scheduled.push(propertyId);
         } else if (interestLevel === 'passed') {
           interactions.passed.push(propertyId);
+        } else if (interestLevel === 'interested') {
+          interactions.saved.push(propertyId);
         }
-        // REMOVED: Don't include 'interested' properties in saved
-        // These are still in search tab and should NOT be filtered out by ML API
       });
 
       console.log(`Fetched interaction history for buyer ${buyerId}:`, {
