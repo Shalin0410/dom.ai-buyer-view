@@ -91,6 +91,8 @@ export class SupabaseDataService extends BaseDataService {
             property_type_preferences,
             must_have_features,
             nice_to_have_features,
+            bedrooms,
+            bathrooms,
             ideal_move_in_date,
             urgency_level,
             created_at,
