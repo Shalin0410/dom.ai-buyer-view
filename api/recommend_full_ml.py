@@ -243,13 +243,46 @@ def fetch_properties_from_supabase(
     if property_types:
         query = query.in_("property_type", property_types)
 
-    # Area filter
+    # FIX: Try filtering by preferred_areas as cities first
+    # If no results, fall back to broader search (preferred_areas might be neighborhoods)
+    used_area_filter = False
     if preferred_areas:
         query = query.in_("city", preferred_areas)
+        used_area_filter = True
 
     query = query.limit(limit)
 
     response = query.execute()
+
+    # FALLBACK: If preferred_areas filter returned 0 results, retry without it
+    # This handles cases where preferred_areas are neighborhoods, not cities
+    if used_area_filter and len(response.data) == 0:
+        print(f"[DB Filter] No properties found matching preferred_areas={preferred_areas} as cities")
+        print(f"[DB Filter] Retrying without area filter (preferred_areas may be neighborhoods)")
+
+        # Rebuild query without the city filter
+        query = supabase.table("properties").select(
+            "id, address, city, state, zip_code, coordinates, "
+            "listing_price, bedrooms, bathrooms, square_feet, lot_size, "
+            "property_type, year_built, description, schools, "
+            "zillow_property_id, data_source"
+        )
+
+        if min_price > 0:
+            query = query.gte("listing_price", min_price)
+        if max_price < 999999999:
+            query = query.lte("listing_price", max_price)
+        if min_beds > 0:
+            query = query.gte("bedrooms", min_beds)
+        if min_baths > 0:
+            query = query.gte("bathrooms", min_baths)
+        if property_types:
+            query = query.in_("property_type", property_types)
+        # Skip preferred_areas filter
+
+        query = query.limit(limit)
+        response = query.execute()
+        print(f"[DB Filter] Fallback query returned {len(response.data)} properties")
 
     # Convert to list of dicts
     properties = []
