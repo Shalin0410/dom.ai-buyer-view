@@ -230,13 +230,13 @@ def fetch_properties_from_supabase(
     )
 
     # Apply filters
-    if min_price > 0:
+    if min_price and min_price > 0:
         query = query.gte("listing_price", min_price)
-    if max_price < 999999999:
+    if max_price is not None and max_price < 999999999:
         query = query.lte("listing_price", max_price)
-    if min_beds > 0:
+    if min_beds and min_beds > 0:
         query = query.gte("bedrooms", min_beds)
-    if min_baths > 0:
+    if min_baths and min_baths > 0:
         query = query.gte("bathrooms", min_baths)
 
     # Property type filter
@@ -268,13 +268,13 @@ def fetch_properties_from_supabase(
             "zillow_property_id, data_source"
         )
 
-        if min_price > 0:
+        if min_price and min_price > 0:
             query = query.gte("listing_price", min_price)
-        if max_price < 999999999:
+        if max_price is not None and max_price < 999999999:
             query = query.lte("listing_price", max_price)
-        if min_beds > 0:
+        if min_beds and min_beds > 0:
             query = query.gte("bedrooms", min_beds)
-        if min_baths > 0:
+        if min_baths and min_baths > 0:
             query = query.gte("bathrooms", min_baths)
         if property_types:
             query = query.in_("property_type", property_types)
@@ -697,12 +697,12 @@ class handler(BaseHTTPRequestHandler):
                 if profile_response.data:
                     profile = profile_response.data[0]
                     prefs = Preferences(
-                        budget_min=profile.get("price_min", 0),
-                        budget_max=profile.get("price_max", 999999999),
-                        must_haves=profile.get("must_have_features", []),
-                        nice_to_haves=profile.get("nice_to_have_features", []),
-                        preferred_areas=profile.get("preferred_areas", []),
-                        property_types=profile.get("property_type_preferences", [])
+                        budget_min=profile.get("price_min") or 0,
+                        budget_max=profile.get("price_max") or 999999999,
+                        must_haves=profile.get("must_have_features") or [],
+                        nice_to_haves=profile.get("nice_to_have_features") or [],
+                        preferred_areas=profile.get("preferred_areas") or [],
+                        property_types=profile.get("property_type_preferences") or []
                     )
                     # Use raw_background for LLM parsing if available
                     if not user_prefs_text and profile.get("raw_background"):
