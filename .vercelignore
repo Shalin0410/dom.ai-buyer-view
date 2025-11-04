@@ -1,0 +1,17 @@
+# Ignore API directory - ML API is deployed to Google Cloud Functions
+api/
+
+# Ignore Python files
+*.py
+*.pyc
+__pycache__/
+requirements.txt
+
+# Ignore test files
+*.test.js
+*.test.ts
+*.test.tsx
+
+# Ignore local environment files (already in .gitignore but just in case)
+.env.local
+.env.*.local
