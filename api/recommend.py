@@ -749,3 +749,146 @@ class handler(BaseHTTPRequestHandler):
             "status": "ok",
             "message": "Property Recommendation API is running"
         }).encode('utf-8'))
+
+
+# ==============================================================================
+# Google Cloud Function Entry Point
+# ==============================================================================
+
+def recommend(request):
+    """
+    Google Cloud Function entry point for property recommendations.
+
+    This function handles requests from the React frontend deployed on Vercel.
+    It expects a JSON body with recommendation parameters and returns
+    property recommendations scored by the hybrid ML model.
+
+    Expected request body:
+    {
+        "preferences_text": "Looking for a 3 bedroom house...",  // optional
+        "buyer_profile_id": "uuid",                              // optional
+        "preferred_areas": ["Mountain View", "Palo Alto"],       // optional
+        "limit": 30,                                             // optional, default 50
+        "loved_property_ids": ["uuid1", "uuid2"]                 // optional, for similarity
+    }
+
+    Returns:
+    {
+        "success": true,
+        "count": 10,
+        "recommendations": [...]
+    }
+    """
+    # Handle CORS preflight OPTIONS request
+    if request.method == 'OPTIONS':
+        headers = {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Max-Age': '3600'
+        }
+        return ('', 204, headers)
+
+    # Set CORS headers for actual request
+    headers = {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+    }
+
+    try:
+        # Parse JSON request body
+        request_json = request.get_json(silent=True)
+        if not request_json:
+            return (json.dumps({
+                "success": False,
+                "error": "Request body must be JSON"
+            }), 400, headers)
+
+        print(f"[GCP Function] Received request: {request_json}")
+
+        # Extract parameters
+        user_prefs_text = request_json.get('preferences_text')
+        buyer_profile_id = request_json.get('buyer_profile_id')
+        preferred_areas = request_json.get('preferred_areas')
+        limit = request_json.get('limit', 50)
+        loved_property_ids = request_json.get('loved_property_ids')
+
+        # Initialize preferences object
+        prefs = None
+
+        # If buyer_profile_id provided, fetch profile from Supabase
+        if buyer_profile_id:
+            print(f"[GCP Function] Fetching buyer profile: {buyer_profile_id}")
+            try:
+                from supabase import create_client
+                supabase_url = os.environ.get("SUPABASE_URL")
+                supabase_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+
+                if supabase_url and supabase_key:
+                    supabase = create_client(supabase_url, supabase_key)
+                    response = supabase.table("buyer_profiles").select("*").eq("id", buyer_profile_id).maybe_single().execute()
+
+                    if response.data:
+                        profile = response.data
+                        prefs = Preferences(
+                            budget_min=profile.get("price_min") or 0,
+                            budget_max=profile.get("price_max") or 999999999,
+                            must_haves=profile.get("must_have_features") or [],
+                            nice_to_haves=profile.get("nice_to_have_features") or [],
+                            preferred_areas=profile.get("preferred_areas") or [],
+                            property_types=profile.get("property_type_preferences") or []
+                        )
+                        # Use raw_background for LLM parsing if available and no prefs_text provided
+                        if not user_prefs_text and profile.get("raw_background"):
+                            user_prefs_text = profile.get("raw_background")
+                        print(f"[GCP Function] Loaded buyer profile successfully")
+            except Exception as profile_error:
+                print(f"[GCP Function] Warning: Could not load buyer profile: {profile_error}")
+                # Continue without profile - will use preferences_text or fail gracefully
+
+        # Get recommendations using the hybrid model
+        print(f"[GCP Function] Calling recommend_hybrid with limit={limit}")
+        df = recommend_hybrid(
+            user_prefs_text=user_prefs_text,
+            prefs=prefs,
+            preferred_areas=preferred_areas,
+            limit=limit,
+            loved_property_ids=loved_property_ids
+        )
+
+        # Convert DataFrame to list of dicts
+        recommendations = df.to_dict(orient="records")
+
+        print(f"[GCP Function] Returning {len(recommendations)} recommendations")
+
+        # Return success response
+        response_data = {
+            "success": True,
+            "count": len(recommendations),
+            "recommendations": recommendations
+        }
+
+        return (json.dumps(response_data), 200, headers)
+
+    except ValueError as ve:
+        # Validation errors (missing parameters, etc.)
+        error_response = {
+            "success": False,
+            "error": str(ve),
+            "type": "ValueError"
+        }
+        print(f"[GCP Function] ValueError: {ve}")
+        return (json.dumps(error_response), 400, headers)
+
+    except Exception as e:
+        # Unexpected errors
+        import traceback
+        error_response = {
+            "success": False,
+            "error": str(e),
+            "type": type(e).__name__,
+            "traceback": traceback.format_exc()
+        }
+        print(f"[GCP Function] Error: {e}")
+        print(traceback.format_exc())
+        return (json.dumps(error_response), 500, headers)
