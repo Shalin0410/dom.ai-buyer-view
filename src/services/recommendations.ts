@@ -167,7 +167,10 @@ export async function loadRecommendationsToSearchTab(
     console.log('[LoadRecommendations] Interaction history:', interactionHistory);
 
     // Step 2: Get ML recommendations with similarity boosting
-    const requestBody: any = { limit };
+    const requestBody: any = {
+      limit,
+      buyer_id: buyerId  // Always send buyer_id so API can look up buyer profile
+    };
 
     if (buyerProfileId) {
       requestBody.buyer_profile_id = buyerProfileId;

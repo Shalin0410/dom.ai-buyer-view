@@ -808,6 +808,7 @@ def recommend(request):
 
         # Extract parameters
         user_prefs_text = request_json.get('preferences_text')
+        buyer_id = request_json.get('buyer_id')
         buyer_profile_id = request_json.get('buyer_profile_id')
         preferred_areas = request_json.get('preferred_areas')
         limit = request_json.get('limit', 50)
@@ -816,9 +817,8 @@ def recommend(request):
         # Initialize preferences object
         prefs = None
 
-        # If buyer_profile_id provided, fetch profile from Supabase
-        if buyer_profile_id:
-            print(f"[GCP Function] Fetching buyer profile: {buyer_profile_id}")
+        # If buyer_id or buyer_profile_id provided, fetch profile from Supabase
+        if buyer_id or buyer_profile_id:
             try:
                 from supabase import create_client
                 supabase_url = os.environ.get("SUPABASE_URL")
@@ -826,25 +826,55 @@ def recommend(request):
 
                 if supabase_url and supabase_key:
                     supabase = create_client(supabase_url, supabase_key)
-                    response = supabase.table("buyer_profiles").select("*").eq("id", buyer_profile_id).maybe_single().execute()
 
-                    if response.data:
-                        profile = response.data
-                        prefs = Preferences(
-                            budget_min=profile.get("price_min") or 0,
-                            budget_max=profile.get("price_max") or 999999999,
-                            must_haves=profile.get("must_have_features") or [],
-                            nice_to_haves=profile.get("nice_to_have_features") or [],
-                            preferred_areas=profile.get("preferred_areas") or [],
-                            property_types=profile.get("property_type_preferences") or []
-                        )
-                        # Use raw_background for LLM parsing if available and no prefs_text provided
-                        if not user_prefs_text and profile.get("raw_background"):
-                            user_prefs_text = profile.get("raw_background")
-                        print(f"[GCP Function] Loaded buyer profile successfully")
+                    # First, try to get buyer_profile_id if we only have buyer_id
+                    if buyer_id and not buyer_profile_id:
+                        print(f"[GCP Function] Looking up buyer profile for buyer_id: {buyer_id}")
+                        buyer_response = supabase.table("buyers").select("buyer_profile_id").eq("id", buyer_id).maybe_single().execute()
+                        if buyer_response.data and buyer_response.data.get("buyer_profile_id"):
+                            buyer_profile_id = buyer_response.data["buyer_profile_id"]
+                            print(f"[GCP Function] Found buyer_profile_id: {buyer_profile_id}")
+
+                    # Now fetch the profile if we have a profile ID
+                    if buyer_profile_id:
+                        print(f"[GCP Function] Fetching buyer profile: {buyer_profile_id}")
+                        response = supabase.table("buyer_profiles").select("*").eq("id", buyer_profile_id).maybe_single().execute()
+
+                        if response.data:
+                            profile = response.data
+                            prefs = Preferences(
+                                budget_min=profile.get("price_min") or 0,
+                                budget_max=profile.get("price_max") or 999999999,
+                                must_haves=profile.get("must_have_features") or [],
+                                nice_to_haves=profile.get("nice_to_have_features") or [],
+                                preferred_areas=profile.get("preferred_areas") or [],
+                                property_types=profile.get("property_type_preferences") or []
+                            )
+                            # Use raw_background for LLM parsing if available and no prefs_text provided
+                            if not user_prefs_text and profile.get("raw_background"):
+                                user_prefs_text = profile.get("raw_background")
+                            print(f"[GCP Function] Loaded buyer profile successfully")
+                        else:
+                            print(f"[GCP Function] No buyer profile found for ID: {buyer_profile_id}")
+                    else:
+                        print(f"[GCP Function] No buyer_profile_id found for buyer_id: {buyer_id}")
             except Exception as profile_error:
                 print(f"[GCP Function] Warning: Could not load buyer profile: {profile_error}")
                 # Continue without profile - will use preferences_text or fail gracefully
+
+        # If we still don't have preferences or text, create default preferences
+        if not prefs and not user_prefs_text:
+            print("[GCP Function] No preferences found - creating default preferences")
+            prefs = Preferences(
+                budget_min=0,
+                budget_max=999999999,
+                must_haves=[],
+                nice_to_haves=[],
+                preferred_areas=preferred_areas or [],
+                property_types=[]
+            )
+            # Set a generic preferences text for LLM scoring
+            user_prefs_text = "Looking for a property that matches my budget and preferred areas."
 
         # Get recommendations using the hybrid model
         print(f"[GCP Function] Calling recommend_hybrid with limit={limit}")
