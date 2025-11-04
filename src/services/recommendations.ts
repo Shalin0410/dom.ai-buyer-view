@@ -191,7 +191,10 @@ export async function loadRecommendationsToSearchTab(
       }
     }
 
-    const response = await fetch('/api/recommend', {
+    // Use GCP Cloud Function URL from environment variable
+    const apiUrl = import.meta.env.VITE_RECOMMEND_API_URL || '/api/recommend';
+
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -324,7 +327,10 @@ export async function fetchRecommendations(
       requestBody.preferred_areas = preferredAreas;
     }
 
-    const response = await fetch('/api/recommend', {
+    // Use GCP Cloud Function URL from environment variable
+    const apiUrl = import.meta.env.VITE_RECOMMEND_API_URL || '/api/recommend';
+
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
