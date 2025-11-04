@@ -646,17 +646,18 @@ def recommend_hybrid(
     results = []
     for i, listing in enumerate(listings):
         result = {
-            "zpid": listing.get("zpid", ""),
+            "id": listing.get("id", ""),  # Database UUID (required by frontend)
+            "zpid": listing.get("zillow_property_id", listing.get("zpid", "")),  # Display ID
             "address": listing.get("address", ""),
             "city": listing.get("city", ""),
             "state": listing.get("state", ""),
-            "price": listing.get("price", 0),
+            "price": listing.get("listing_price", listing.get("price", 0)),
             "bedrooms": listing.get("bedrooms", 0),
             "bathrooms": listing.get("bathrooms", 0),
-            "sqft": listing.get("livingArea", 0),
-            "lot_size": listing.get("lotSize", 0),
-            "property_type": listing.get("propertyType", ""),
-            "year_built": listing.get("yearBuilt", ""),
+            "sqft": listing.get("square_feet", listing.get("livingArea", 0)),
+            "lot_size": listing.get("lot_size", listing.get("lotSize", 0)),
+            "property_type": listing.get("property_type", listing.get("propertyType", "")),
+            "year_built": listing.get("year_built", listing.get("yearBuilt", "")),
             "avg_school_rating": listing.get("avg_school_rating", 0),
             "hybrid_score": hybrid_scores[i],
             "llm_score": llm_scores[i],
