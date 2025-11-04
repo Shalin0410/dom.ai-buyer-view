@@ -1,11 +1,11 @@
-# Ignore API directory - ML API is deployed to Google Cloud Functions
-api/
+# Ignore Python ML API directory (root level only) - deployed to Google Cloud Functions
+/api/
 
 # Ignore Python files
 *.py
 *.pyc
 __pycache__/
-requirements.txt
+/requirements.txt
 
 # Ignore test files
 *.test.js
