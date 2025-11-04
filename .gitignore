@@ -27,3 +27,21 @@ dist-ssr
 .mcp.json
 .claude
 .vercel
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+
+# Test files
+api/test_*.py
+*_test.py
+
+# Deployment scripts (use manual deployment for GCP)
+api/deploy-gcp.ps1
+api/cloudbuild.yaml
+api/main.py
+DEPLOY_GCP.md

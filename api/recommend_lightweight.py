@@ -1,6 +1,7 @@
 """
-Vercel Serverless Function: Hybrid Property Recommendation API
-Adapted from smart_home_hybrid_vc_demo.py to work with Supabase data
+Vercel Serverless Function: Lightweight Property Recommendation API
+LIGHTWEIGHT VERSION: LLM (70%) + Rules (30%) - No ML libraries
+For Full ML version, see recommend_full_ml.py
 """
 
 from http.server import BaseHTTPRequestHandler
@@ -8,9 +9,7 @@ import json
 import math
 import os
 from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass, asdict
-import numpy as np
-import pandas as pd
+from dataclasses import dataclass
 from openai import OpenAI
 import requests
 
@@ -18,7 +17,6 @@ import requests
 try:
     from supabase import create_client, Client
 except ImportError:
-    # For local development without supabase-py
     Client = None
 
 # Initialize clients
@@ -166,9 +164,7 @@ class Preferences:
 
 
 def parse_prefs_llm(user_text: str) -> Preferences:
-    """
-    Parse free-form buyer preferences using OpenAI LLM
-    """
+    """Parse free-form buyer preferences using OpenAI LLM"""
     prompt = f"""
 You are a real estate assistant. Extract structured preferences from this buyer's description.
 
@@ -197,7 +193,6 @@ Only output valid JSON, nothing else.
     )
 
     result_text = response.choices[0].message.content.strip()
-    # Remove markdown code blocks if present
     if result_text.startswith("```"):
         lines = result_text.split("\n")
         result_text = "\n".join(lines[1:-1])
@@ -213,15 +208,35 @@ def fetch_properties_from_supabase(
     min_beds: int = 0,
     min_baths: float = 0,
     property_types: List[str] = None,
-    limit: int = 100
+    limit: int = 100,
+    buyer_id: str = None,
+    exclude_interacted: bool = True
 ) -> List[Dict[str, Any]]:
     """
     Fetch properties from Supabase database with filters
+
+    OPTIMIZATION: If buyer_id is provided and exclude_interacted=True,
+    properties already in buyer_properties (where is_active=true) are
+    excluded at the DATABASE level (not in Python), making queries much faster.
     """
     if not supabase:
         return []
 
-    # Build query
+    # OPTIMIZATION: Fetch already-interacted property IDs to exclude them
+    # Exclude ALL properties in buyer_properties (active AND inactive)
+    # Only properties that were DELETED (hard delete) can be re-recommended
+    excluded_property_ids = []
+    if buyer_id and exclude_interacted:
+        try:
+            interaction_response = supabase.table("buyer_properties").select("property_id").eq(
+                "buyer_id", buyer_id
+            ).execute()  # Removed .eq("is_active", True) - exclude ALL properties
+
+            excluded_property_ids = [row["property_id"] for row in interaction_response.data]
+            print(f"[DB Filter] Excluding {len(excluded_property_ids)} already-interacted properties for buyer {buyer_id}")
+        except Exception as e:
+            print(f"[DB Filter] Warning: Could not fetch interactions: {e}")
+
     query = supabase.table("properties").select(
         "id, address, city, state, zip_code, coordinates, "
         "listing_price, bedrooms, bathrooms, square_feet, lot_size, "
@@ -229,7 +244,10 @@ def fetch_properties_from_supabase(
         "zillow_property_id, data_source"
     )
 
-    # Apply filters
+    # OPTIMIZATION: Exclude already-interacted properties at SQL level
+    if excluded_property_ids:
+        query = query.not_.in_("id", excluded_property_ids)
+
     if min_price and min_price > 0:
         query = query.gte("listing_price", min_price)
     if max_price is not None and max_price < 999999999:
@@ -238,8 +256,6 @@ def fetch_properties_from_supabase(
         query = query.gte("bedrooms", min_beds)
     if min_baths and min_baths > 0:
         query = query.gte("bathrooms", min_baths)
-
-    # Property type filter
     if property_types:
         query = query.in_("property_type", property_types)
 
@@ -251,7 +267,6 @@ def fetch_properties_from_supabase(
         used_area_filter = True
 
     query = query.limit(limit)
-
     response = query.execute()
 
     # FALLBACK: If preferred_areas filter returned 0 results, retry without it
@@ -268,6 +283,8 @@ def fetch_properties_from_supabase(
             "zillow_property_id, data_source"
         )
 
+        if excluded_property_ids:
+            query = query.not_.in_("id", excluded_property_ids)
         if min_price and min_price > 0:
             query = query.gte("listing_price", min_price)
         if max_price is not None and max_price < 999999999:
@@ -284,27 +301,26 @@ def fetch_properties_from_supabase(
         response = query.execute()
         print(f"[DB Filter] Fallback query returned {len(response.data)} properties")
 
-    # Convert to list of dicts
     properties = []
     for prop in response.data:
-        # Normalize structure to match original ML code expectations
         normalized = {
-            "zpid": prop.get("zillow_property_id") or prop["id"],
-            "address": prop.get("address", ""),
-            "city": prop.get("city", ""),
-            "state": prop.get("state", ""),
-            "zipcode": prop.get("zip_code", ""),
-            "price": prop.get("listing_price", 0),
-            "bedrooms": prop.get("bedrooms", 0),
-            "bathrooms": prop.get("bathrooms", 0),
-            "livingArea": prop.get("square_feet", 0),
-            "lotSize": prop.get("lot_size", 0),
-            "propertyType": prop.get("property_type", ""),
-            "yearBuilt": prop.get("year_built", None),
-            "description": prop.get("description", ""),
+            "id": prop["id"],  # Database UUID (for adding to buyer_properties)
+            "zpid": prop.get("zillow_property_id") or prop["id"],  # Display ID
+            "address": prop.get("address") or "",
+            "city": prop.get("city") or "",
+            "state": prop.get("state") or "",
+            "zipcode": prop.get("zip_code") or "",
+            "price": prop.get("listing_price") or 0,
+            "bedrooms": prop.get("bedrooms") or 0,
+            "bathrooms": prop.get("bathrooms") or 0,
+            "livingArea": prop.get("square_feet") or 0,
+            "lotSize": prop.get("lot_size") or 0,
+            "propertyType": prop.get("property_type") or "",
+            "yearBuilt": prop.get("year_built"),
+            "description": prop.get("description") or "",
             "latitude": prop.get("coordinates", {}).get("lat") if isinstance(prop.get("coordinates"), dict) else None,
             "longitude": prop.get("coordinates", {}).get("lng") if isinstance(prop.get("coordinates"), dict) else None,
-            "schools": prop.get("schools", []),
+            "schools": prop.get("schools") or [],
             "_raw": prop
         }
         properties.append(normalized)
@@ -313,19 +329,12 @@ def fetch_properties_from_supabase(
 
 
 def enrich_with_schools_data(listing: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Use schools data already stored in the database
-    """
+    """Use schools data already stored in the database"""
     schools = listing.get("schools", [])
-
-    # Calculate average school rating if available
     ratings = [s.get("rating", 0) for s in schools if s.get("rating")]
     listing["avg_school_rating"] = sum(ratings) / len(ratings) if ratings else 0
-
-    # Find closest school distance
     distances = [s.get("distance", 999) for s in schools if s.get("distance")]
     listing["closest_school_miles"] = min(distances) if distances else None
-
     return listing
 
 
@@ -446,13 +455,10 @@ def rule_score(listing: Dict[str, Any], prefs: Preferences) -> Tuple[float, List
 
 
 def llm_score_batch(prefs: Preferences, listings: List[Dict[str, Any]]) -> Dict[str, float]:
-    """
-    Score all listings in a single LLM call for efficiency
-    """
+    """Score all listings in a single LLM call for efficiency"""
     if not listings:
         return {}
 
-    # Create summary for each listing
     summaries = []
     for i, listing in enumerate(listings):
         summary = f"""
@@ -503,8 +509,6 @@ Return ONLY a JSON object mapping property index to score:
         result_text = "\n".join(lines[1:-1])
 
     scores_by_index = json.loads(result_text)
-
-    # Map back to zpid
     scores = {}
     for i, listing in enumerate(listings):
         zpid = listing.get("zpid", "")
@@ -514,57 +518,42 @@ Return ONLY a JSON object mapping property index to score:
     return scores
 
 
-def fit_ml_and_predict(X: pd.DataFrame, y_llm: np.ndarray) -> np.ndarray:
-    """
-    Train Ridge regression to mimic LLM scores
-    """
-    from sklearn.linear_model import Ridge
-    from sklearn.preprocessing import StandardScaler
-
-    # Handle missing values
-    X_filled = X.fillna(0)
-
-    # Scale features
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X_filled)
-
-    # Train Ridge regression
-    model = Ridge(alpha=1.0)
-    model.fit(X_scaled, y_llm)
-
-    # Predict
-    y_pred = model.predict(X_scaled)
-
-    # Clip to 0-100 range
-    y_pred = np.clip(y_pred, 0, 100)
-
-    return y_pred
-
-
 def recommend_hybrid(
     user_prefs_text: str = None,
     prefs: Preferences = None,
     preferred_areas: List[str] = None,
     limit: int = 50,
-    w_llm: float = 0.5,
-    w_ml: float = 0.3,
-    w_rule: float = 0.2
-) -> pd.DataFrame:
+    w_llm: float = 0.7,  # Increased from 0.5
+    w_rule: float = 0.3,   # Increased from 0.2
+    buyer_id: str = None,
+    loved_property_ids: List[str] = None,
+    viewing_scheduled_property_ids: List[str] = None,
+    saved_property_ids: List[str] = None,
+    passed_property_ids: List[str] = None
+) -> List[Dict[str, Any]]:
     """
-    Main recommendation function using hybrid scoring
+    LIGHTWEIGHT VERSION: LLM (70%) + Rules (30%)
+    For Full ML version with Ridge regression, see recommend_full_ml.py
+
+    OPTIMIZATION: If buyer_id is provided, already-interacted properties are
+    excluded at the DATABASE level (SQL WHERE NOT IN), not in Python.
+    This makes queries much faster and reduces data transfer.
+
+    We still send loved_property_ids for similarity boosting (price, location, etc.)
     """
-    # Parse preferences if text provided
     if user_prefs_text and not prefs:
         prefs = parse_prefs_llm(user_prefs_text)
 
     if not prefs:
         raise ValueError("Must provide either user_prefs_text or prefs object")
 
-    # Use preferred_areas from prefs if not provided
     if not preferred_areas and prefs.preferred_areas:
         preferred_areas = prefs.preferred_areas
 
-    # Fetch properties from Supabase
+    print(f"[recommend_hybrid] Requested limit: {limit}, Buyer ID: {buyer_id}")
+
+    # OPTIMIZATION: Pass buyer_id to database query for SQL-level filtering
+    # Properties already in buyer_properties (is_active=true) are excluded at DB level
     listings = fetch_properties_from_supabase(
         preferred_areas=preferred_areas,
         min_price=prefs.budget_min,
@@ -572,17 +561,34 @@ def recommend_hybrid(
         min_beds=prefs.min_beds,
         min_baths=prefs.min_baths,
         property_types=prefs.property_types,
-        limit=limit
+        limit=limit,
+        buyer_id=buyer_id,
+        exclude_interacted=True  # Enable SQL-level duplicate filtering
     )
 
     if not listings:
-        return pd.DataFrame()
+        print("[recommend_hybrid] No properties returned from database after filtering")
+        return []
+
+    print(f"[recommend_hybrid] Fetched {len(listings)} properties from database (already filtered)")
+
+    # Fetch loved properties for similarity boosting
+    loved_properties = []
+    if loved_property_ids and supabase:
+        try:
+            loved_response = supabase.table("properties").select("*").in_("id", loved_property_ids).execute()
+            loved_properties = loved_response.data if loved_response.data else []
+            if loved_properties:
+                print(f"Boosting recommendations based on {len(loved_properties)} loved properties")
+        except Exception as e:
+            print(f"Error fetching loved properties: {e}")
 
     # Enrich with schools data
     for listing in listings:
         enrich_with_schools_data(listing)
 
-    # Enrich with Google Places POI data
+    # Enrich with Google Places POI data (schools, markets, parks, transit)
+    # Only if GOOGLE_PLACES_API_KEY is configured
     if os.environ.get("GOOGLE_PLACES_API_KEY"):
         print(f"[recommend_hybrid] Enriching {len(listings)} properties with POI data...")
         for listing in listings:
@@ -602,50 +608,70 @@ def recommend_hybrid(
     for listing in listings:
         score, reasons = rule_score(listing, prefs)
         rule_scores.append(score)
-        rule_reasons.append("; ".join(reasons[:3]))  # Top 3 reasons
+        rule_reasons.append("; ".join(reasons[:3]))
 
     # Calculate LLM scores (batch)
     llm_scores_dict = llm_score_batch(prefs, listings)
     llm_scores = [llm_scores_dict.get(listing.get("zpid", ""), 50) for listing in listings]
 
-    # Prepare features for ML model
-    features_list = []
-    for listing in listings:
-        features = {
-            "price": listing.get("price", 0),
-            "bedrooms": listing.get("bedrooms", 0),
-            "bathrooms": listing.get("bathrooms", 0),
-            "sqft": listing.get("livingArea", 0),
-            "lot_size": listing.get("lotSize", 0),
-            "year_built": listing.get("yearBuilt", 0) or 0,
-            "avg_school_rating": listing.get("avg_school_rating", 0),
-            "price_per_sqft": listing.get("price", 0) / listing.get("livingArea", 1) if listing.get("livingArea", 0) > 0 else 0
-        }
-        features_list.append(features)
+    # Normalize rule scores to 0-100
+    max_rule = max(rule_scores) if rule_scores else 1
+    rule_scores_norm = [(s / max_rule) * 100 for s in rule_scores]
 
-    X = pd.DataFrame(features_list)
-    y_llm = np.array(llm_scores)
+    # Calculate hybrid score (LLM 70% + Rules 30%)
+    hybrid_scores = [
+        w_llm * llm_scores[i] + w_rule * rule_scores_norm[i]
+        for i in range(len(listings))
+    ]
 
-    # Train ML model and predict
-    ml_scores = fit_ml_and_predict(X, y_llm)
+    # Apply feedback from interaction history
+    if loved_properties:
+        # Calculate average characteristics from loved properties
+        avg_price = sum(p.get("price", 0) for p in loved_properties) / len(loved_properties)
+        loved_cities = set(p.get("city", "").lower() for p in loved_properties if p.get("city"))
+        loved_types = set(p.get("propertyType", "").lower() for p in loved_properties if p.get("propertyType"))
+        avg_beds = sum(p.get("bedrooms", 0) for p in loved_properties) / len(loved_properties)
+        avg_baths = sum(p.get("bathrooms", 0) for p in loved_properties) / len(loved_properties)
 
-    # Normalize all scores to 0-100
-    rule_scores_norm = np.array(rule_scores)
-    max_rule = rule_scores_norm.max() if rule_scores_norm.max() > 0 else 1
-    rule_scores_norm = (rule_scores_norm / max_rule) * 100
+        # Boost properties similar to loved ones
+        for i, listing in enumerate(listings):
+            similarity_boost = 0
 
-    # Calculate hybrid score
-    hybrid_scores = (
-        w_llm * np.array(llm_scores) +
-        w_ml * ml_scores +
-        w_rule * rule_scores_norm
-    )
+            # Price similarity (within 20% gets +10 points)
+            listing_price = listing.get("price", 0)
+            if avg_price > 0 and 0.8 * avg_price <= listing_price <= 1.2 * avg_price:
+                similarity_boost += 10
 
-    # Create results DataFrame
+            # Same city as loved properties (+15 points)
+            listing_city = (listing.get("city") or "").lower()
+            if listing_city in loved_cities:
+                similarity_boost += 15
+
+            # Same property type (+10 points)
+            listing_type = (listing.get("propertyType") or "").lower()
+            if listing_type in loved_types:
+                similarity_boost += 10
+
+            # Bedroom similarity (+5 points)
+            listing_beds = listing.get("bedrooms", 0)
+            if abs(listing_beds - avg_beds) <= 1:
+                similarity_boost += 5
+
+            # Bathroom similarity (+5 points)
+            listing_baths = listing.get("bathrooms", 0)
+            if abs(listing_baths - avg_baths) <= 0.5:
+                similarity_boost += 5
+
+            # Apply boost (max +45 points possible)
+            if similarity_boost > 0:
+                hybrid_scores[i] = min(100, hybrid_scores[i] + similarity_boost)
+
+    # Create results
     results = []
     for i, listing in enumerate(listings):
         result = {
-            "zpid": listing.get("zpid", ""),
+            "id": listing.get("id", ""),  # Database UUID
+            "zpid": listing.get("zpid", ""),  # Display ID
             "address": listing.get("address", ""),
             "city": listing.get("city", ""),
             "state": listing.get("state", ""),
@@ -659,38 +685,48 @@ def recommend_hybrid(
             "avg_school_rating": listing.get("avg_school_rating", 0),
             "hybrid_score": hybrid_scores[i],
             "llm_score": llm_scores[i],
-            "ml_score": ml_scores[i],
+            "ml_score": 0,  # Not used in lightweight version
             "rule_score": rule_scores_norm[i],
             "match_reasons": rule_reasons[i]
         }
         results.append(result)
 
-    df = pd.DataFrame(results)
-    df = df.sort_values("hybrid_score", ascending=False).reset_index(drop=True)
+    # Sort by hybrid score and return only the requested limit
+    results.sort(key=lambda x: x["hybrid_score"], reverse=True)
 
-    return df
+    # IMPORTANT: Return exactly the requested number of properties
+    limited_results = results[:limit]
+    print(f"Returning {len(limited_results)} properties (requested limit: {limit})")
+
+    return limited_results
 
 
 class handler(BaseHTTPRequestHandler):
-    """
-    Vercel serverless function handler
-    """
+    """Vercel serverless function handler"""
 
     def do_POST(self):
         """Handle POST requests for property recommendations"""
         try:
-            # Parse request body
             content_length = int(self.headers.get('Content-Length', 0))
             body = self.rfile.read(content_length).decode('utf-8')
             data = json.loads(body)
 
-            # Extract parameters
             user_prefs_text = data.get("preferences_text")
             buyer_profile_id = data.get("buyer_profile_id")
             preferred_areas = data.get("preferred_areas")
             limit = data.get("limit", 50)
 
-            # If buyer_profile_id provided, fetch from database
+            # Extract interaction history for personalized recommendations
+            loved_property_ids = data.get("loved_property_ids", [])
+            viewing_scheduled_property_ids = data.get("viewing_scheduled_property_ids", [])
+            saved_property_ids = data.get("saved_property_ids", [])
+            passed_property_ids = data.get("passed_property_ids", [])
+
+            # Log interaction history for debugging
+            total_interactions = len(loved_property_ids) + len(viewing_scheduled_property_ids) + len(saved_property_ids) + len(passed_property_ids)
+            if total_interactions > 0:
+                print(f"Using interaction history: {len(loved_property_ids)} loved, {len(viewing_scheduled_property_ids)} scheduled, {len(saved_property_ids)} saved, {len(passed_property_ids)} passed")
+
             prefs = None
             if buyer_profile_id and supabase:
                 profile_response = supabase.table("buyer_profiles").select("*").eq("person_id", buyer_profile_id).execute()
@@ -704,40 +740,49 @@ class handler(BaseHTTPRequestHandler):
                         preferred_areas=profile.get("preferred_areas") or [],
                         property_types=profile.get("property_type_preferences") or []
                     )
-                    # Use raw_background for LLM parsing if available
                     if not user_prefs_text and profile.get("raw_background"):
                         user_prefs_text = profile.get("raw_background")
 
-            # Get recommendations
-            df = recommend_hybrid(
+            recommendations = recommend_hybrid(
                 user_prefs_text=user_prefs_text,
                 prefs=prefs,
                 preferred_areas=preferred_areas,
-                limit=limit
+                limit=limit,
+                buyer_id=buyer_profile_id,  # Enable SQL-level duplicate filtering
+                loved_property_ids=loved_property_ids,
+                viewing_scheduled_property_ids=viewing_scheduled_property_ids,
+                saved_property_ids=saved_property_ids,
+                passed_property_ids=passed_property_ids
             )
 
-            # Convert to JSON
-            recommendations = df.to_dict(orient="records")
-
-            # Send response
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps({
                 "success": True,
                 "count": len(recommendations),
-                "recommendations": recommendations
+                "recommendations": recommendations,
+                "version": "lightweight"  # Indicate which version is running
             }).encode('utf-8'))
 
         except Exception as e:
-            # Error response
+            import traceback
+            error_details = {
+                "success": False,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "traceback": traceback.format_exc(),
+                "env_check": {
+                    "has_openai_key": bool(os.environ.get("OPENAI_API_KEY")),
+                    "has_supabase_url": bool(os.environ.get("SUPABASE_URL")),
+                    "has_supabase_key": bool(os.environ.get("SUPABASE_SERVICE_ROLE_KEY")),
+                    "supabase_client_initialized": supabase is not None
+                }
+            }
             self.send_response(500)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps({
-                "success": False,
-                "error": str(e)
-            }).encode('utf-8'))
+            self.wfile.write(json.dumps(error_details).encode('utf-8'))
 
     def do_GET(self):
         """Handle GET requests for health check"""
@@ -746,5 +791,6 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps({
             "status": "ok",
-            "message": "Property Recommendation API is running"
+            "message": "Property Recommendation API is running",
+            "version": "lightweight (LLM 70% + Rules 30%)"
         }).encode('utf-8'))
