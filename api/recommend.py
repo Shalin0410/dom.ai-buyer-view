@@ -290,6 +290,7 @@ def fetch_properties_from_supabase(
     for prop in response.data:
         # Normalize structure to match original ML code expectations
         normalized = {
+            "id": prop.get("id", ""),  # Database UUID (REQUIRED by frontend)
             "zpid": prop.get("zillow_property_id") or prop["id"],
             "address": prop.get("address", ""),
             "city": prop.get("city", ""),
