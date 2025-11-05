@@ -213,13 +213,27 @@ def fetch_properties_from_supabase(
     min_beds: int = 0,
     min_baths: float = 0,
     property_types: List[str] = None,
-    limit: int = 100
+    limit: int = 100,
+    buyer_id: str = None
 ) -> List[Dict[str, Any]]:
     """
     Fetch properties from Supabase database with filters
     """
     if not supabase:
         return []
+
+    # Fetch properties the buyer has already interacted with (if buyer_id provided)
+    excluded_property_ids = []
+    if buyer_id:
+        try:
+            print(f"[DB Filter] Fetching already-seen properties for buyer: {buyer_id}")
+            seen_response = supabase.table("buyer_properties").select("property_id").eq("buyer_id", buyer_id).eq("is_active", True).execute()
+
+            if seen_response.data:
+                excluded_property_ids = [item["property_id"] for item in seen_response.data]
+                print(f"[DB Filter] Excluding {len(excluded_property_ids)} already-seen properties")
+        except Exception as e:
+            print(f"[DB Filter] Warning: Could not fetch seen properties: {e}")
 
     # Build query
     query = supabase.table("properties").select(
@@ -228,6 +242,10 @@ def fetch_properties_from_supabase(
         "property_type, year_built, description, schools, "
         "zillow_property_id, data_source"
     )
+
+    # Exclude properties the buyer has already seen
+    if excluded_property_ids:
+        query = query.not_.in_("id", excluded_property_ids)
 
     # Apply filters
     if min_price and min_price > 0:
@@ -269,6 +287,10 @@ def fetch_properties_from_supabase(
             "property_type, year_built, description, schools, "
             "zillow_property_id, data_source"
         )
+
+        # Exclude properties the buyer has already seen (in fallback query too)
+        if excluded_property_ids:
+            query = query.not_.in_("id", excluded_property_ids)
 
         if min_price and min_price > 0:
             query = query.gte("listing_price", min_price)
@@ -548,6 +570,7 @@ def recommend_hybrid(
     prefs: Preferences = None,
     preferred_areas: List[str] = None,
     limit: int = 50,
+    buyer_id: str = None,
     w_llm: float = 0.5,
     w_ml: float = 0.3,
     w_rule: float = 0.2
@@ -574,7 +597,8 @@ def recommend_hybrid(
         min_beds=prefs.min_beds,
         min_baths=prefs.min_baths,
         property_types=prefs.property_types,
-        limit=limit
+        limit=limit,
+        buyer_id=buyer_id
     )
 
     if not listings:

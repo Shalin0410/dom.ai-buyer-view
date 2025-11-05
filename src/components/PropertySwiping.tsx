@@ -8,7 +8,8 @@ import { Property, PropertyStatus } from '@/services/api/types';
 import { toast } from '@/hooks/use-toast';
 import { handlePropertyInteraction, PropertyAction } from '@/services/properties/interactions';
 import { ViewingScheduleModal } from '@/components/ViewingScheduleModal';
-import { LoadRecommendationsButton, LoadRecommendationsCompact } from '@/components/LoadRecommendationsButton';
+import { LoadRecommendationsCompact } from '@/components/LoadRecommendationsButton';
+import { loadRecommendationsToSearchTab } from '@/services/recommendations';
 import { useAuth } from '@/contexts/AuthContext';
 
 // UI extension for property swiping
@@ -38,6 +39,7 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat, agentEmail
   const [swipeProperties, setSwipeProperties] = useState<SwipeProperty[]>([]);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [isAutoLoading, setIsAutoLoading] = useState(false);
 
   // Get auth context for organization_id
   const { user } = useAuth();
@@ -258,6 +260,58 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat, agentEmail
     }
   }, [availableProperties]);
 
+  // Auto-load AI recommendations when property count drops below 5
+  useEffect(() => {
+    const autoLoadRecommendations = async () => {
+      // Only auto-load if:
+      // 1. Property count is below 5
+      // 2. Not currently loading
+      // 3. Not already auto-loading
+      // 4. Have valid buyer ID and organization ID
+      const propertyCount = swipeProperties.length;
+
+      if (propertyCount < 5 && !loading && !isAutoLoading && buyerId && organizationId) {
+        console.log(`[Auto-Load] Property count is ${propertyCount}, triggering AI recommendations...`);
+
+        setIsAutoLoading(true);
+
+        try {
+          // Calculate how many properties to fetch (up to 20 max)
+          const availableSlots = 20 - propertyCount;
+          const limitToFetch = Math.min(availableSlots, 20);
+
+          const result = await loadRecommendationsToSearchTab({
+            buyerId,
+            buyerProfileId: buyerId,
+            limit: limitToFetch,
+            organizationId
+          });
+
+          if (result.success && result.propertiesAdded > 0) {
+            console.log(`[Auto-Load] Successfully added ${result.propertiesAdded} properties`);
+
+            toast({
+              title: '✨ New Properties Added!',
+              description: `${result.propertiesAdded} AI-recommended properties added to your list`,
+              duration: 3000,
+            });
+
+            // Refresh the property list
+            refreshProperties();
+          } else if (result.totalRecommendations === 0) {
+            console.log('[Auto-Load] No new recommendations available');
+          }
+        } catch (error) {
+          console.error('[Auto-Load] Error loading recommendations:', error);
+        } finally {
+          setIsAutoLoading(false);
+        }
+      }
+    };
+
+    autoLoadRecommendations();
+  }, [swipeProperties.length, loading, isAutoLoading, buyerId, organizationId, refreshProperties]);
+
   // Get current property safely
   const currentProperty = swipeProperties[currentPropertyIndex];
   
@@ -295,24 +349,8 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat, agentEmail
             <h3 className="text-2xl font-bold text-gray-900 mb-3">No Properties to Swipe</h3>
             <p className="text-gray-600 mb-8 max-w-md mx-auto">
               Your agent hasn't added any properties yet, or you've reviewed them all.
-              Try loading AI-powered recommendations based on your preferences!
+              New AI recommendations will be loaded automatically!
             </p>
-          </div>
-
-          {/* AI Recommendations Button */}
-          <LoadRecommendationsButton
-            buyerId={buyerId}
-            organizationId={organizationId}
-            buyerProfileId={buyerId}
-            currentPropertyCount={availableProperties.length}
-            onPropertiesLoaded={() => {
-              // Refresh the property list
-              refreshProperties();
-            }}
-          />
-
-          <div className="text-center">
-            <p className="text-sm text-gray-500 mb-4">or</p>
             <Button
               onClick={() => window.location.reload()}
               variant="outline"
