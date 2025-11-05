@@ -264,21 +264,32 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat, agentEmail
   useEffect(() => {
     const autoLoadRecommendations = async () => {
       // Only auto-load if:
-      // 1. Property count is below 5
-      // 2. Not currently loading
-      // 3. Not already auto-loading
-      // 4. Have valid buyer ID and organization ID
+      // 1. Property count is below 5 (threshold)
+      // 2. Property count is below 20 (max limit)
+      // 3. Not currently loading
+      // 4. Not already auto-loading
+      // 5. Have valid buyer ID and organization ID
       const propertyCount = swipeProperties.length;
+      const MAX_PROPERTIES = 20;
+      const AUTO_LOAD_THRESHOLD = 5;
 
-      if (propertyCount < 5 && !loading && !isAutoLoading && buyerId && organizationId) {
+      if (propertyCount < AUTO_LOAD_THRESHOLD &&
+          propertyCount < MAX_PROPERTIES &&
+          !loading &&
+          !isAutoLoading &&
+          buyerId &&
+          organizationId) {
+
         console.log(`[Auto-Load] Property count is ${propertyCount}, triggering AI recommendations...`);
 
         setIsAutoLoading(true);
 
         try {
-          // Calculate how many properties to fetch (up to 20 max)
-          const availableSlots = 20 - propertyCount;
-          const limitToFetch = Math.min(availableSlots, 20);
+          // Calculate how many properties to fetch to reach MAX_PROPERTIES
+          const availableSlots = MAX_PROPERTIES - propertyCount;
+          const limitToFetch = Math.min(availableSlots, MAX_PROPERTIES);
+
+          console.log(`[Auto-Load] Current: ${propertyCount}, Target: ${MAX_PROPERTIES}, Fetching: ${limitToFetch}`);
 
           const result = await loadRecommendationsToSearchTab({
             buyerId,
@@ -306,11 +317,15 @@ const PropertySwiping = ({ userProfile, onPropertyAction, onOpenChat, agentEmail
         } finally {
           setIsAutoLoading(false);
         }
+      } else if (propertyCount >= MAX_PROPERTIES) {
+        console.log(`[Auto-Load] Skipping - already at max (${propertyCount}/${MAX_PROPERTIES})`);
+      } else if (propertyCount >= AUTO_LOAD_THRESHOLD) {
+        console.log(`[Auto-Load] Skipping - above threshold (${propertyCount} >= ${AUTO_LOAD_THRESHOLD})`);
       }
     };
 
     autoLoadRecommendations();
-  }, [swipeProperties.length, loading, isAutoLoading, buyerId, organizationId, refreshProperties]);
+  }, [swipeProperties.length, loading, isAutoLoading, buyerId, organizationId]);
 
   // Get current property safely
   const currentProperty = swipeProperties[currentPropertyIndex];
