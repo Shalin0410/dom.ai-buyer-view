@@ -227,7 +227,7 @@ def fetch_properties_from_supabase(
     if buyer_id:
         try:
             print(f"[DB Filter] Fetching already-seen properties for buyer: {buyer_id}")
-            seen_response = supabase.table("buyer_properties").select("property_id").eq("buyer_id", buyer_id).eq("is_active", True).execute()
+            seen_response = supabase.table("buyer_properties").select("property_id").eq("buyer_id", buyer_id).execute()
 
             if seen_response.data:
                 excluded_property_ids = [item["property_id"] for item in seen_response.data]
