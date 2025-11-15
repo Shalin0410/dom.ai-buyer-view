@@ -58,6 +58,19 @@ PLACES_TYPES = {
 }
 
 
+# ------------------- PIM Service Integration -------------------
+PIM_SERVICE_URL = os.environ.get("PIM_SERVICE_URL", "https://pim-service-646197723218.us-central1.run.app")
+PIM_TIMEOUT = 10
+PIM_ENABLED = os.environ.get("PIM_ENABLED", "true").lower() == "true"
+PIM_SUPPORTED_CITIES = {"San Francisco", "san francisco", "SF"}
+
+# Geocoding fallback configuration
+SF_GEOCODER_URL = "https://sfplanninggis.org/arcgiswa/rest/services/Geocoder_V2/GeocodeServer/findAddressCandidates"
+GOOGLE_GEOCODING_URL = "https://maps.googleapis.com/maps/api/geocode/json"
+GEOCODING_TIMEOUT = 5
+GEOCODING_CACHE = {}  # Simple in-memory cache
+
+
 def places_nearby(lat: float, lon: float, included_types: List[str],
                   radius_miles: float, max_results: int = 8) -> List[Dict[str, Any]]:
     """
@@ -136,6 +149,176 @@ def enrich_with_places(listing: Dict[str, Any], poi_keys: List[str] = None) -> D
         poi_counts[k] = len(places)
 
     return {"poi_min_miles": poi_min, "poi_counts": poi_counts}
+
+
+# ------------------- Coordinate Extraction with Fallbacks -------------------
+def get_property_coordinates(listing: Dict[str, Any]) -> Optional[Tuple[float, float]]:
+    """
+    Extract coordinates with multiple fallback strategies.
+
+    Tries in order:
+    1. latitude/longitude fields (from normalized listing)
+    2. coordinates.lat/lng (from raw data)
+    3. SF Planning GIS geocoder (SF only)
+    4. Google Geocoding API (if key available)
+    """
+    # Strategy 1: Direct latitude/longitude fields
+    lat = listing.get("latitude")
+    lon = listing.get("longitude")
+    if lat is not None and lon is not None:
+        return (float(lat), float(lon))
+
+    # Strategy 2: coordinates object (from raw data)
+    raw = listing.get("_raw", {})
+    coords = raw.get("coordinates", {})
+    if coords and coords.get("lat") and coords.get("lng"):
+        return (float(coords["lat"]), float(coords["lng"]))
+
+    # Strategy 3: Geocode using SF Planning (SF only)
+    city = listing.get("city", "")
+    address = listing.get("address", "")
+
+    if city and "san francisco" in city.lower() and address:
+        coords = geocode_sf_planning(address)
+        if coords:
+            return coords
+
+    # Strategy 4: Google Geocoding (if available)
+    google_key = os.environ.get("GOOGLE_PLACES_API_KEY")
+    if google_key and address and city:
+        coords = geocode_google(address, city)
+        if coords:
+            return coords
+
+    print(f"[Coords] No coordinates found for {listing.get('id')}")
+    return None
+
+
+def geocode_sf_planning(address: str) -> Optional[Tuple[float, float]]:
+    """Geocode using SF Planning GIS geocoder"""
+    cache_key = f"sf_{address}"
+    if cache_key in GEOCODING_CACHE:
+        return GEOCODING_CACHE[cache_key]
+
+    try:
+        response = requests.get(
+            SF_GEOCODER_URL,
+            params={"f": "json", "SingleLine": address, "maxLocations": 1},
+            timeout=GEOCODING_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            candidates = data.get("candidates", [])
+
+            if candidates:
+                location = candidates[0].get("location", {})
+                lon = location.get("x")
+                lat = location.get("y")
+
+                if lat and lon:
+                    coords = (float(lat), float(lon))
+
+                    # Verify within SF bounds
+                    if 37.7 <= coords[0] <= 37.83 and -122.52 <= coords[1] <= -122.35:
+                        GEOCODING_CACHE[cache_key] = coords
+                        print(f"[SF Geocoder] Found: {address} -> {coords}")
+                        return coords
+
+    except Exception as e:
+        print(f"[SF Geocoder] Error: {e}")
+
+    return None
+
+
+def geocode_google(address: str, city: str) -> Optional[Tuple[float, float]]:
+    """Geocode using Google Geocoding API"""
+    google_key = os.environ.get("GOOGLE_PLACES_API_KEY")
+    if not google_key:
+        return None
+
+    cache_key = f"google_{address}_{city}"
+    if cache_key in GEOCODING_CACHE:
+        return GEOCODING_CACHE[cache_key]
+
+    try:
+        response = requests.get(
+            GOOGLE_GEOCODING_URL,
+            params={"address": f"{address}, {city}, CA", "key": google_key},
+            timeout=GEOCODING_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("status") == "OK" and data.get("results"):
+                location = data["results"][0]["geometry"]["location"]
+                coords = (float(location["lat"]), float(location["lng"]))
+                GEOCODING_CACHE[cache_key] = coords
+                print(f"[Google Geocoder] Found: {address} -> {coords}")
+                return coords
+
+    except Exception as e:
+        print(f"[Google Geocoder] Error: {e}")
+
+    return None
+
+
+# ------------------- PIM Scoring Client -------------------
+def get_pim_score(listing_id: str, city: str, lat: float, lon: float) -> Optional[Dict]:
+    """
+    Call PIM microservice to get property score.
+
+    Returns:
+        Dict with PIM data if successful, None if:
+        - PIM disabled
+        - City not supported
+        - Property outside coverage area
+        - Service timeout/error
+    """
+    if not PIM_ENABLED:
+        return None
+
+    if city not in PIM_SUPPORTED_CITIES:
+        return None
+
+    if lat is None or lon is None:
+        return None
+
+    try:
+        response = requests.post(
+            f"{PIM_SERVICE_URL}/score",
+            json={
+                "property": {
+                    "listing_id": listing_id,
+                    "latitude": lat,
+                    "longitude": lon,
+                    "city": city
+                }
+            },
+            timeout=PIM_TIMEOUT
+        )
+
+        if response.status_code == 200:
+            pim_data = response.json()
+            print(f"[PIM] ✓ Scored {listing_id}: {pim_data['score_total']:.2f}/10")
+            return pim_data
+
+        elif response.status_code == 400:
+            # Property outside SF or city not supported
+            print(f"[PIM] ⊘ Property {listing_id} outside coverage area")
+            return None
+
+        else:
+            print(f"[PIM] ✗ Service error {response.status_code} for {listing_id}")
+            return None
+
+    except requests.Timeout:
+        print(f"[PIM] ⏱ Timeout for {listing_id}")
+        return None
+
+    except Exception as e:
+        print(f"[PIM] ✗ Error for {listing_id}: {e}")
+        return None
 
 
 @dataclass
@@ -235,12 +418,13 @@ def fetch_properties_from_supabase(
         except Exception as e:
             print(f"[DB Filter] Warning: Could not fetch seen properties: {e}")
 
-    # Build query
+    # Build query - include PIM cache columns
     query = supabase.table("properties").select(
         "id, address, city, state, zip_code, coordinates, "
         "listing_price, bedrooms, bathrooms, square_feet, lot_size, "
         "property_type, year_built, description, schools, "
-        "zillow_property_id, data_source"
+        "zillow_property_id, data_source, "
+        "pim_score, pim_env_risk, pim_regulatory_friction, pim_expandability, pim_reno_recency, pim_nuisance, pim_scored_at"
     )
 
     # Exclude properties the buyer has already seen
@@ -280,12 +464,13 @@ def fetch_properties_from_supabase(
         print(f"[DB Filter] No properties found matching preferred_areas={preferred_areas} as cities")
         print(f"[DB Filter] Retrying without area filter (preferred_areas may be neighborhoods)")
 
-        # Rebuild query without the city filter
+        # Rebuild query without the city filter - include PIM cache columns
         query = supabase.table("properties").select(
             "id, address, city, state, zip_code, coordinates, "
             "listing_price, bedrooms, bathrooms, square_feet, lot_size, "
             "property_type, year_built, description, schools, "
-            "zillow_property_id, data_source"
+            "zillow_property_id, data_source, "
+            "pim_score, pim_env_risk, pim_regulatory_friction, pim_expandability, pim_reno_recency, pim_nuisance, pim_scored_at"
         )
 
         # Exclude properties the buyer has already seen (in fallback query too)
@@ -363,7 +548,7 @@ def rule_score(listing: Dict[str, Any], prefs: Preferences) -> Tuple[float, List
     """
     score = 0.0
     reasons = []
-    price = listing.get("price", 0)
+    price = listing.get("price") or 0
 
     # Budget fit with progressive penalty for over-budget (0-30 points)
     if price == 0:
@@ -637,15 +822,19 @@ def recommend_hybrid(
     # Prepare features for ML model
     features_list = []
     for listing in listings:
+        # Handle None values explicitly (when key exists but value is NULL)
+        price = listing.get("price") or 0
+        living_area = listing.get("livingArea") or 0
+
         features = {
-            "price": listing.get("price", 0),
-            "bedrooms": listing.get("bedrooms", 0),
-            "bathrooms": listing.get("bathrooms", 0),
-            "sqft": listing.get("livingArea", 0),
-            "lot_size": listing.get("lotSize", 0),
-            "year_built": listing.get("yearBuilt", 0) or 0,
-            "avg_school_rating": listing.get("avg_school_rating", 0),
-            "price_per_sqft": listing.get("price", 0) / listing.get("livingArea", 1) if listing.get("livingArea", 0) > 0 else 0
+            "price": price,
+            "bedrooms": listing.get("bedrooms") or 0,
+            "bathrooms": listing.get("bathrooms") or 0,
+            "sqft": living_area,
+            "lot_size": listing.get("lotSize") or 0,
+            "year_built": listing.get("yearBuilt") or 0,
+            "avg_school_rating": listing.get("avg_school_rating") or 0,
+            "price_per_sqft": price / living_area if living_area > 0 else 0
         }
         features_list.append(features)
 
@@ -660,12 +849,72 @@ def recommend_hybrid(
     max_rule = rule_scores_norm.max() if rule_scores_norm.max() > 0 else 1
     rule_scores_norm = (rule_scores_norm / max_rule) * 100
 
-    # Calculate hybrid score
-    hybrid_scores = (
-        w_llm * np.array(llm_scores) +
-        w_ml * ml_scores +
-        w_rule * rule_scores_norm
-    )
+    # Get PIM scores for eligible properties (SF properties with coordinates)
+    # Strategy: Use cached scores from database first, fall back to PIM service
+    print(f"[PIM] Checking {len(listings)} properties for PIM scoring...")
+    pim_scores = []
+    pim_subscores_list = []
+
+    for listing in listings:
+        city = listing.get("city", "")
+        raw_listing = listing.get("_raw", {})
+
+        # Check for cached PIM scores from database
+        cached_pim_score = raw_listing.get("pim_score")
+
+        if cached_pim_score is not None:
+            # Use cached scores from database (already in 0-10 scale, convert to 0-100)
+            pim_scores.append(float(cached_pim_score) * 10)
+            pim_subscores_list.append({
+                "env_risk": raw_listing.get("pim_env_risk"),
+                "regulatory_friction": raw_listing.get("pim_regulatory_friction"),
+                "expandability": raw_listing.get("pim_expandability"),
+                "reno_recency": raw_listing.get("pim_reno_recency"),
+                "nuisance": raw_listing.get("pim_nuisance"),
+            })
+            print(f"[PIM] ✓ Using cached score for {listing.get('id')}: {cached_pim_score:.2f}/10")
+            continue
+
+        # No cached score - try PIM service (may fail with 403 but that's okay)
+        coords = get_property_coordinates(listing)
+        pim_data = None
+
+        if coords:
+            lat, lon = coords
+            pim_data = get_pim_score(listing.get("id"), city, lat, lon)
+        else:
+            print(f"[PIM] ⊘ Skipping {listing.get('id')}: No coordinates or cached score")
+
+        # Store PIM data
+        if pim_data is not None:
+            # Convert PIM score from 0-10 to 0-100 scale
+            pim_scores.append(pim_data["score_total"] * 10)
+            pim_subscores_list.append(pim_data.get("subscores", {}))
+        else:
+            pim_scores.append(None)
+            pim_subscores_list.append({})
+
+    # Calculate hybrid score with adaptive weights
+    hybrid_scores = []
+    for i in range(len(listings)):
+        if pim_scores[i] is not None:
+            # SF property with PIM: 40% LLM + 25% ML + 15% Rules + 20% PIM
+            hybrid_score = (
+                0.40 * llm_scores[i] +
+                0.25 * ml_scores[i] +
+                0.15 * rule_scores_norm[i] +
+                0.20 * pim_scores[i]
+            )
+        else:
+            # Non-SF or PIM unavailable: 50% LLM + 30% ML + 20% Rules
+            hybrid_score = (
+                0.50 * llm_scores[i] +
+                0.30 * ml_scores[i] +
+                0.20 * rule_scores_norm[i]
+            )
+        hybrid_scores.append(hybrid_score)
+
+    hybrid_scores = np.array(hybrid_scores)
 
     # Create results DataFrame
     results = []
@@ -688,7 +937,14 @@ def recommend_hybrid(
             "llm_score": llm_scores[i],
             "ml_score": ml_scores[i],
             "rule_score": rule_scores_norm[i],
-            "match_reasons": rule_reasons[i]
+            "match_reasons": rule_reasons[i],
+            # PIM scores
+            "pim_score": pim_scores[i] if pim_scores[i] is not None else None,
+            "pim_env_risk": pim_subscores_list[i].get("env_risk") if pim_subscores_list[i] else None,
+            "pim_regulatory_friction": pim_subscores_list[i].get("regulatory_friction") if pim_subscores_list[i] else None,
+            "pim_expandability": pim_subscores_list[i].get("expandability") if pim_subscores_list[i] else None,
+            "pim_reno_recency": pim_subscores_list[i].get("reno_recency") if pim_subscores_list[i] else None,
+            "pim_nuisance": pim_subscores_list[i].get("nuisance") if pim_subscores_list[i] else None,
         }
         results.append(result)
 
@@ -696,6 +952,51 @@ def recommend_hybrid(
     df = df.sort_values("hybrid_score", ascending=False).reset_index(drop=True)
 
     return df
+
+
+def save_recommendations_to_db(buyer_id: str, recommendations_df: pd.DataFrame):
+    """
+    Save recommendations with PIM scores to buyer_properties table.
+
+    This function stores all scoring data including PIM scores and subscores
+    for tracking and analytics purposes.
+    """
+    if not supabase:
+        print("[DB] Warning: Supabase client not available, skipping DB save")
+        return
+
+    for _, row in recommendations_df.iterrows():
+        property_data = {
+            "buyer_id": buyer_id,
+            "property_id": row["id"],
+            "hybrid_score": float(row["hybrid_score"]),
+            "llm_score": float(row["llm_score"]),
+            "ml_score": float(row["ml_score"]),
+            "rule_score": float(row["rule_score"]),
+            "is_active": True,
+            "created_at": "now()",
+        }
+
+        # Add PIM scores if available
+        if pd.notna(row.get("pim_score")):
+            property_data.update({
+                "pim_score": float(row["pim_score"]),
+                "pim_env_risk": float(row["pim_env_risk"]) if pd.notna(row.get("pim_env_risk")) else None,
+                "pim_regulatory_friction": float(row["pim_regulatory_friction"]) if pd.notna(row.get("pim_regulatory_friction")) else None,
+                "pim_expandability": float(row["pim_expandability"]) if pd.notna(row.get("pim_expandability")) else None,
+                "pim_reno_recency": float(row["pim_reno_recency"]) if pd.notna(row.get("pim_reno_recency")) else None,
+                "pim_nuisance": float(row["pim_nuisance"]) if pd.notna(row.get("pim_nuisance")) else None,
+                "pim_scored_at": "now()",
+                "pim_city": row.get("city"),
+            })
+
+        try:
+            supabase.table("buyer_properties").upsert(
+                property_data,
+                on_conflict="buyer_id,property_id"
+            ).execute()
+        except Exception as e:
+            print(f"[DB] Error saving property {row['id']}: {e}")
 
 
 class handler(BaseHTTPRequestHandler):
@@ -911,6 +1212,11 @@ def recommend(request):
             limit=limit,
             loved_property_ids=loved_property_ids
         )
+
+        # Save recommendations to database if buyer_id provided
+        if buyer_id:
+            print(f"[GCP Function] Saving {len(df)} recommendations to database for buyer: {buyer_id}")
+            save_recommendations_to_db(buyer_id, df)
 
         # Convert DataFrame to list of dicts
         recommendations = df.to_dict(orient="records")
