@@ -1,4 +1,4 @@
-# Frontend/Backend Architecture
+# Frontend/Backend Architecture - Buyer View
 
 This document describes the new service-based architecture implemented to separate frontend and backend concerns, making it easier to change data sources and backends in the future.
 
