@@ -10,6 +10,7 @@ import RequireAuth from '@/components/RequireAuth';
 import Index from "./pages/Index";
 import Login from './pages/Login';
 import AuthCallback from './pages/AuthCallback';
+import Onboarding from './pages/Onboarding';
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,8 +25,9 @@ const App = () => (
         <Routes>
           <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
           <Route path="/login" element={<Login />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
