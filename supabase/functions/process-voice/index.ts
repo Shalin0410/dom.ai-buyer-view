@@ -6,6 +6,29 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper function to merge arrays intelligently
+function mergeArrays(oldArray: string[], newArray: string[]): string[] {
+  if (!newArray || newArray.length === 0) {
+    return oldArray;
+  }
+  if (!oldArray || oldArray.length === 0) {
+    return newArray;
+  }
+
+  // Combine and deduplicate (case-insensitive)
+  const combined = [...oldArray];
+  newArray.forEach(item => {
+    const exists = combined.some(existing =>
+      existing.toLowerCase() === item.toLowerCase()
+    );
+    if (!exists) {
+      combined.push(item);
+    }
+  });
+
+  return combined;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -129,7 +152,7 @@ Return ONLY valid JSON with the exact structure above. No markdown, no explanati
     const confidence = mentionedMandatory / mandatoryFields.length;
     console.log('Confidence score:', confidence, `(${mentionedMandatory}/${mandatoryFields.length} mandatory fields)`);
 
-    // 5. Update buyer_profiles in database
+    // 5. Update buyer_profiles in database with versioning
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_KEY!);
 
     // First, get the buyer's person_id from their user id
@@ -143,7 +166,94 @@ Return ONLY valid JSON with the exact structure above. No markdown, no explanati
       throw new Error(`Failed to find person record: ${personError?.message}`);
     }
 
-    // Update or create buyer_profile
+    // 5a. Check for previous recordings and current profile
+    const { data: previousRecordings, error: recordingsError } = await supabase
+      .from('voice_recordings')
+      .select('*')
+      .eq('buyer_id', personData.id)
+      .order('recording_number', { ascending: false })
+      .limit(1);
+
+    if (recordingsError) {
+      console.error('Error fetching previous recordings:', recordingsError);
+    }
+
+    const { data: currentProfile, error: profileError } = await supabase
+      .from('buyer_profiles')
+      .select('*')
+      .eq('person_id', personData.id)
+      .single();
+
+    if (profileError && profileError.code !== 'PGRST116') {
+      console.error('Error fetching current profile:', profileError);
+    }
+
+    const recordingNumber = previousRecordings && previousRecordings.length > 0
+      ? previousRecordings[0].recording_number + 1
+      : 1;
+
+    console.log(`This is recording #${recordingNumber} for buyer ${personData.id}`);
+
+    // 5b. Insert new recording into history
+    const { error: recordingInsertError } = await supabase
+      .from('voice_recordings')
+      .insert({
+        buyer_id: personData.id,
+        recording_url: audioUrl,
+        recording_number: recordingNumber,
+        transcript: transcript,
+        transcript_summary: transcript.substring(0, 500), // First 500 chars as summary
+        extracted_data: preferences,
+        recording_context: recordingNumber === 1 ? 'initial_onboarding' : 'preference_update',
+        trigger_event: recordingNumber === 1 ? 'first_recording' : 'update_after_viewing',
+        submitted_at: new Date().toISOString()
+      });
+
+    if (recordingInsertError) {
+      console.error('Error inserting recording:', recordingInsertError);
+      throw new Error(`Failed to save recording: ${recordingInsertError.message}`);
+    }
+
+    // 5c. Smart merge with previous preferences
+    let mergedPreferences = { ...preferences };
+    let changeLog: any[] = [];
+
+    if (currentProfile) {
+      console.log('Merging with existing preferences...');
+      const oldPrefs = currentProfile;
+
+      // Simple merge logic for non-conflicting updates
+      mergedPreferences = {
+        bedrooms: preferences.bedrooms ?? oldPrefs.bedrooms,
+        bathrooms: preferences.bathrooms ?? oldPrefs.bathrooms,
+        price_min: preferences.price_min ?? oldPrefs.price_min,
+        price_max: preferences.price_max ?? oldPrefs.price_max,
+        preferred_areas: mergeArrays(oldPrefs.preferred_areas || [], preferences.preferred_areas || []),
+        property_type_preferences: mergeArrays(oldPrefs.property_type_preferences || [], preferences.property_type_preferences || []),
+        must_have_features: mergeArrays(oldPrefs.must_have_features || [], preferences.must_have_features || []),
+        nice_to_have_features: mergeArrays(oldPrefs.nice_to_have_features || [], preferences.nice_to_have_features || []),
+        urgency_level: preferences.urgency_level ?? oldPrefs.urgency_level,
+        ideal_move_in_date: preferences.ideal_move_in_date ?? oldPrefs.ideal_move_in_date,
+      };
+
+      // Track changes
+      if (preferences.bedrooms && preferences.bedrooms !== oldPrefs.bedrooms) {
+        changeLog.push({ field: 'bedrooms', old: oldPrefs.bedrooms, new: preferences.bedrooms, recording: recordingNumber });
+      }
+      if (preferences.bathrooms && preferences.bathrooms !== oldPrefs.bathrooms) {
+        changeLog.push({ field: 'bathrooms', old: oldPrefs.bathrooms, new: preferences.bathrooms, recording: recordingNumber });
+      }
+      if (preferences.price_max && preferences.price_max !== oldPrefs.price_max) {
+        changeLog.push({ field: 'price_max', old: oldPrefs.price_max, new: preferences.price_max, recording: recordingNumber });
+      }
+
+      console.log('Merge completed. Changes:', changeLog.length);
+    }
+
+    // 5d. Update or create buyer_profile with merged preferences
+    const existingChangeLog = currentProfile?.preference_change_log || [];
+    const updatedChangeLog = [...existingChangeLog, ...changeLog];
+
     const { error: updateError } = await supabase
       .from('buyer_profiles')
       .upsert({
@@ -155,19 +265,20 @@ Return ONLY valid JSON with the exact structure above. No markdown, no explanati
         extraction_status: 'completed',
         extraction_confidence: confidence,
         extracted_data: preferences,
-        // Update actual preference fields
-        bedrooms: preferences.bedrooms,
-        bathrooms: preferences.bathrooms,
-        price_min: preferences.price_min,
-        price_max: preferences.price_max,
-        preferred_areas: preferences.preferred_areas || [],
-        property_type_preferences: preferences.property_type_preferences || [],
-        must_have_features: preferences.must_have_features || [],
-        nice_to_have_features: preferences.nice_to_have_features || [],
-        urgency_level: preferences.urgency_level,
-        ideal_move_in_date: preferences.ideal_move_in_date,
+        // Use merged preferences
+        bedrooms: mergedPreferences.bedrooms,
+        bathrooms: mergedPreferences.bathrooms,
+        price_min: mergedPreferences.price_min,
+        price_max: mergedPreferences.price_max,
+        preferred_areas: mergedPreferences.preferred_areas || [],
+        property_type_preferences: mergedPreferences.property_type_preferences || [],
+        must_have_features: mergedPreferences.must_have_features || [],
+        nice_to_have_features: mergedPreferences.nice_to_have_features || [],
+        urgency_level: mergedPreferences.urgency_level,
+        ideal_move_in_date: mergedPreferences.ideal_move_in_date,
+        preference_change_log: updatedChangeLog,
         raw_background: transcript,
-        buyer_needs: `Voice preferences captured on ${new Date().toLocaleDateString()}. Confidence: ${(confidence * 100).toFixed(0)}%. ${transcript}`,
+        buyer_needs: `Voice preferences captured on ${new Date().toLocaleDateString()}. Recording #${recordingNumber}. Confidence: ${(confidence * 100).toFixed(0)}%. ${transcript}`,
         updated_at: new Date().toISOString()
       }, {
         onConflict: 'person_id'
@@ -178,16 +289,21 @@ Return ONLY valid JSON with the exact structure above. No markdown, no explanati
       throw new Error(`Failed to update buyer profile: ${updateError.message}`);
     }
 
-    console.log('Successfully updated buyer profile');
+    console.log('Successfully updated buyer profile with merged preferences');
 
     return new Response(
       JSON.stringify({
         success: true,
         transcript,
-        preferences,
+        preferences: mergedPreferences,
+        rawPreferences: preferences,
         confidence,
         mandatoryFieldsCaptured: mentionedMandatory,
-        totalMandatoryFields: mandatoryFields.length
+        totalMandatoryFields: mandatoryFields.length,
+        recordingNumber,
+        isFirstRecording: recordingNumber === 1,
+        changesDetected: changeLog.length,
+        changes: changeLog
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

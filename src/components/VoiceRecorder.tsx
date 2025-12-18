@@ -18,13 +18,25 @@ export interface ExtractedPreferences {
   ideal_move_in_date: string | null;
 }
 
+interface PreferenceChange {
+  field: string;
+  old: any;
+  new: any;
+  recording: number;
+}
+
 interface VoiceProcessingResult {
   success: boolean;
   transcript: string;
   preferences: ExtractedPreferences;
+  rawPreferences?: ExtractedPreferences;
   confidence: number;
   mandatoryFieldsCaptured: number;
   totalMandatoryFields: number;
+  recordingNumber?: number;
+  isFirstRecording?: boolean;
+  changesDetected?: number;
+  changes?: PreferenceChange[];
 }
 
 interface VoiceRecorderProps {

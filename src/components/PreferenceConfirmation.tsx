@@ -3,9 +3,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { CheckCircle, Edit, AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
+import { CheckCircle, Edit, AlertTriangle, Loader2, RefreshCw, History } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { ExtractedPreferences } from './VoiceRecorder';
+
+interface PreferenceChange {
+  field: string;
+  old: any;
+  new: any;
+  recording: number;
+}
 
 interface PreferenceConfirmationProps {
   preferences: ExtractedPreferences;
@@ -13,6 +20,10 @@ interface PreferenceConfirmationProps {
   confidence: number;
   mandatoryFieldsCaptured: number;
   totalMandatoryFields: number;
+  recordingNumber?: number;
+  isFirstRecording?: boolean;
+  changesDetected?: number;
+  changes?: PreferenceChange[];
   onConfirm: (edited: ExtractedPreferences) => Promise<void>;
   onReRecord: () => void;
 }
@@ -23,6 +34,10 @@ export const PreferenceConfirmation = ({
   confidence,
   mandatoryFieldsCaptured,
   totalMandatoryFields,
+  recordingNumber,
+  isFirstRecording,
+  changesDetected,
+  changes,
   onConfirm,
   onReRecord
 }: PreferenceConfirmationProps) => {
@@ -58,6 +73,24 @@ export const PreferenceConfirmation = ({
     }).format(value);
   };
 
+  const formatChangeValue = (field: string, value: any) => {
+    if (value === null || value === undefined) return 'none';
+
+    if (field.includes('price') || field.includes('budget')) {
+      return formatCurrency(value) || 'none';
+    }
+
+    if (typeof value === 'number') {
+      return value.toString();
+    }
+
+    if (Array.isArray(value)) {
+      return value.join(', ') || 'none';
+    }
+
+    return value;
+  };
+
   const confidenceColor = confidence >= 0.75 ? 'text-green-600' : confidence >= 0.5 ? 'text-yellow-600' : 'text-orange-600';
   const confidenceText = confidence >= 0.75 ? 'High' : confidence >= 0.5 ? 'Medium' : 'Low';
 
@@ -68,14 +101,44 @@ export const PreferenceConfirmation = ({
         <div className="flex items-center justify-center space-x-2 mb-3">
           <CheckCircle className="w-12 h-12 text-green-500" />
           <div className="text-left">
-            <h2 className="text-2xl font-bold">Great! Here's what we understood</h2>
+            <h2 className="text-2xl font-bold">
+              {isFirstRecording ? 'Great! Here\'s what we understood' : 'Preferences Updated!'}
+            </h2>
             <p className="text-sm text-gray-500">
               Confidence: <span className={`font-semibold ${confidenceColor}`}>{confidenceText}</span>
               {' '}({mandatoryFieldsCaptured}/{totalMandatoryFields} key fields captured)
+              {recordingNumber && (
+                <span className="ml-2">
+                  • Recording #{recordingNumber}
+                </span>
+              )}
             </p>
           </div>
         </div>
       </div>
+
+      {/* Changes Detected */}
+      {!isFirstRecording && changesDetected && changesDetected > 0 && changes && changes.length > 0 && (
+        <Card className="p-4 bg-blue-50 border-blue-200">
+          <div className="flex items-start space-x-2">
+            <History className="w-5 h-5 text-blue-600 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-blue-900 mb-2">
+                We detected {changesDetected} change{changesDetected > 1 ? 's' : ''} from your previous preferences:
+              </p>
+              <ul className="space-y-1">
+                {changes.map((change, idx) => (
+                  <li key={idx} className="text-sm text-blue-800">
+                    <span className="font-medium capitalize">{change.field}:</span>{' '}
+                    <span className="line-through opacity-70">{formatChangeValue(change.field, change.old)}</span>{' '}
+                    → <span className="font-semibold">{formatChangeValue(change.field, change.new)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Transcript */}
       <Card className="p-4 bg-gray-50 border-gray-200">

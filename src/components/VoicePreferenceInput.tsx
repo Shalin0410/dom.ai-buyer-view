@@ -5,13 +5,25 @@ import { Button } from './ui/button';
 import { Keyboard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+interface PreferenceChange {
+  field: string;
+  old: any;
+  new: any;
+  recording: number;
+}
+
 interface VoiceProcessingResult {
   success: boolean;
   transcript: string;
   preferences: ExtractedPreferences;
+  rawPreferences?: ExtractedPreferences;
   confidence: number;
   mandatoryFieldsCaptured: number;
   totalMandatoryFields: number;
+  recordingNumber?: number;
+  isFirstRecording?: boolean;
+  changesDetected?: number;
+  changes?: PreferenceChange[];
 }
 
 interface VoicePreferenceInputProps {
@@ -36,10 +48,15 @@ export const VoicePreferenceInput = ({
     setProcessingResult(result);
     setViewState('confirmation');
 
-    // Show success toast
+    // Show success toast with context
+    const isUpdate = !result.isFirstRecording;
+    const changesMsg = result.changesDetected
+      ? ` We detected ${result.changesDetected} change${result.changesDetected > 1 ? 's' : ''}.`
+      : '';
+
     toast({
-      title: 'Voice recorded successfully!',
-      description: `We captured ${result.mandatoryFieldsCaptured} out of ${result.totalMandatoryFields} key details.`,
+      title: isUpdate ? 'Preferences updated!' : 'Voice recorded successfully!',
+      description: `We captured ${result.mandatoryFieldsCaptured} out of ${result.totalMandatoryFields} key details.${changesMsg}`,
       duration: 3000,
     });
   };
@@ -148,6 +165,10 @@ export const VoicePreferenceInput = ({
           confidence={processingResult.confidence}
           mandatoryFieldsCaptured={processingResult.mandatoryFieldsCaptured}
           totalMandatoryFields={processingResult.totalMandatoryFields}
+          recordingNumber={processingResult.recordingNumber}
+          isFirstRecording={processingResult.isFirstRecording}
+          changesDetected={processingResult.changesDetected}
+          changes={processingResult.changes}
           onConfirm={handleConfirmPreferences}
           onReRecord={handleReRecord}
         />
