@@ -95,16 +95,16 @@ export const PreferenceConfirmation = ({
   const confidenceText = confidence >= 0.75 ? 'High' : confidence >= 0.5 ? 'Medium' : 'Low';
 
   return (
-    <div className="space-y-6 p-6 max-w-3xl mx-auto">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 max-w-3xl mx-auto">
       {/* Header */}
       <div className="text-center">
-        <div className="flex items-center justify-center space-x-2 mb-3">
-          <CheckCircle className="w-12 h-12 text-green-500" />
-          <div className="text-left">
-            <h2 className="text-2xl font-bold">
+        <div className="flex flex-col sm:flex-row items-center justify-center sm:space-x-2 space-y-2 sm:space-y-0 mb-3">
+          <CheckCircle className="w-10 h-10 sm:w-12 sm:h-12 text-green-500" />
+          <div className="sm:text-left text-center">
+            <h2 className="text-xl sm:text-2xl font-bold">
               {isFirstRecording ? 'Great! Here\'s what we understood' : 'Preferences Updated!'}
             </h2>
-            <p className="text-sm text-gray-500">
+            <p className="text-xs sm:text-sm text-gray-500">
               Confidence: <span className={`font-semibold ${confidenceColor}`}>{confidenceText}</span>
               {' '}({mandatoryFieldsCaptured}/{totalMandatoryFields} key fields captured)
               {recordingNumber && (
@@ -119,16 +119,16 @@ export const PreferenceConfirmation = ({
 
       {/* Changes Detected */}
       {!isFirstRecording && changesDetected && changesDetected > 0 && changes && changes.length > 0 && (
-        <Card className="p-4 bg-blue-50 border-blue-200">
+        <Card className="p-3 sm:p-4 bg-blue-50 border-blue-200">
           <div className="flex items-start space-x-2">
-            <History className="w-5 h-5 text-blue-600 mt-0.5" />
+            <History className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="text-sm font-semibold text-blue-900 mb-2">
+              <p className="text-xs sm:text-sm font-semibold text-blue-900 mb-2">
                 We detected {changesDetected} change{changesDetected > 1 ? 's' : ''} from your previous preferences:
               </p>
               <ul className="space-y-1">
                 {changes.map((change, idx) => (
-                  <li key={idx} className="text-sm text-blue-800">
+                  <li key={idx} className="text-xs sm:text-sm text-blue-800">
                     <span className="font-medium capitalize">{change.field}:</span>{' '}
                     <span className="line-through opacity-70">{formatChangeValue(change.field, change.old)}</span>{' '}
                     → <span className="font-semibold">{formatChangeValue(change.field, change.new)}</span>
@@ -141,9 +141,9 @@ export const PreferenceConfirmation = ({
       )}
 
       {/* Transcript */}
-      <Card className="p-4 bg-gray-50 border-gray-200">
-        <p className="text-sm font-medium text-gray-700 mb-2">Your message:</p>
-        <p className="text-sm text-gray-600 italic leading-relaxed">
+      <Card className="p-3 sm:p-4 bg-gray-50 border-gray-200">
+        <p className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Your message:</p>
+        <p className="text-xs sm:text-sm text-gray-600 italic leading-relaxed">
           "{transcript}"
         </p>
       </Card>
@@ -160,26 +160,26 @@ export const PreferenceConfirmation = ({
       )}
 
       {/* Extracted Preferences */}
-      <div className="space-y-5">
-        <h3 className="text-lg font-semibold flex items-center">
+      <div className="space-y-4 sm:space-y-5">
+        <h3 className="text-base sm:text-lg font-semibold flex items-center">
           Extracted Preferences
           {!isEditing && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setIsEditing(true)}
-              className="ml-auto"
+              className="ml-auto text-xs sm:text-sm"
             >
-              <Edit className="w-4 h-4 mr-1" />
+              <Edit className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
               Edit
             </Button>
           )}
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
           {/* Bedrooms */}
-          <Card className="p-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <Card className="p-3 sm:p-4">
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
               Bedrooms (minimum) <span className="text-red-500">*</span>
             </label>
             {isEditing ? (
@@ -190,18 +190,18 @@ export const PreferenceConfirmation = ({
                 value={edited.bedrooms || ''}
                 onChange={(e) => setEdited({ ...edited, bedrooms: parseInt(e.target.value) || null })}
                 placeholder="e.g., 3"
-                className={!edited.bedrooms ? 'border-red-300' : ''}
+                className={`text-sm sm:text-base ${!edited.bedrooms ? 'border-red-300' : ''}`}
               />
             ) : (
-              <p className="text-2xl font-semibold">
+              <p className="text-xl sm:text-2xl font-semibold">
                 {edited.bedrooms ? `${edited.bedrooms} BR` : <span className="text-gray-400">Not specified</span>}
               </p>
             )}
           </Card>
 
           {/* Bathrooms */}
-          <Card className="p-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <Card className="p-3 sm:p-4">
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
               Bathrooms (minimum) <span className="text-red-500">*</span>
             </label>
             {isEditing ? (
@@ -213,10 +213,10 @@ export const PreferenceConfirmation = ({
                 value={edited.bathrooms || ''}
                 onChange={(e) => setEdited({ ...edited, bathrooms: parseFloat(e.target.value) || null })}
                 placeholder="e.g., 2.5"
-                className={!edited.bathrooms ? 'border-red-300' : ''}
+                className={`text-sm sm:text-base ${!edited.bathrooms ? 'border-red-300' : ''}`}
               />
             ) : (
-              <p className="text-2xl font-semibold">
+              <p className="text-xl sm:text-2xl font-semibold">
                 {edited.bathrooms ? `${edited.bathrooms} BA` : <span className="text-gray-400">Not specified</span>}
               </p>
             )}
@@ -224,12 +224,12 @@ export const PreferenceConfirmation = ({
         </div>
 
         {/* Budget Range */}
-        <Card className="p-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+        <Card className="p-3 sm:p-4">
+          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
             Budget Range <span className="text-red-500">* (at least max)</span>
           </label>
           {isEditing ? (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">Minimum</label>
                 <Input
@@ -239,6 +239,7 @@ export const PreferenceConfirmation = ({
                   value={edited.price_min || ''}
                   onChange={(e) => setEdited({ ...edited, price_min: parseInt(e.target.value) || null })}
                   placeholder="$500,000"
+                  className="text-sm sm:text-base"
                 />
               </div>
               <div>
@@ -250,12 +251,12 @@ export const PreferenceConfirmation = ({
                   value={edited.price_max || ''}
                   onChange={(e) => setEdited({ ...edited, price_max: parseInt(e.target.value) || null })}
                   placeholder="$750,000"
-                  className={!edited.price_max ? 'border-red-300' : ''}
+                  className={`text-sm sm:text-base ${!edited.price_max ? 'border-red-300' : ''}`}
                 />
               </div>
             </div>
           ) : (
-            <p className="text-2xl font-semibold">
+            <p className="text-lg sm:text-2xl font-semibold">
               {edited.price_min && edited.price_max ? (
                 `${formatCurrency(edited.price_min)} - ${formatCurrency(edited.price_max)}`
               ) : edited.price_max ? (
@@ -268,8 +269,8 @@ export const PreferenceConfirmation = ({
         </Card>
 
         {/* Preferred Areas */}
-        <Card className="p-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+        <Card className="p-3 sm:p-4">
+          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
             Preferred Areas <span className="text-red-500">*</span>
           </label>
           {isEditing ? (
@@ -281,68 +282,68 @@ export const PreferenceConfirmation = ({
                 preferred_areas: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
               })}
               placeholder="e.g., Saratoga Springs, Campbell, Los Gatos"
-              className={!edited.preferred_areas || edited.preferred_areas.length === 0 ? 'border-red-300' : ''}
+              className={`text-sm sm:text-base ${!edited.preferred_areas || edited.preferred_areas.length === 0 ? 'border-red-300' : ''}`}
             />
           ) : (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               {edited.preferred_areas && edited.preferred_areas.length > 0 ? (
                 edited.preferred_areas.map((area, i) => (
-                  <Badge key={i} variant="secondary" className="text-sm px-3 py-1">
+                  <Badge key={i} variant="secondary" className="text-xs sm:text-sm px-2 sm:px-3 py-1">
                     📍 {area}
                   </Badge>
                 ))
               ) : (
-                <span className="text-gray-400">No areas specified</span>
+                <span className="text-gray-400 text-sm">No areas specified</span>
               )}
             </div>
           )}
         </Card>
 
         {/* Property Types */}
-        <Card className="p-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+        <Card className="p-3 sm:p-4">
+          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
             Property Types
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5 sm:gap-2">
             {edited.property_type_preferences && edited.property_type_preferences.length > 0 ? (
               edited.property_type_preferences.map((type, i) => (
-                <Badge key={i} variant="outline" className="text-sm px-3 py-1">
+                <Badge key={i} variant="outline" className="text-xs sm:text-sm px-2 sm:px-3 py-1">
                   🏠 {type.replace('_', ' ')}
                 </Badge>
               ))
             ) : (
-              <span className="text-gray-400 text-sm">No preference specified</span>
+              <span className="text-gray-400 text-xs sm:text-sm">No preference specified</span>
             )}
           </div>
         </Card>
 
         {/* Must-Have Features */}
-        <Card className="p-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+        <Card className="p-3 sm:p-4">
+          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
             Must-Have Features
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5 sm:gap-2">
             {edited.must_have_features && edited.must_have_features.length > 0 ? (
               edited.must_have_features.map((feature, i) => (
-                <Badge key={i} variant="default" className="text-sm px-3 py-1">
+                <Badge key={i} variant="default" className="text-xs sm:text-sm px-2 sm:px-3 py-1">
                   ✓ {feature}
                 </Badge>
               ))
             ) : (
-              <span className="text-gray-400 text-sm">No must-haves specified</span>
+              <span className="text-gray-400 text-xs sm:text-sm">No must-haves specified</span>
             )}
           </div>
         </Card>
 
         {/* Nice-to-Have Features */}
         {edited.nice_to_have_features && edited.nice_to_have_features.length > 0 && (
-          <Card className="p-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <Card className="p-3 sm:p-4">
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
               Nice-to-Have Features
             </label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               {edited.nice_to_have_features.map((feature, i) => (
-                <Badge key={i} variant="secondary" className="text-sm px-3 py-1">
+                <Badge key={i} variant="secondary" className="text-xs sm:text-sm px-2 sm:px-3 py-1">
                   {feature}
                 </Badge>
               ))}
@@ -352,26 +353,26 @@ export const PreferenceConfirmation = ({
 
         {/* Urgency & Move-in Date */}
         {(edited.urgency_level || edited.ideal_move_in_date) && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             {edited.urgency_level && (
-              <Card className="p-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <Card className="p-3 sm:p-4">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                   Urgency Level
                 </label>
                 <Badge
                   variant={edited.urgency_level === 'high' ? 'destructive' : 'secondary'}
-                  className="text-sm px-3 py-1"
+                  className="text-xs sm:text-sm px-2 sm:px-3 py-1"
                 >
                   {edited.urgency_level}
                 </Badge>
               </Card>
             )}
             {edited.ideal_move_in_date && (
-              <Card className="p-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <Card className="p-3 sm:p-4">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                   Ideal Move-in Date
                 </label>
-                <p className="text-lg font-medium">
+                <p className="text-base sm:text-lg font-medium">
                   {new Date(edited.ideal_move_in_date).toLocaleDateString('en-US', {
                     year: 'numeric',
                     month: 'long',
@@ -391,13 +392,13 @@ export const PreferenceConfirmation = ({
             <Button
               onClick={() => setIsEditing(false)}
               variant="outline"
-              className="flex-1"
+              className="flex-1 h-11 sm:h-auto text-sm sm:text-base"
             >
               Cancel
             </Button>
             <Button
               onClick={() => setIsEditing(false)}
-              className="flex-1 bg-blue-600 hover:bg-blue-700"
+              className="flex-1 h-11 sm:h-auto text-sm sm:text-base bg-blue-600 hover:bg-blue-700"
             >
               Save Changes
             </Button>
@@ -407,24 +408,24 @@ export const PreferenceConfirmation = ({
             <Button
               onClick={onReRecord}
               variant="outline"
-              className="flex-1"
+              className="flex-1 h-11 sm:h-auto text-sm sm:text-base"
             >
-              <RefreshCw className="w-4 h-4 mr-2" />
+              <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
               Record Again
             </Button>
             <Button
               onClick={handleConfirm}
               disabled={isSaving || missingFields.length > 0}
-              className="flex-1 bg-green-600 hover:bg-green-700"
+              className="flex-1 h-11 sm:h-auto text-sm sm:text-base bg-green-600 hover:bg-green-700"
             >
               {isSaving ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-2 animate-spin" />
                   Saving...
                 </>
               ) : (
                 <>
-                  <CheckCircle className="w-4 h-4 mr-2" />
+                  <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
                   Looks Good!
                 </>
               )}
@@ -434,7 +435,7 @@ export const PreferenceConfirmation = ({
       </div>
 
       {missingFields.length > 0 && (
-        <p className="text-sm text-center text-gray-500">
+        <p className="text-xs sm:text-sm text-center text-gray-500">
           Please provide all required fields before confirming
         </p>
       )}

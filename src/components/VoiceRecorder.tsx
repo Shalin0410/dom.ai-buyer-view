@@ -307,110 +307,88 @@ export const VoiceRecorder = ({ onComplete, onError }: VoiceRecorderProps) => {
   }
 
   return (
-    <div className="flex flex-col items-center space-y-6 p-8 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg">
+    <div className="text-center w-full">
       {/* Error Display */}
-      {error && (
-        <Alert variant="destructive" className="w-full max-w-md">
+      {error && !permissionDenied && (
+        <Alert variant="destructive" className="mb-4">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription className="text-xs sm:text-sm">{error}</AlertDescription>
         </Alert>
       )}
 
-      {/* Waveform Visualization */}
-      {isRecording && (
-        <div className="flex items-center justify-center space-x-1 h-20 w-full max-w-md">
-          {[...Array(24)].map((_, i) => (
-            <div
-              key={i}
-              className="w-1.5 bg-blue-500 rounded-full transition-all duration-75 ease-out"
-              style={{
-                height: `${Math.max(8, audioLevel * 80 * (0.5 + Math.sin((i + duration) * 0.5) * 0.5))}px`,
-                opacity: 0.4 + audioLevel * 0.6
-              }}
-            />
-          ))}
+      {/* Recording Area */}
+      <div className="relative my-6 sm:my-8 py-8 sm:py-12 px-4 sm:px-6 bg-gray-50 rounded-xl sm:rounded-2xl border border-gray-200">
+        {/* Large Circular Record Button */}
+        <button
+          onClick={isRecording ? stopRecording : startRecording}
+          disabled={isProcessing || permissionDenied}
+          className={`
+            w-20 h-20 sm:w-24 sm:h-24 rounded-full mx-auto flex items-center justify-center
+            bg-gradient-to-br from-indigo-600 to-purple-600
+            shadow-lg transition-all duration-300 ease-out
+            hover:scale-110 hover:shadow-xl
+            disabled:opacity-50 disabled:cursor-not-allowed
+            ${isRecording ? 'animate-[pulse_2s_ease-in-out_infinite]' : ''}
+          `}
+          style={{
+            boxShadow: isRecording
+              ? '0 0 0 0 rgba(99, 102, 241, 0.7)'
+              : '0 4px 12px rgba(79, 70, 229, 0.25)'
+          }}
+        >
+          {isProcessing ? (
+            <Loader2 className="w-8 h-8 sm:w-9 sm:h-9 text-white animate-spin" />
+          ) : (
+            <svg className="w-8 h-8 sm:w-9 sm:h-9 fill-white" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+              <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+            </svg>
+          )}
+        </button>
+
+        {/* Recording Indicator */}
+        <div className={`mt-4 sm:mt-6 text-xs sm:text-sm font-medium min-h-5 ${isRecording ? 'text-indigo-600' : 'text-gray-600'}`}>
+          {!isRecording && !isProcessing && 'Tap to start recording'}
+          {isRecording && 'Recording... Tap again to stop'}
+          {isProcessing && 'Processing your preferences...'}
         </div>
-      )}
 
-      {/* Status Display */}
-      <div className="text-center">
-        {!isRecording && !isProcessing && !permissionDenied && (
-          <>
-            <div className="mb-4">
-              <Mic className="w-16 h-16 text-blue-500 mx-auto mb-2" />
-            </div>
-            <h3 className="text-2xl font-semibold mb-2">Tell us what you're looking for</h3>
-            <p className="text-gray-600 mb-2">
-              Just speak naturally about your dream home
-            </p>
-            <p className="text-sm text-gray-500">
-              We'll transcribe and extract your preferences automatically
-            </p>
-          </>
-        )}
-
+        {/* Timer */}
         {isRecording && (
-          <>
-            <div className="flex items-center justify-center space-x-2 mb-2">
-              <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-              <p className="text-lg font-medium text-red-600">Recording...</p>
-            </div>
-            <p className="text-4xl font-mono font-bold text-gray-800 mb-2">
-              {formatDuration(duration)}
-            </p>
-            <p className="text-sm text-gray-500">
-              Keep speaking or press stop when done
-            </p>
-            {duration > 240 && (
-              <p className="text-xs text-orange-500 mt-2">
-                Maximum recording time: 5 minutes
-              </p>
-            )}
-          </>
+          <div className="mt-4 sm:mt-5 text-3xl sm:text-4xl font-semibold text-indigo-600 tabular-nums">
+            {formatDuration(duration)}
+          </div>
         )}
 
-        {isProcessing && (
-          <>
-            <Loader2 className="w-16 h-16 animate-spin text-blue-500 mx-auto mb-4" />
-            <p className="text-xl font-medium mb-2">Processing your preferences...</p>
-            <p className="text-sm text-gray-500">
-              Transcribing audio and extracting details
-            </p>
-          </>
+        {/* Waveform */}
+        {isRecording && (
+          <div className="flex items-center justify-center gap-0.5 sm:gap-1 mt-5 sm:mt-7">
+            {[16, 24, 32, 40, 32, 24, 16].map((baseHeight, i) => (
+              <div
+                key={i}
+                className="w-0.5 sm:w-1 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-sm animate-[wave_1s_ease-in-out_infinite]"
+                style={{
+                  height: `${baseHeight * 0.75}px`,
+                  animationDelay: `${i * 0.1}s`
+                }}
+              />
+            ))}
+          </div>
         )}
       </div>
 
-      {/* Recording Controls */}
-      {!isProcessing && !permissionDenied && (
-        <div className="flex space-x-4">
-          {!isRecording ? (
-            <Button
-              size="lg"
-              onClick={startRecording}
-              className="bg-blue-600 hover:bg-blue-700 px-8 py-6 text-lg"
-            >
-              <Mic className="w-6 h-6 mr-2" />
-              Start Recording
-            </Button>
-          ) : (
-            <Button
-              size="lg"
-              onClick={stopRecording}
-              variant="destructive"
-              className="px-8 py-6 text-lg"
-            >
-              <Square className="w-6 h-6 mr-2" />
-              Stop & Process
-            </Button>
-          )}
-        </div>
+      {/* Processing Status */}
+      {isProcessing && (
+        <p className="text-xs sm:text-sm text-gray-500 mb-4">
+          Transcribing audio and extracting details...
+        </p>
       )}
 
       {/* Tips */}
       {!isRecording && !isProcessing && !permissionDenied && (
-        <div className="text-sm text-gray-600 text-center max-w-md bg-white/60 rounded-lg p-4">
+        <div className="text-xs sm:text-sm text-gray-600 text-center max-w-md mx-auto bg-white/60 rounded-lg p-3 sm:p-4">
           <p className="font-semibold mb-2">💡 Tips for best results:</p>
-          <ul className="text-left space-y-1.5 text-xs">
+          <ul className="text-left space-y-1 sm:space-y-1.5 text-xs">
             <li>• <strong>Speak clearly</strong> in a quiet environment</li>
             <li>• <strong>Mention:</strong> bedrooms, bathrooms, budget, and areas you prefer</li>
             <li>• <strong>Share must-haves:</strong> garage, good schools, pool, etc.</li>
