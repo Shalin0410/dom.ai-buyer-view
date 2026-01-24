@@ -1,5 +1,5 @@
 
-import { MessageSquare, Search, LayoutDashboard, User, LogOut } from 'lucide-react';
+import { MessageSquare, Search, LayoutDashboard, User, LogOut, Mic } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface HeaderProps {
@@ -71,6 +71,11 @@ const Header = ({ activeTab, onTabChange }: HeaderProps) => {
               icon={User}
               label="Profile"
               tabKey="profile"
+            />
+            <NavButton
+              icon={Mic}
+              label="Voice Agent"
+              tabKey="voice-agent"
             />
 
             {/* Logout Button */}

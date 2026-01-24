@@ -2134,4 +2134,42 @@ export class SupabaseDataService extends BaseDataService {
     };
     return names[stage as keyof typeof names] || 'Property Timeline';
   }
+
+  // Login verification - uses admin client to bypass RLS for unauthenticated users
+  async verifyBuyerEmail(email: string): Promise<ApiResponse<Buyer>> {
+    try {
+      // Always use admin client to bypass RLS during login verification
+      const { data: buyerData, error: buyerError } = await supabaseAdmin
+        .from('persons')
+        .select(`
+          id,
+          email,
+          first_name,
+          last_name,
+          phone,
+          primary_role,
+          assigned_agent_id,
+          created_at,
+          updated_at
+        `)
+        .eq('email', email)
+        .eq('primary_role', 'buyer')
+        .single();
+
+      if (buyerError) {
+        if (buyerError.code === 'PGRST116') {
+          // No rows returned - buyer not found
+          return this.createResponse(null, 'Buyer not found');
+        }
+        console.error('Error verifying buyer email:', buyerError);
+        return this.createResponse(null, buyerError.message);
+      }
+
+      return this.createResponse(buyerData);
+    } catch (error) {
+      console.error('Error in verifyBuyerEmail:', error);
+      const apiError = this.handleError(error);
+      return this.createResponse(null, apiError.message);
+    }
+  }
 }

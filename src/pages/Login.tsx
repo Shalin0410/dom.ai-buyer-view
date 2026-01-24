@@ -1,59 +1,63 @@
 import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { Toaster } from '@/components/ui/toaster';
-import { useToast } from '@/hooks/use-toast';
-import { Grid2X2, Search, MessageSquare, User } from 'lucide-react';
+import { dataService } from '@/services';
 
 const Login = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const [magicLinkSent, setMagicLinkSent] = useState(false);
-  const { signInWithEmail } = useAuth();
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { toast } = useToast();
+
+  // Basic email format validation
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
 
   const handleSendMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
 
+    // Check if fields are filled
     if (!name || !email) {
-      toast({
-        title: 'Missing information',
-        description: 'Please fill in your name and email',
-        variant: 'destructive',
-        duration: 3000,
-      });
+      setError('Please fill in your name and email');
+      return;
+    }
+
+    // Validate email format
+    if (!isValidEmail(email)) {
+      setError('Please enter a valid email address');
       return;
     }
 
     setLoading(true);
 
     try {
-      await signInWithEmail(email);
-      setMagicLinkSent(true);
-      toast({
-        title: '✓ Magic link sent!',
-        description: `Check your email at ${email} and click the link to continue.`,
-        duration: 5000,
-      });
+      // Verify if the email exists in the database (uses admin client to bypass RLS)
+      const buyerResponse = await dataService.verifyBuyerEmail(email);
+
+      if (!buyerResponse.success || !buyerResponse.data) {
+        setError('No account found with this email address. Please check your email or contact your agent.');
+        setLoading(false);
+        return;
+      }
+
+      // Email exists - store user info and navigate to dashboard
+      localStorage.setItem('tempUserName', name);
+      localStorage.setItem('tempUserEmail', email);
+      localStorage.setItem('buyerId', buyerResponse.data.id);
+
+      // Navigate to main app dashboard
+      navigate('/');
     } catch (err: any) {
-      toast({
-        title: 'Failed to send magic link',
-        description: err.message,
-        variant: 'destructive',
-        duration: 5000,
-      });
-    } finally {
+      console.error('Login error:', err);
+      setError('Unable to verify your account. Please try again later.');
       setLoading(false);
     }
-  };
-
-  const handleSkipToVoice = () => {
-    navigate('/onboarding');
   };
 
   return (
@@ -145,27 +149,16 @@ const Login = () => {
               </p>
             </div>
 
-            <Button
-              onClick={handleSkipToVoice}
-              variant="outline"
-              className="w-full mt-4 py-2.5 sm:py-3 text-sm sm:text-base font-medium border-gray-300 hover:bg-gray-50"
-            >
-              Skip to Voice Demo →
-            </Button>
-
-            {magicLinkSent && (
-              <div className="mt-6 p-3 sm:p-4 bg-emerald-50 border border-emerald-200 rounded-lg animate-[fadeIn_0.4s_ease]">
-                <p className="text-xs sm:text-sm text-emerald-900 leading-relaxed">
-                  <strong className="font-semibold">✓ Magic link sent!</strong><br />
-                  Check your email at <span className="font-medium">{email}</span> and click the link to continue.
+            {error && (
+              <div className="mt-4 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg animate-[fadeIn_0.4s_ease]">
+                <p className="text-xs sm:text-sm text-red-900 leading-relaxed">
+                  <strong className="font-semibold">Error:</strong> {error}
                 </p>
               </div>
             )}
           </Card>
         </div>
       </div>
-
-      <Toaster />
 
       <style>{`
         @keyframes slideUp {
