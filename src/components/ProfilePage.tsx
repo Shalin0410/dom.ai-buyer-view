@@ -11,12 +11,22 @@ import { EditProfileModal } from '@/components/EditProfileModal';
 
 interface ProfilePageProps {
   userData: UserData;
+  openEditModalOnMount?: boolean;
+  onEditModalOpened?: () => void;
 }
 
-const ProfilePage = ({ userData }: ProfilePageProps) => {
+const ProfilePage = ({ userData, openEditModalOnMount, onEditModalOpened }: ProfilePageProps) => {
   const [editMode, setEditMode] = useState(false);
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
   const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
+
+  // Open edit modal on mount if requested
+  useEffect(() => {
+    if (openEditModalOnMount) {
+      setIsEditProfileModalOpen(true);
+      onEditModalOpened?.();
+    }
+  }, [openEditModalOnMount, onEditModalOpened]);
 
   // Fetch full user profile data from database
   const { data: userProfile, isLoading: isLoadingProfile, error: profileError, refetch: refetchProfile } = useUserProfile(userData.email);

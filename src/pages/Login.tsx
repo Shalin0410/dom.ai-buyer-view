@@ -1,29 +1,24 @@
 import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
-import { Grid2X2, Search, MessageSquare, User } from 'lucide-react';
+import { dataService } from '@/services';
 
 const Login = () => {
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const [magicLinkSent, setMagicLinkSent] = useState(false);
-  const { signInWithEmail } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleSendMagicLink = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!name || !email) {
+    if (!email) {
       toast({
         title: 'Missing information',
-        description: 'Please fill in your name and email',
+        description: 'Please enter your email address',
         variant: 'destructive',
         duration: 3000,
       });
@@ -33,17 +28,37 @@ const Login = () => {
     setLoading(true);
 
     try {
-      await signInWithEmail(email);
-      setMagicLinkSent(true);
+      // Verify email exists in persons table (bypasses RLS using admin client)
+      const response = await dataService.verifyBuyerEmail(email);
+
+      if (!response.success || !response.data) {
+        toast({
+          title: 'Account not found',
+          description: 'No account found with this email address. Please check your email or contact your agent.',
+          variant: 'destructive',
+          duration: 5000,
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Store buyer info in localStorage for the session
+      localStorage.setItem('buyerId', response.data.id);
+      localStorage.setItem('buyerEmail', email);
+
       toast({
-        title: '✓ Magic link sent!',
-        description: `Check your email at ${email} and click the link to continue.`,
-        duration: 5000,
+        title: '✓ Login successful!',
+        description: `Welcome back, ${response.data.first_name || 'there'}!`,
+        duration: 3000,
       });
+
+      // Navigate to main app
+      navigate('/');
     } catch (err: any) {
+      console.error('Login error:', err);
       toast({
-        title: 'Failed to send magic link',
-        description: err.message,
+        title: 'Login failed',
+        description: err.message || 'Unable to verify your account. Please try again.',
         variant: 'destructive',
         duration: 5000,
       });
@@ -67,24 +82,6 @@ const Login = () => {
             </div>
             <div className="text-lg sm:text-xl font-semibold text-gray-900">Dom AI</div>
           </div>
-          {/* <nav className="flex items-center gap-3 sm:gap-6">
-            <a href="#dashboard" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
-              <Grid2X2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Dashboard</span>
-            </a>
-            <a href="#search" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
-              <Search className="w-4 h-4" />
-              <span className="hidden sm:inline">Search</span>
-            </a>
-            <a href="#messages" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
-              <MessageSquare className="w-4 h-4" />
-              <span className="hidden sm:inline">Messages</span>
-            </a>
-            <a href="#profile" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
-              <User className="w-4 h-4" />
-              <span className="hidden sm:inline">Profile</span>
-            </a>
-          </nav> */}
         </div>
       </header>
 
@@ -96,25 +93,10 @@ const Login = () => {
               Welcome to Dom
             </h2>
             <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8 leading-relaxed">
-              Get started with your home search journey. We'll send you a secure link to sign in.
+              Get started with your home search journey. Enter your email to sign in.
             </p>
 
-            <form onSubmit={handleSendMagicLink} className="space-y-4 sm:space-y-5">
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-900 mb-2">
-                  Full Name
-                </label>
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="John Doe"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  disabled={loading}
-                  className="w-full text-sm sm:text-base px-3 sm:px-4 py-2.5 sm:py-3 border-gray-300 focus:border-indigo-600 focus:ring-indigo-600"
-                />
-              </div>
-
+            <form onSubmit={handleLogin} className="space-y-4 sm:space-y-5">
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-900 mb-2">
                   Email Address
@@ -135,13 +117,13 @@ const Login = () => {
                 disabled={loading}
                 className="w-full py-3 sm:py-3.5 text-sm sm:text-base font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all"
               >
-                {loading ? 'Sending...' : 'Send Magic Link'}
+                {loading ? 'Signing in...' : 'Sign In'}
               </Button>
             </form>
 
             <div className="mt-4 p-3 bg-gray-50 rounded-lg text-center">
               <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-                🔒 We'll send you a secure link to access your account. No password needed!
+                🔒 Your email will be verified against our database.
               </p>
             </div>
 
@@ -152,20 +134,9 @@ const Login = () => {
             >
               Skip to Voice Demo →
             </Button>
-
-            {magicLinkSent && (
-              <div className="mt-6 p-3 sm:p-4 bg-emerald-50 border border-emerald-200 rounded-lg animate-[fadeIn_0.4s_ease]">
-                <p className="text-xs sm:text-sm text-emerald-900 leading-relaxed">
-                  <strong className="font-semibold">✓ Magic link sent!</strong><br />
-                  Check your email at <span className="font-medium">{email}</span> and click the link to continue.
-                </p>
-              </div>
-            )}
           </Card>
         </div>
       </div>
-
-      <Toaster />
 
       <style>{`
         @keyframes slideUp {
@@ -177,10 +148,6 @@ const Login = () => {
             opacity: 1;
             transform: translateY(0);
           }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
         }
       `}</style>
     </>

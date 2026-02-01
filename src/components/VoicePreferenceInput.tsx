@@ -3,8 +3,6 @@ import { VoiceRecorder, type ExtractedPreferences } from './VoiceRecorder';
 import { PreferenceConfirmation } from './PreferenceConfirmation';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Card } from './ui/card';
-import { Keyboard, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface PreferenceChange {
@@ -156,6 +154,12 @@ export const VoicePreferenceInput = ({
     });
   };
 
+  const handleSkipToQuestions = () => {
+    if (onSkip) {
+      onSkip();
+    }
+  };
+
   if (viewState === 'completed') {
     return (
       <div className="text-center p-8">
@@ -170,67 +174,34 @@ export const VoicePreferenceInput = ({
 
   return (
     <div className="w-full">
-      {/* Header */}
-      <div className="text-center mb-4 sm:mb-6">
-        <h2 className="text-2xl sm:text-3xl font-bold mb-2">Let's Find Your Dream Home</h2>
-        <p className="text-sm sm:text-base text-gray-600">
-          Tell us what you're looking for - we'll take care of the rest
-        </p>
-      </div>
-
-      {/* Main Content */}
+      {/* Recording View */}
       {viewState === 'recording' && (
-        <>
-          <VoiceRecorder
-            onComplete={handleRecordingComplete}
-            onError={handleRecordingError}
-          />
-
-          {/* Alternative Options */}
-          <div className="mt-6 sm:mt-8 flex flex-col items-center space-y-3 sm:space-y-4">
-            <div className="text-xs sm:text-sm text-gray-500">
-              Prefer not to record?
-            </div>
-            <div className="flex space-x-3">
-              {showSkipOption && onSkip && (
-                <Button
-                  variant="outline"
-                  onClick={onSkip}
-                  className="text-xs sm:text-sm"
-                >
-                  <Keyboard className="w-4 h-4 mr-2" />
-                  Fill out form instead
-                </Button>
-              )}
-            </div>
-          </div>
-        </>
+        <VoiceRecorder
+          onComplete={handleRecordingComplete}
+          onError={handleRecordingError}
+          onSkipToQuestions={showSkipOption && onSkip ? handleSkipToQuestions : undefined}
+        />
       )}
 
+      {/* Missing Fields View */}
       {viewState === 'missing-fields' && editedPreferences && (
-        <Card className="p-6 sm:p-8 shadow-xl border border-gray-200 rounded-2xl max-w-2xl mx-auto">
-          <div className="flex items-start gap-3 mb-6">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-orange-50 flex items-center justify-center flex-shrink-0">
-              <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
-            </div>
-            <div>
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">
-                Just a few more details
-              </h3>
-              <p className="text-sm sm:text-base text-gray-600">
-                We need a bit more information to find your perfect home
-              </p>
-            </div>
-          </div>
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 sm:p-8 lg:p-10 max-w-xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-3">
+            Just a few more details
+          </h2>
+          <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8">
+            We need a bit more information to find your perfect home
+          </p>
 
-          <div className="space-y-4 sm:space-y-5 mt-6 sm:mt-8">
-            {/* Location */}
+          <div className="space-y-5">
+            {/* Location - Show if missing */}
             {(!editedPreferences.preferred_areas || editedPreferences.preferred_areas.length === 0) && (
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
+                <label htmlFor="fillLocation" className="block text-sm font-medium text-gray-900 mb-2">
                   Where are you looking? <span className="text-red-500">*</span>
                 </label>
                 <Input
+                  id="fillLocation"
                   type="text"
                   placeholder="e.g., San Francisco, Oakland, Berkeley"
                   value={editedPreferences.preferred_areas?.join(', ') || ''}
@@ -238,21 +209,19 @@ export const VoicePreferenceInput = ({
                     const areas = e.target.value.split(',').map(a => a.trim()).filter(Boolean);
                     setEditedPreferences(prev => prev ? { ...prev, preferred_areas: areas } : null);
                   }}
-                  className="w-full text-sm sm:text-base"
+                  className="w-full"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Separate multiple areas with commas
-                </p>
               </div>
             )}
 
-            {/* Bedrooms */}
+            {/* Bedrooms - Show if missing */}
             {!editedPreferences.bedrooms && (
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
+                <label htmlFor="fillBedrooms" className="block text-sm font-medium text-gray-900 mb-2">
                   Minimum bedrooms <span className="text-red-500">*</span>
                 </label>
                 <Input
+                  id="fillBedrooms"
                   type="number"
                   min="0"
                   placeholder="e.g., 3"
@@ -261,18 +230,19 @@ export const VoicePreferenceInput = ({
                     ...prev,
                     bedrooms: parseInt(e.target.value) || null
                   } : null)}
-                  className="w-full text-sm sm:text-base"
+                  className="w-full"
                 />
               </div>
             )}
 
-            {/* Bathrooms */}
+            {/* Bathrooms - Show if missing */}
             {!editedPreferences.bathrooms && (
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
+                <label htmlFor="fillBathrooms" className="block text-sm font-medium text-gray-900 mb-2">
                   Minimum bathrooms <span className="text-red-500">*</span>
                 </label>
                 <Input
+                  id="fillBathrooms"
                   type="number"
                   min="0"
                   step="0.5"
@@ -282,55 +252,50 @@ export const VoicePreferenceInput = ({
                     ...prev,
                     bathrooms: parseFloat(e.target.value) || null
                   } : null)}
-                  className="w-full text-sm sm:text-base"
+                  className="w-full"
                 />
               </div>
             )}
 
-            {/* Budget */}
+            {/* Budget - Show if missing */}
             {!editedPreferences.price_max && (
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
-                  Maximum budget <span className="text-red-500">*</span>
+                <label htmlFor="fillBudget" className="block text-sm font-medium text-gray-900 mb-2">
+                  Budget <span className="text-red-500">*</span>
                 </label>
                 <Input
-                  type="number"
-                  min="0"
-                  placeholder="e.g., 1200000"
-                  value={editedPreferences.price_max || ''}
-                  onChange={(e) => setEditedPreferences(prev => prev ? {
-                    ...prev,
-                    price_max: parseInt(e.target.value) || null
-                  } : null)}
-                  className="w-full text-sm sm:text-base"
+                  id="fillBudget"
+                  type="text"
+                  placeholder="e.g., $800,000 - $1,200,000"
+                  onChange={(e) => {
+                    // Parse budget string to extract max value
+                    const value = e.target.value.replace(/[^0-9,-]/g, '');
+                    const numbers = value.split(/[-,]/).map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+                    const maxBudget = numbers.length > 0 ? Math.max(...numbers) : null;
+                    const minBudget = numbers.length > 1 ? Math.min(...numbers) : null;
+                    setEditedPreferences(prev => prev ? {
+                      ...prev,
+                      price_max: maxBudget,
+                      price_min: minBudget
+                    } : null);
+                  }}
+                  className="w-full"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Enter amount in dollars (e.g., 1200000 for $1.2M)
-                </p>
               </div>
             )}
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 mt-6 sm:mt-8">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleReRecord}
-              className="flex-1"
-            >
-              Record Again
-            </Button>
-            <Button
-              type="button"
-              onClick={handleMissingFieldsComplete}
-              className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white"
-            >
-              Continue
-            </Button>
-          </div>
-        </Card>
+          <Button
+            type="button"
+            onClick={handleMissingFieldsComplete}
+            className="w-full mt-6 sm:mt-8 py-3 text-sm sm:text-base font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white"
+          >
+            Complete Profile
+          </Button>
+        </div>
       )}
 
+      {/* Confirmation View */}
       {viewState === 'confirmation' && processingResult && editedPreferences && (
         <PreferenceConfirmation
           preferences={editedPreferences}

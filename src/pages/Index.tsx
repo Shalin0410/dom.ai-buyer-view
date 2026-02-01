@@ -1,5 +1,6 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Header from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
 import MainAppContent from '@/components/MainAppContent';
@@ -8,7 +9,16 @@ import { useBuyer } from '@/hooks/useBuyer';
 import { UserData } from '@/types/user';
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'dashboard';
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  // Clear URL params after reading them
+  useEffect(() => {
+    if (searchParams.get('tab')) {
+      setSearchParams({});
+    }
+  }, []);
   
   const { user } = useAuth();
   const email = user?.email ?? '';

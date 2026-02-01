@@ -57,6 +57,9 @@ export interface DataService {
     saved: string[];
     passed: string[];
   }>>;
+
+  // Login verification (bypasses RLS for unauthenticated users)
+  verifyBuyerEmail(email: string): Promise<ApiResponse<Buyer>>;
 }
 
 // Abstract base class for data service implementations
@@ -114,6 +117,9 @@ export abstract class BaseDataService implements DataService {
     saved: string[];
     passed: string[];
   }>>;
+
+  // Login verification (bypasses RLS for unauthenticated users)
+  abstract verifyBuyerEmail(email: string): Promise<ApiResponse<Buyer>>;
 
   protected handleError(error: any): ApiError {
     if (error instanceof ApiError) {

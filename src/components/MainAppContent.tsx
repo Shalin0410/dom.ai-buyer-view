@@ -5,18 +5,22 @@ import ChatbotTest from '@/components/ChatbotTest';
 import PropertySwiping from '@/components/PropertySwiping';
 import ProfilePage from '@/components/ProfilePage';
 import PropertyDetailPage from '@/components/PropertyDetailPage';
+import { VoicePreferenceInput } from '@/components/VoicePreferenceInput';
 import { dataService } from '@/services';
 import { UserData } from '@/types/user';
+import { ExtractedPreferences } from '@/components/VoiceRecorder';
 
 interface MainAppContentProps {
   activeTab: string;
   userData: UserData | null;
   onTabChange?: (tab: string) => void;
+  openEditProfileOnMount?: boolean;
 }
 
-const MainAppContent = ({ activeTab, userData, onTabChange }: MainAppContentProps) => {
+const MainAppContent = ({ activeTab, userData, onTabChange, openEditProfileOnMount }: MainAppContentProps) => {
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [agentEmail, setAgentEmail] = useState<string>('agent@example.com');
+  const [shouldOpenEditProfile, setShouldOpenEditProfile] = useState(openEditProfileOnMount || false);
 
   // Fetch agent email using proper buyer->agent lookup flow
   useEffect(() => {
@@ -86,6 +90,29 @@ const MainAppContent = ({ activeTab, userData, onTabChange }: MainAppContentProp
     }
   };
 
+  const handleVoicePreferencesComplete = (preferences: ExtractedPreferences) => {
+    console.log('Voice preferences completed:', preferences);
+    // Navigate to profile after completing voice preferences
+    if (onTabChange) {
+      onTabChange('profile');
+    }
+  };
+
+  const handleFormFillRequest = () => {
+    // Navigate to profile tab and trigger edit profile modal
+    setShouldOpenEditProfile(true);
+    if (onTabChange) {
+      onTabChange('profile');
+    }
+  };
+
+  // Reset shouldOpenEditProfile after navigating away from profile
+  useEffect(() => {
+    if (activeTab !== 'profile' && shouldOpenEditProfile) {
+      setShouldOpenEditProfile(false);
+    }
+  }, [activeTab, shouldOpenEditProfile]);
+
   // Reset selected property when tab changes away from dashboard
   useEffect(() => {
     if (selectedPropertyId && activeTab !== 'dashboard') {
@@ -124,7 +151,22 @@ const MainAppContent = ({ activeTab, userData, onTabChange }: MainAppContentProp
           agentEmail={agentEmail}
         />
       )}
-      {activeTab === 'profile' && <ProfilePage userData={userData} />}
+      {activeTab === 'profile' && (
+        <ProfilePage
+          userData={userData}
+          openEditModalOnMount={shouldOpenEditProfile}
+          onEditModalOpened={() => setShouldOpenEditProfile(false)}
+        />
+      )}
+      {activeTab === 'voice-agent' && (
+        <div className="max-w-4xl mx-auto py-8">
+          <VoicePreferenceInput
+            onComplete={handleVoicePreferencesComplete}
+            onSkip={handleFormFillRequest}
+            showSkipOption={true}
+          />
+        </div>
+      )}
     </div>
   );
 };
