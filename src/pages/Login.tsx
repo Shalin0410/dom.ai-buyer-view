@@ -3,61 +3,72 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
 import { dataService } from '@/services';
 
 const Login = () => {
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
-  // Basic email format validation
-  const isValidEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  const handleSendMagicLink = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
 
-    // Check if fields are filled
-    if (!name || !email) {
-      setError('Please fill in your name and email');
-      return;
-    }
-
-    // Validate email format
-    if (!isValidEmail(email)) {
-      setError('Please enter a valid email address');
+    if (!email) {
+      toast({
+        title: 'Missing information',
+        description: 'Please enter your email address',
+        variant: 'destructive',
+        duration: 3000,
+      });
       return;
     }
 
     setLoading(true);
 
     try {
-      // Verify if the email exists in the database (uses admin client to bypass RLS)
-      const buyerResponse = await dataService.verifyBuyerEmail(email);
+      // Verify email exists in persons table (bypasses RLS using admin client)
+      const response = await dataService.verifyBuyerEmail(email);
 
-      if (!buyerResponse.success || !buyerResponse.data) {
-        setError('No account found with this email address. Please check your email or contact your agent.');
+      if (!response.success || !response.data) {
+        toast({
+          title: 'Account not found',
+          description: 'No account found with this email address. Please check your email or contact your agent.',
+          variant: 'destructive',
+          duration: 5000,
+        });
         setLoading(false);
         return;
       }
 
-      // Email exists - store user info and navigate to dashboard
-      localStorage.setItem('tempUserName', name);
-      localStorage.setItem('tempUserEmail', email);
-      localStorage.setItem('buyerId', buyerResponse.data.id);
+      // Store buyer info in localStorage for the session
+      localStorage.setItem('buyerId', response.data.id);
+      localStorage.setItem('buyerEmail', email);
 
-      // Navigate to main app dashboard
+      toast({
+        title: '✓ Login successful!',
+        description: `Welcome back, ${response.data.first_name || 'there'}!`,
+        duration: 3000,
+      });
+
+      // Navigate to main app
       navigate('/');
     } catch (err: any) {
       console.error('Login error:', err);
-      setError('Unable to verify your account. Please try again later.');
+      toast({
+        title: 'Login failed',
+        description: err.message || 'Unable to verify your account. Please try again.',
+        variant: 'destructive',
+        duration: 5000,
+      });
+    } finally {
       setLoading(false);
     }
+  };
+
+  const handleSkipToVoice = () => {
+    navigate('/onboarding');
   };
 
   return (
@@ -71,24 +82,6 @@ const Login = () => {
             </div>
             <div className="text-lg sm:text-xl font-semibold text-gray-900">Dom AI</div>
           </div>
-          {/* <nav className="flex items-center gap-3 sm:gap-6">
-            <a href="#dashboard" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
-              <Grid2X2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Dashboard</span>
-            </a>
-            <a href="#search" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
-              <Search className="w-4 h-4" />
-              <span className="hidden sm:inline">Search</span>
-            </a>
-            <a href="#messages" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
-              <MessageSquare className="w-4 h-4" />
-              <span className="hidden sm:inline">Messages</span>
-            </a>
-            <a href="#profile" className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
-              <User className="w-4 h-4" />
-              <span className="hidden sm:inline">Profile</span>
-            </a>
-          </nav> */}
         </div>
       </header>
 
@@ -100,25 +93,10 @@ const Login = () => {
               Welcome to Dom
             </h2>
             <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8 leading-relaxed">
-              Get started with your home search journey. We'll send you a secure link to sign in.
+              Get started with your home search journey. Enter your email to sign in.
             </p>
 
-            <form onSubmit={handleSendMagicLink} className="space-y-4 sm:space-y-5">
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-900 mb-2">
-                  Full Name
-                </label>
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="John Doe"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  disabled={loading}
-                  className="w-full text-sm sm:text-base px-3 sm:px-4 py-2.5 sm:py-3 border-gray-300 focus:border-indigo-600 focus:ring-indigo-600"
-                />
-              </div>
-
+            <form onSubmit={handleLogin} className="space-y-4 sm:space-y-5">
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-900 mb-2">
                   Email Address
@@ -139,23 +117,23 @@ const Login = () => {
                 disabled={loading}
                 className="w-full py-3 sm:py-3.5 text-sm sm:text-base font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all"
               >
-                {loading ? 'Sending...' : 'Send Magic Link'}
+                {loading ? 'Signing in...' : 'Sign In'}
               </Button>
             </form>
 
             <div className="mt-4 p-3 bg-gray-50 rounded-lg text-center">
               <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-                🔒 We'll send you a secure link to access your account. No password needed!
+                🔒 Your email will be verified against our database.
               </p>
             </div>
 
-            {error && (
-              <div className="mt-4 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg animate-[fadeIn_0.4s_ease]">
-                <p className="text-xs sm:text-sm text-red-900 leading-relaxed">
-                  <strong className="font-semibold">Error:</strong> {error}
-                </p>
-              </div>
-            )}
+            <Button
+              onClick={handleSkipToVoice}
+              variant="outline"
+              className="w-full mt-4 py-2.5 sm:py-3 text-sm sm:text-base font-medium border-gray-300 hover:bg-gray-50"
+            >
+              Skip to Voice Demo →
+            </Button>
           </Card>
         </div>
       </div>
@@ -170,10 +148,6 @@ const Login = () => {
             opacity: 1;
             transform: translateY(0);
           }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
         }
       `}</style>
     </>

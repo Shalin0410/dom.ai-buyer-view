@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Mic, Square, Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -42,9 +42,10 @@ interface VoiceProcessingResult {
 interface VoiceRecorderProps {
   onComplete: (result: VoiceProcessingResult) => void;
   onError: (error: string) => void;
+  onSkipToQuestions?: () => void;
 }
 
-export const VoiceRecorder = ({ onComplete, onError }: VoiceRecorderProps) => {
+export const VoiceRecorder = ({ onComplete, onError, onSkipToQuestions }: VoiceRecorderProps) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -307,95 +308,128 @@ export const VoiceRecorder = ({ onComplete, onError }: VoiceRecorderProps) => {
   }
 
   return (
-    <div className="text-center w-full">
-      {/* Error Display */}
-      {error && !permissionDenied && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="text-xs sm:text-sm">{error}</AlertDescription>
-        </Alert>
-      )}
+    <div className="w-full">
+      {/* Card Container */}
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 sm:p-8 lg:p-10 max-w-xl mx-auto">
+        {/* Title */}
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-3 text-center">
+          Describe your ideal home
+        </h2>
 
-      {/* Recording Area */}
-      <div className="relative my-6 sm:my-8 py-8 sm:py-12 px-4 sm:px-6 bg-gray-50 rounded-xl sm:rounded-2xl border border-gray-200">
-        {/* Large Circular Record Button */}
-        <button
-          onClick={isRecording ? stopRecording : startRecording}
-          disabled={isProcessing || permissionDenied}
-          className={`
-            w-20 h-20 sm:w-24 sm:h-24 rounded-full mx-auto flex items-center justify-center
-            bg-gradient-to-br from-indigo-600 to-purple-600
-            shadow-lg transition-all duration-300 ease-out
-            hover:scale-110 hover:shadow-xl
-            disabled:opacity-50 disabled:cursor-not-allowed
-            ${isRecording ? 'animate-[pulse_2s_ease-in-out_infinite]' : ''}
-          `}
-          style={{
-            boxShadow: isRecording
-              ? '0 0 0 0 rgba(99, 102, 241, 0.7)'
-              : '0 4px 12px rgba(79, 70, 229, 0.25)'
-          }}
-        >
-          {isProcessing ? (
-            <Loader2 className="w-8 h-8 sm:w-9 sm:h-9 text-white animate-spin" />
-          ) : (
-            <svg className="w-8 h-8 sm:w-9 sm:h-9 fill-white" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-              <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-            </svg>
+        {/* Subtitle with example */}
+        <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8 text-center leading-relaxed">
+          Example: "A single-family home in Potrero Hill, 3 bedrooms, lots of natural light, and a small yard."
+        </p>
+
+        {/* Error Display */}
+        {error && !permissionDenied && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="text-xs sm:text-sm">{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Voice Section */}
+        <div className="space-y-6">
+          {/* Recording Area */}
+          <div className="flex flex-col items-center py-6 sm:py-8">
+            {/* Record Button */}
+            <button
+              onClick={isRecording ? stopRecording : startRecording}
+              disabled={isProcessing || permissionDenied}
+              className={`
+                w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center
+                transition-all duration-300 ease-out
+                disabled:opacity-50 disabled:cursor-not-allowed
+                ${isRecording
+                  ? 'bg-red-500 hover:bg-red-600 animate-pulse'
+                  : 'bg-gradient-to-br from-indigo-600 to-purple-600 hover:scale-105 hover:shadow-xl'
+                }
+              `}
+              style={{
+                boxShadow: isRecording
+                  ? '0 0 0 8px rgba(239, 68, 68, 0.2)'
+                  : '0 4px 20px rgba(79, 70, 229, 0.3)'
+              }}
+            >
+              {isProcessing ? (
+                <Loader2 className="w-10 h-10 sm:w-12 sm:h-12 text-white animate-spin" />
+              ) : (
+                <svg className="w-10 h-10 sm:w-12 sm:h-12 fill-white" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                  <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                </svg>
+              )}
+            </button>
+
+            {/* Recording Indicator */}
+            <div className={`mt-4 sm:mt-5 text-sm sm:text-base font-medium ${isRecording ? 'text-red-500' : 'text-gray-600'}`}>
+              {!isRecording && !isProcessing && 'Tap to start recording'}
+              {isRecording && 'Recording... Tap again to stop'}
+              {isProcessing && 'Processing your preferences...'}
+            </div>
+
+            {/* Timer */}
+            {isRecording && (
+              <div className="mt-3 sm:mt-4 text-3xl sm:text-4xl font-semibold text-gray-900 tabular-nums">
+                {formatDuration(duration)}
+              </div>
+            )}
+
+            {/* Waveform */}
+            {isRecording && (
+              <div className="flex items-end justify-center gap-1 mt-4 sm:mt-5 h-10">
+                {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+                  <div
+                    key={i}
+                    className="w-1 sm:w-1.5 bg-gradient-to-t from-indigo-600 to-purple-500 rounded-full animate-wave"
+                    style={{
+                      animationDelay: `${i * 0.1}s`,
+                      height: '100%',
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Divider */}
+          {onSkipToQuestions && !isRecording && !isProcessing && (
+            <>
+              <div className="flex items-center gap-4">
+                <div className="flex-1 h-px bg-gray-200"></div>
+                <span className="text-sm text-gray-500 font-medium">or</span>
+                <div className="flex-1 h-px bg-gray-200"></div>
+              </div>
+
+              {/* Skip to Questions Button */}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onSkipToQuestions}
+                className="w-full py-3 text-sm sm:text-base font-medium border-gray-300 hover:bg-gray-50"
+              >
+                Answer questions instead
+              </Button>
+            </>
           )}
-        </button>
-
-        {/* Recording Indicator */}
-        <div className={`mt-4 sm:mt-6 text-xs sm:text-sm font-medium min-h-5 ${isRecording ? 'text-indigo-600' : 'text-gray-600'}`}>
-          {!isRecording && !isProcessing && 'Tap to start recording'}
-          {isRecording && 'Recording... Tap again to stop'}
-          {isProcessing && 'Processing your preferences...'}
         </div>
-
-        {/* Timer */}
-        {isRecording && (
-          <div className="mt-4 sm:mt-5 text-3xl sm:text-4xl font-semibold text-indigo-600 tabular-nums">
-            {formatDuration(duration)}
-          </div>
-        )}
-
-        {/* Waveform */}
-        {isRecording && (
-          <div className="flex items-center justify-center gap-0.5 sm:gap-1 mt-5 sm:mt-7">
-            {[16, 24, 32, 40, 32, 24, 16].map((baseHeight, i) => (
-              <div
-                key={i}
-                className="w-0.5 sm:w-1 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-sm animate-[wave_1s_ease-in-out_infinite]"
-                style={{
-                  height: `${baseHeight * 0.75}px`,
-                  animationDelay: `${i * 0.1}s`
-                }}
-              />
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* Processing Status */}
-      {isProcessing && (
-        <p className="text-xs sm:text-sm text-gray-500 mb-4">
-          Transcribing audio and extracting details...
-        </p>
-      )}
-
-      {/* Tips */}
-      {!isRecording && !isProcessing && !permissionDenied && (
-        <div className="text-xs sm:text-sm text-gray-600 text-center max-w-md mx-auto bg-white/60 rounded-lg p-3 sm:p-4">
-          <p className="font-semibold mb-2">💡 Tips for best results:</p>
-          <ul className="text-left space-y-1 sm:space-y-1.5 text-xs">
-            <li>• <strong>Speak clearly</strong> in a quiet environment</li>
-            <li>• <strong>Mention:</strong> bedrooms, bathrooms, budget, and areas you prefer</li>
-            <li>• <strong>Share must-haves:</strong> garage, good schools, pool, etc.</li>
-            <li>• <strong>Take your time</strong> - no rush, up to 5 minutes!</li>
-          </ul>
-        </div>
-      )}
+      {/* Waveform Animation Styles */}
+      <style>{`
+        @keyframes wave {
+          0%, 100% {
+            transform: scaleY(0.3);
+          }
+          50% {
+            transform: scaleY(1);
+          }
+        }
+        .animate-wave {
+          animation: wave 0.8s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 };
